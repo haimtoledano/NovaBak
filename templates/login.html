@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - VM Backup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm">
+        <h2 class="text-2xl font-bold text-center text-blue-600 mb-6">Backup Login</h2>
+        
+        {% if error %}
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 mb-4 text-sm">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form action="/login" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Username</label>
+                <input type="text" name="username" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Password</label>
+                <input type="password" name="password" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
+            </div>
+
+            <div id="mfaField" class="hidden">
+                <label class="block text-sm font-medium text-gray-700">MFA Code (6 Digits)</label>
+                <input type="text" name="mfa_code" placeholder="Optional for first login" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
+            </div>
+
+            <div class="flex items-center">
+                <input type="checkbox" id="showMfa" onchange="document.getElementById('mfaField').classList.toggle('hidden')" class="mr-2">
+                <label for="showMfa" class="text-sm text-gray-600">I have MFA enabled</label>
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">
+                Sign In
+            </button>
+        </form>
+    </div>
+</body>
+</html>
