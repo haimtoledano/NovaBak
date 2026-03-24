@@ -272,6 +272,7 @@ def read_root(request: Request, db: Session = Depends(get_db)):
     users = db.query(User).all()
     esxi_hosts = db.query(ESXiHost).all()
             
+    from models import NOTIFY_EVENTS
     return templates.TemplateResponse("index.html", {
         "request": request,
         "config": config,
@@ -279,8 +280,10 @@ def read_root(request: Request, db: Session = Depends(get_db)):
         "logs": logs,
         "users": users,
         "current_user": user,
-        "esxi_hosts": esxi_hosts
+        "esxi_hosts": esxi_hosts,
+        "notify_events": NOTIFY_EVENTS,
     })
+
 
 @app.post("/save_config")
 def save_config(
@@ -301,7 +304,9 @@ def save_config(
     imap_password: str = Form(""),
     imap_use_ssl: bool = Form(True),
     perf_compression_level: int = Form(0),
+    perf_parallel_threads: int = Form(0),
     backup_timeout_mins: int = Form(15),
+
     storage_type: str = Form("SMB"),
     nfs_path: str = Form(""),
     s3_endpoint: str = Form(""),
@@ -490,6 +495,36 @@ def test_smb(request: Request, db: Session = Depends(get_db)):
     success, msg = worker.authenticate_smb(config)
     return {"status": "success" if success else "error", "message": msg}
 
+@app.post("/api/test_smtp")
+def api_test_smtp(request: Request, db: Session = Depends(get_db)):
+    require_auth(request)
+    config = db.query(Config).first()
+    if not config or not config.smtp_server:
+        return JSONResponse({"ok": False, "message": "SMTP server not configured. Please save settings first."})
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        msg = MIMEText("This is a test email from NovaBak Enterprise.")
+        msg["Subject"] = "[NovaBak] Test Email"
+        msg["From"] = config.smtp_user if config.smtp_user else "novabak@local"
+        msg["To"] = config.smtp_to_email
+        if config.smtp_use_ssl:
+            server = smtplib.SMTP_SSL(config.smtp_server, config.smtp_port, timeout=10)
+        else:
+            server = smtplib.SMTP(config.smtp_server, config.smtp_port, timeout=10)
+        if not config.smtp_use_ssl and config.smtp_use_tls:
+            server.starttls()
+        if config.smtp_user and config.smtp_password:
+            server.login(config.smtp_user, config.smtp_password)
+        server.sendmail(msg["From"], [config.smtp_to_email], msg.as_string())
+        server.quit()
+        log_info(f"[SMTP TEST] Test email sent to {config.smtp_to_email}")
+        return JSONResponse({"ok": True, "message": f"Test email sent to {config.smtp_to_email}"})
+    except Exception as e:
+        log_warn(f"[SMTP TEST] Failed: {e}")
+        return JSONResponse({"ok": False, "message": f"SMTP test failed: {str(e)}"})
+
+
 @app.get("/get_datastores/{host_id}")
 def get_datastores(request: Request, host_id: int, db: Session = Depends(get_db)):
     require_auth(request)
@@ -653,6 +688,24 @@ def delete_user(request: Request, user_id: int = Form(...), db: Session = Depend
         
     return RedirectResponse(url="/", status_code=303)
 
+@app.post("/profile/update")
+def profile_update(
+    request: Request,
+    email: str = Form(""),
+    notify_subscriptions: str = Form(""),
+    db: Session = Depends(get_db)
+):
+    """Lets any logged-in user update their own email address and notification subscriptions."""
+    username = require_auth(request)
+    user = db.query(User).filter(User.username == username).first()
+    if user:
+        user.email = email.strip()
+        # notify_subscriptions arrives as a comma-separated string built by JS from checked checkboxes
+        user.notify_subscriptions = notify_subscriptions.strip()
+        db.commit()
+    return RedirectResponse(url="/?tab=settings&profile_saved=1", status_code=303)
+
+
 @app.post("/stop_job")
 def stop_job(request: Request, vm_id: int = Form(...), db: Session = Depends(get_db)):
     require_auth(request)
@@ -712,7 +765,13 @@ def cleanup_all_snapshots(request: Request, db: Session = Depends(get_db)):
 
     thread = threading.Thread(target=run_global_cleanup)
     thread.start()
+    worker.send_event_notification(
+        "snapshot_cleanup",
+        "[NovaBak] Snapshot Purge Triggered",
+        f"A global snapshot consolidation was initiated by a user at {time.strftime('%Y-%m-%d %H:%M')}."
+    )
     return RedirectResponse(url="/", status_code=303)
+
 
 @app.get("/api/syslogs")
 def get_syslogs(request: Request, s_lines: int = 100, s_search: str = "", w_lines: int = 100, w_search: str = "", db: Session = Depends(get_db)):
