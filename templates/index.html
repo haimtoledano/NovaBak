@@ -947,6 +947,8 @@
         try {
             await fetch(`/api/delete_restore/${id}`, {method: 'POST'});
         } catch(e) { console.error("Delete error:", e); }
+    }
+
     // ─── Handle query param redirects (tab switching + password feedback) ─────
     (function() {
         const params = new URLSearchParams(window.location.search);
@@ -960,13 +962,13 @@
         const msgEl = document.getElementById('pw-msg');
         if (msgEl) {
             if (pwOk) {
-                msgEl.textContent = '✅ Password changed successfully.';
+                msgEl.textContent = 'Password changed successfully.';
                 msgEl.classList.remove('hidden');
                 msgEl.style.background = 'rgba(34,197,94,0.12)';
                 msgEl.style.color = '#4ade80';
             } else if (pwErr) {
-                const msgs = { wrong_password: '❌ Current password is incorrect.', mismatch: '❌ New passwords do not match.', too_short: '❌ Minimum 6 characters required.' };
-                msgEl.textContent = msgs[pwErr] || '❌ An error occurred.';
+                const msgs = { wrong_password: 'Current password is incorrect.', mismatch: 'New passwords do not match.', too_short: 'Minimum 6 characters required.' };
+                msgEl.textContent = msgs[pwErr] || 'An error occurred.';
                 msgEl.classList.remove('hidden');
                 msgEl.style.background = 'rgba(239,68,68,0.12)';
                 msgEl.style.color = '#f87171';
@@ -975,5 +977,6 @@
         if (tab || pwOk || pwErr) window.history.replaceState({}, '', window.location.pathname);
     })();
     </script>
+
 </body>
 </html>
