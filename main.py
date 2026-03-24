@@ -639,12 +639,30 @@ if __name__ == "__main__":
         lock_fh = open(lock_file, "w")
         lock_fh.write(str(os.getpid()))
         lock_fh.flush()
-        
+
+        # Generate / verify SSL certificate
+        from ssl_util import ensure_ssl_cert
+        cert_file, key_file = ensure_ssl_cert()
+
         import uvicorn.config
         l_config = uvicorn.config.LOGGING_CONFIG
         l_config["formatters"]["access"]["fmt"] = "[%(asctime)s] %(levelprefix)s %(message)s"
         l_config["formatters"]["default"]["fmt"] = "[%(asctime)s] %(levelprefix)s %(message)s"
-        uvicorn.run("main:app", host="0.0.0.0", port=8000, log_config=l_config)
+
+        log_info("=" * 55)
+        log_info("  NovaBak is starting on HTTPS port 8000")
+        log_info("  Open: https://localhost:8000")
+        log_info("  (Browser will warn about self-signed cert — click Advanced → Proceed)")
+        log_info("=" * 55)
+
+        uvicorn.run(
+            "main:app",
+            host="0.0.0.0",
+            port=8000,
+            ssl_certfile=cert_file,
+            ssl_keyfile=key_file,
+            log_config=l_config,
+        )
     finally:
         if lock_fh:
             lock_fh.close()
@@ -653,3 +671,4 @@ if __name__ == "__main__":
                 os.remove(lock_file)
             except:
                 pass
+
