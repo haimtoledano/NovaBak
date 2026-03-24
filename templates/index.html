@@ -1,40 +1,212 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise VM Backup</title>
+    <title>NovaBak</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Light Modern Theme (Default Fallback) */
+            --bg-app: #f3f4f6;
+            --bg-nav: #ffffff;
+            --bg-card: #ffffff;
+            --border-color: #e5e7eb;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --brand: #2563eb;
+            --brand-hover: #1d4ed8;
+            --btn-sec: #f9fafb;
+            --btn-sec-border: #d1d5db;
+            --btn-sec-text: #374151;
+            --btn-sec-hover: #f3f4f6;
+            --font-base: 'Inter', sans-serif;
+            --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        [data-theme="dark"] {
+            /* Enterprise Dark Theme */
+            --bg-app: #111827;
+            --bg-nav: #111827;
+            --bg-card: #1f2937;
+            --border-color: #374151;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --brand: #3b82f6;
+            --brand-hover: #2563eb;
+            --btn-sec: #374151;
+            --btn-sec-border: #4b5563;
+            --btn-sec-text: #e5e7eb;
+            --btn-sec-hover: #4b5563;
+            --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        }
+
+        [data-theme="cyberpunk"] {
+            /* Cyberpunk Neon Theme */
+            --bg-app: #0a0a10;
+            --bg-nav: #050508;
+            --bg-card: #0f1322;
+            --border-color: #00f0ff;
+            --text-main: #00f0ff;
+            --text-muted: #0099cc;
+            --brand: #ff003c;
+            --brand-hover: #cc0033;
+            --btn-sec: #0f1322;
+            --btn-sec-border: #00f0ff;
+            --btn-sec-text: #00f0ff;
+            --btn-sec-hover: rgba(0, 240, 255, 0.2);
+            --font-base: 'JetBrains Mono', monospace;
+            --shadow-card: 0 0 10px rgba(0, 240, 255, 0.2);
+        }
+
+        body {
+            background-color: var(--bg-app);
+            color: var(--text-main);
+            font-family: var(--font-base);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .nav-bar { background-color: var(--bg-nav); border-bottom: 1px solid var(--border-color); }
+        .card { 
+            background-color: var(--bg-card); 
+            border: 1px solid var(--border-color); 
+            border-radius: 0.5rem; 
+            box-shadow: var(--shadow-card);
+            transition: all 0.3s; 
+        }
+
+        input, select {
+            background-color: var(--bg-card) !important; 
+            border: 1px solid var(--border-color) !important; 
+            color: var(--text-main) !important;
+            border-radius: 0.375rem !important;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--brand) !important; box-shadow: 0 0 0 2px var(--brand); }
+        .input-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.25rem; display: block; }
+
+        .btn-primary { background-color: var(--brand); color: #fff; transition: background-color 0.2s; border-radius: 0.375rem; }
+        .btn-primary:hover { background-color: var(--brand-hover); }
+        .btn-danger { background-color: #dc2626; color: white; transition: background-color 0.2s; border-radius: 0.375rem; }
+        .btn-danger:hover { background-color: #b91c1c; }
+        .btn-secondary { background-color: var(--btn-sec); color: var(--btn-sec-text); border: 1px solid var(--btn-sec-border); border-radius: 0.375rem; transition: background-color 0.2s; }
+        .btn-secondary:hover { background-color: var(--btn-sec-hover); }
+        
+        .prog-container { background: var(--border-color); height: 6px; border-radius: 3px; overflow: hidden; display: none; }
+        .prog-container.active { display: block; }
+        .prog-bar { height: 100%; background-color: var(--brand); width: 0%; transition: width 0.5s ease; border-radius: 3px; }
+        
+        .status-badge { display: inline-flex; align-items: center; padding: 0.125rem 0.625rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+        .status-success { background-color: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
+        .status-error { background-color: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+        .status-neutral { background-color: rgba(107, 114, 128, 0.1); color: var(--text-muted); border: 1px solid var(--border-color); }
+
+        /* Minimal scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-app); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* Terminal specific styles */
+        .terminal-window {
+            background-color: #000;
+            color: #0f0;
+            font-family: 'JetBrains Mono', monospace;
+            overflow-y: auto;
+            border-radius: 0.375rem;
+            border: 1px solid #333;
+        }
+    </style>
     <script>
+        // Theme Management
+        function applyTheme(themeName) {
+            document.documentElement.setAttribute('data-theme', themeName);
+            localStorage.setItem('userTheme', themeName);
+            document.getElementById('themeSelector').value = themeName;
+        }
+
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-nav').forEach(el => el.classList.remove('bg-blue-700', 'text-white'));
+            document.querySelectorAll('.tab-nav').forEach(el => {
+                el.classList.remove('border-[var(--brand)]', 'text-[var(--brand)]');
+                el.classList.add('border-transparent', 'text-[var(--text-muted)]');
+            });
             
             document.getElementById(tabId).classList.remove('hidden');
-            document.getElementById('nav-' + tabId).classList.add('bg-blue-700', 'text-white');
+            const navBtn = document.getElementById('nav-' + tabId);
+            navBtn.classList.remove('border-transparent', 'text-[var(--text-muted)]');
+            navBtn.classList.add('border-[var(--brand)]', 'text-[var(--brand)]');
+            localStorage.setItem('activeTab', tabId);
         }
+
+        function filterJobs() {
+            const searchQ = document.getElementById('jobSearch').value.toLowerCase();
+            const filterStat = document.getElementById('jobFilter').value;
+            const cards = document.querySelectorAll('.vm-job-card');
+
+            cards.forEach(card => {
+                const name = card.getAttribute('data-name').toLowerCase();
+                const status = card.getAttribute('data-status');
+                const isScheduled = card.getAttribute('data-scheduled') === 'true';
+                const isRunning = card.getAttribute('data-running') === 'true';
+
+                let matchesSearch = name.includes(searchQ);
+                let matchesStatus = true;
+
+                if (filterStat === 'active') matchesStatus = isRunning;
+                else if (filterStat === 'scheduled') matchesStatus = isScheduled;
+                else if (filterStat === 'error') matchesStatus = (status === 'Failed');
+                else if (filterStat === 'success') matchesStatus = (status === 'Success');
+
+                if (matchesSearch && matchesStatus) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const activeTab = localStorage.getItem('activeTab') || 'tab-jobs';
+            if (document.getElementById(activeTab)) { switchTab(activeTab); }
+            
+            const savedTheme = localStorage.getItem('userTheme') || 'light';
+            applyTheme(savedTheme);
+            
+            filterJobs();
+            
+            // Auto scroll terminal on load
+            const termPans = document.querySelectorAll('.terminal-window');
+            termPans.forEach(el => { el.scrollTop = el.scrollHeight; });
+        });
     </script>
 </head>
-<body class="bg-gray-100 min-h-screen text-gray-800 font-sans flex flex-col">
-
+<body class="min-h-screen flex flex-col">
+    
     <!-- Top Navigation -->
-    <nav class="bg-blue-600 text-white shadow-md">
+    <nav class="nav-bar sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <svg class="h-8 w-8 mr-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                    </svg>
-                    <span class="font-bold text-xl tracking-tight">VM Backup Enterprise</span>
+                <div class="flex items-center space-x-3">
+                    <img src="/static/novabak_logo.png" class="w-8 h-8 rounded" alt="NovaBak Logo">
+                    <span class="font-bold text-xl tracking-wide uppercase">NovaBak</span>
                 </div>
-                <div class="flex space-x-1 items-center">
-                    <button id="nav-tab-inventory" onclick="switchTab('tab-inventory')" class="tab-nav px-3 py-2 rounded-md text-sm font-medium bg-blue-700 text-white transition-colors">Inventory</button>
-                    <button id="nav-tab-jobs" onclick="switchTab('tab-jobs')" class="tab-nav px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-500 transition-colors">Jobs</button>
-                    <button id="nav-tab-settings" onclick="switchTab('tab-settings')" class="tab-nav px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-500 transition-colors">Settings</button>
-                    <button id="nav-tab-restore" onclick="switchTab('tab-restore')" class="tab-nav px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-500 transition-colors">Restore</button>
-                    <button id="nav-tab-security" onclick="switchTab('tab-security')" class="tab-nav px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-500 transition-colors">Security</button>
+                <div class="flex items-center">
+                    <div class="hidden md:flex space-x-6 mr-6 h-full">
+                        <button id="nav-tab-jobs" onclick="switchTab('tab-jobs')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Tasks</button>
+                        <button id="nav-tab-inventory" onclick="switchTab('tab-inventory')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Inventory</button>
+                        <button id="nav-tab-restore" onclick="switchTab('tab-restore')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Recovery</button>
+                        <button id="nav-tab-syslogs" onclick="switchTab('tab-syslogs')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">System Logs</button>
+                        <button id="nav-tab-settings" onclick="switchTab('tab-settings')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Settings</button>
+                    </div>
                     
-                    <a href="/logout" class="ml-4 px-3 py-2 bg-red-500 hover:bg-red-600 rounded-md text-sm text-white font-bold transition-colors">Logout</a>
+                    <select id="themeSelector" onchange="applyTheme(this.value)" class="text-xs mr-4 py-1 px-2 border-none ring-0">
+                        <option value="light">Mode: Light Modern</option>
+                        <option value="dark">Mode: Ent Dark</option>
+                        <option value="cyberpunk">Mode: Cyberpunk</option>
+                    </select>
+
+                    <a href="/logout" class="text-sm font-medium" style="color: #ef4444;">Sign Out</a>
                 </div>
             </div>
         </div>
@@ -42,444 +214,714 @@
 
     <div class="max-w-7xl w-full mx-auto py-8 px-4 sm:px-6 lg:px-8 flex-1">
         
-        <!-- Inventory Tab -->
-        <div id="tab-inventory" class="tab-content bg-white shadow rounded-lg p-6">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 class="text-2xl font-semibold text-gray-700">VM Inventory</h2>
-                <form action="/fetch_vms" method="POST" class="flex space-x-2">
-                    <select name="esxi_host_id" required class="border border-gray-300 rounded p-2 focus:ring-blue-500 focus:border-blue-500">
-                        <option value="" disabled selected>Select an ESXi Host...</option>
+        <!-- JOBS TAB -->
+        <div id="tab-jobs" class="tab-content">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 space-y-4 md:space-y-0">
+                <h2 class="text-2xl font-bold">Backup Tasks</h2>
+                
+                <div class="flex space-x-4 w-full md:w-auto">
+                    <div class="relative flex-grow md:w-64">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-4 w-4" style="color: var(--text-muted)" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        </div>
+                        <input type="text" id="jobSearch" onkeyup="filterJobs()" placeholder="Search VMs..." class="w-full pl-10 pr-3 py-2 text-sm">
+                    </div>
+                    <select id="jobFilter" onchange="filterJobs()" class="py-2 px-3 text-sm flex-none">
+                        <option value="all">All States</option>
+                        <option value="active">Currently Running</option>
+                        <option value="scheduled">Scheduled (Active)</option>
+                        <option value="error">Failed Backups</option>
+                        <option value="success">Successful Backups</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="jobsGrid">
+                {% for vm in vms %}
+                    {% if vm.is_selected %}
+                    <div class="card p-5 vm-job-card flex flex-col" 
+                         id="card-{{ vm.id }}"
+                         data-name="{{ vm.vm_name }}"
+                         data-status="{{ vm.last_status or 'None' }}"
+                         data-scheduled="{{ 'true' if vm.is_job_active else 'false' }}"
+                         data-running="{{ 'true' if (vm.current_action and vm.current_action != '') else 'false' }}">
+                        
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="font-bold text-lg truncate max-w-[200px]" title="{{ vm.vm_name }}">{{ vm.vm_name }}</h3>
+                                <div class="text-[10px] mt-1 font-mono font-medium opacity-80" style="color: var(--text-muted)">
+                                    {{ vm.cpu_count }} vCPU • {% if vm.memory_mb %}{{ vm.memory_mb // 1024 }}{% else %}0{% endif %}GB RAM • {{ vm.storage_gb }}GB Disk
+                                </div>
+                                <div class="text-xs mt-1 flex items-center" style="color: var(--brand)">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
+                                    {{ vm.esxi_host.name }}
+                                </div>
+                            </div>
+                            <div class="flex space-x-2 shrink-0">
+                                <form action="/stop_job" method="POST" id="form-stop-{{ vm.id }}" class="hidden">
+                                    <input type="hidden" name="vm_id" value="{{ vm.id }}">
+                                    <button type="submit" class="btn-danger p-1.5 rounded" title="Abort">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </form>
+                                <form action="/run_now" method="POST" id="form-run-{{ vm.id }}">
+                                    <input type="hidden" name="vm_id" value="{{ vm.id }}">
+                                    <button type="submit" class="btn-primary p-1.5 rounded flex items-center text-xs px-2 shadow-sm font-medium">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                                        Run Now
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between mb-4 mt-2">
+                            {% if vm.last_status == 'Success' %}
+                                <span class="status-badge status-success">Success</span>
+                            {% elif vm.last_status == 'Failed' %}
+                                <span class="status-badge status-error">Failed</span>
+                            {% else %}
+                                <span class="status-badge status-neutral">Idle</span>
+                            {% endif %}
+                            <div class="text-xs text-right" style="color: var(--text-muted)">
+                                <span class="block">Last Sync:</span>
+                                <span class="font-mono font-medium">{{ vm.last_backup.strftime('%Y-%m-%d %H:%M') if vm.last_backup else 'Never' }}</span>
+                            </div>
+                        </div>
+                        
+                        <div id="prog-wrap-{{ vm.id }}" class="mb-4 {% if vm.current_action %}block{% else %}hidden{% endif %}">
+                            <div class="flex justify-between text-xs mb-1">
+                                <span id="prog-text-{{ vm.id }}" class="font-medium truncate pr-2" style="color: var(--brand)">{{ vm.current_action or 'Initializing...' }}</span>
+                                <span id="prog-pct-{{ vm.id }}" class="font-mono font-medium" style="color: var(--text-main)">{{ vm.progress or '0' }}%</span>
+                            </div>
+                            <div id="prog-container-{{ vm.id }}" class="prog-container active">
+                                <div id="prog-bar-{{ vm.id }}" class="prog-bar" style="width: {{ vm.progress or 0 }}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="mt-auto pt-4" style="border-top: 1px solid var(--border-color)">
+                            <form action="/update_job" method="POST" class="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+                                <input type="hidden" name="vm_id" value="{{ vm.id }}">
+                                <div><span class="input-label text-[10px]">Hour</span><input type="number" name="schedule_hour" value="{{ vm.schedule_hour }}" min="0" max="23" class="w-full px-2 py-1 text-center font-mono text-sm"></div>
+                                <div><span class="input-label text-[10px]">Min</span><input type="number" name="schedule_minute" value="{{ vm.schedule_minute }}" min="0" max="59" class="w-full px-2 py-1 text-center font-mono text-sm"></div>
+                                <div><span class="input-label text-[10px]">Keep</span><input type="number" name="retention_count" value="{{ vm.retention_count }}" min="1" max="60" class="w-full px-2 py-1 text-center font-mono text-sm" title="Retention Count"></div>
+                                <div class="flex flex-col items-center justify-between h-full pb-0.5">
+                                    <label class="flex items-center text-[10px] font-semibold mb-1 cursor-pointer" style="color: var(--text-muted)">
+                                        <input type="checkbox" name="is_job_active" value="True" {% if vm.is_job_active %}checked{% endif %} class="mr-1 mt-0.5 rounded-sm">ON
+                                    </label>
+                                    <button type="submit" class="btn-secondary px-2 py-1 text-xs font-semibold w-full">Save</button>
+                                </div>
+                            </form>
+                            <!-- Power Off for Backup toggle (separate submit) -->
+                            <form action="/update_job" method="POST" class="mt-2 pt-2" style="border-top: 1px dashed var(--border-color)">
+                                <input type="hidden" name="vm_id" value="{{ vm.id }}">
+                                <input type="hidden" name="schedule_hour" value="{{ vm.schedule_hour }}">
+                                <input type="hidden" name="schedule_minute" value="{{ vm.schedule_minute }}">
+                                <input type="hidden" name="retention_count" value="{{ vm.retention_count }}">
+                                {% if vm.is_job_active %}<input type="hidden" name="is_job_active" value="True">{% endif %}
+                                <label class="flex items-center gap-2 cursor-pointer" title="Shuts down the VM before backup for ~2x faster transfer, then powers it back on automatically.">
+                                    <div class="relative flex-shrink-0 w-8 h-4">
+                                        <input type="checkbox" name="power_off_for_backup" value="True" {% if vm.power_off_for_backup %}checked{% endif %} onchange="this.form.submit()" class="sr-only peer">
+                                        <div class="absolute inset-0 rounded-full {% if vm.power_off_for_backup %}bg-orange-500{% else %}bg-gray-600{% endif %} transition-colors"></div>
+                                        <div class="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow {% if vm.power_off_for_backup %}translate-x-4{% endif %} transition-transform"></div>
+                                    </div>
+                                    <span class="text-[10px] font-semibold leading-tight {% if vm.power_off_for_backup %}text-orange-400{% else %}text-gray-500{% endif %}">
+                                        ⚡ {% if vm.power_off_for_backup %}Power Off (Fast){% else %}Live Backup (Safe){% endif %}
+                                    </span>
+                                </label>
+                            </form>
+
+                        </div>
+
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="col-span-full card p-10 text-center border-dashed font-medium" style="color: var(--text-muted)">
+                        No target VMs selected. Go to Inventory to select targets.
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- SYSTEM LOGS TAB (NEW) -->
+        <div id="tab-syslogs" class="tab-content hidden h-[calc(100vh-10rem)] flex flex-col">
+            <h2 class="text-2xl font-bold mb-4">Diagnostics Console</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-hidden">
+                <!-- Service Log -->
+                <div class="flex flex-col h-full overflow-hidden">
+                    <div class="text-xs font-bold uppercase mb-2 flex justify-between items-center" style="color: var(--text-muted)">
+                        <span>Web Interface Log</span>
+                        <div class="flex items-center space-x-2">
+                             <input type="text" id="dev-search-service" placeholder="Search..." class="px-2 py-1 text-[10px] font-sans w-24 md:w-32 rounded">
+                             <select id="dev-lines-service" class="px-1 py-1 text-[10px] font-sans border-0 rounded">
+                                 <option value="100">100 Lines</option>
+                                 <option value="200">200 Lines</option>
+                                 <option value="300">300 Lines</option>
+                             </select>
+                            <span class="flex items-center text-[10px] text-green-500"><span class="w-2 h-2 rounded-full bg-green-500 mr-1 animate-pulse"></span>LIVE</span>
+                        </div>
+                    </div>
+                    <div id="term-service" class="terminal-window flex-1 p-3 text-xs whitespace-pre-wrap">Loading...</div>
+                </div>
+                <!-- Worker Log -->
+                <div class="flex flex-col h-full overflow-hidden">
+                    <div class="text-xs font-bold uppercase mb-2 flex justify-between items-center" style="color: var(--text-muted)">
+                        <span>Data Plane Worker</span>
+                        <div class="flex items-center space-x-2">
+                             <input type="text" id="dev-search-worker" placeholder="Search..." class="px-2 py-1 text-[10px] font-sans w-24 md:w-32 rounded">
+                             <select id="dev-lines-worker" class="px-1 py-1 text-[10px] font-sans border-0 rounded">
+                                 <option value="100">100 Lines</option>
+                                 <option value="200">200 Lines</option>
+                                 <option value="300">300 Lines</option>
+                             </select>
+                            <span class="flex items-center text-[10px] text-green-500"><span class="w-2 h-2 rounded-full bg-green-500 mr-1 animate-pulse"></span>LIVE</span>
+                        </div>
+                    </div>
+                    <div id="term-worker" class="terminal-window flex-1 p-3 text-xs whitespace-pre-wrap">Loading...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- INVENTORY TAB -->
+        <div id="tab-inventory" class="tab-content hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Datacenter Inventory</h2>
+                <form action="/fetch_vms" method="POST" class="flex space-x-3">
+                    <select name="esxi_host_id" required class="py-2 px-3 text-sm rounded">
+                        <option value="" disabled selected>Select Hypervisor...</option>
                         {% for host in esxi_hosts %}
                         <option value="{{ host.id }}">{{ host.name }} ({{ host.host_ip }})</option>
                         {% endfor %}
                     </select>
-                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded shadow transition-colors">
-                        Fetch VMs
-                    </button>
+                    <button type="submit" class="btn-primary px-4 py-2 text-sm font-medium">Scan</button>
                 </form>
             </div>
             
-            <table class="min-w-full text-left text-sm whitespace-nowrap">
-                <thead class="uppercase tracking-wider border-b-2 font-bold text-gray-600">
-                    <tr>
-                        <th class="px-4 py-3">Select</th>
-                        <th class="px-4 py-3">VM Name</th>
-                        <th class="px-4 py-3">Source ESXi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for vm in vms %}
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="px-4 py-3">
-                            <form action="/toggle_vm" method="POST">
-                                <input type="hidden" name="vm_id" value="{{ vm.id }}">
-                                <input type="checkbox" name="is_selected" value="True" onchange="this.form.submit()" {% if vm.is_selected %}checked{% endif %} class="w-4 h-4 text-blue-600 bg-gray-100 rounded border-gray-300 focus:ring-blue-500 w-5 h-5 cursor-pointer">
-                            </form>
-                        </td>
-                        <td class="px-4 py-3 font-medium text-gray-800">{{ vm.vm_name }}</td>
-                        <td class="px-4 py-3 text-gray-600">{{ vm.esxi_host.name }}</td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="3" class="px-4 py-8 text-center text-gray-400">No VMs found. Add an ESXi host in Settings and click Fetch.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Jobs Tab -->
-        <div id="tab-jobs" class="tab-content hidden bg-white shadow rounded-lg p-6">
-            <h2 class="text-2xl font-semibold text-gray-700 border-b pb-2 mb-4">Backup Jobs</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {% for vm in vms %}
-                    {% if vm.is_selected %}
-                    <div class="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
-                        <div class="flex justify-between items-center border-b pb-2 mb-2">
-                            <span class="font-bold text-lg text-blue-600">{{ vm.vm_name }} <span class="text-xs text-gray-400 font-normal">({{ vm.esxi_host.name }})</span></span>
-                            <div class="flex space-x-2">
-                                <form action="/stop_job" method="POST" id="form-stop-{{ vm.id }}" class="hidden">
+            <div class="card overflow-hidden">
+                <table class="min-w-full text-left text-sm">
+                    <thead style="background-color: var(--bg-nav); border-bottom: 2px solid var(--border-color)">
+                        <tr>
+                            <th class="px-6 py-3 font-semibold w-16 text-center">Backup</th>
+                            <th class="px-6 py-3 font-semibold w-24 text-center">Status</th>
+                            <th class="px-6 py-3 font-semibold">Virtual Machine</th>
+                            <th class="px-6 py-3 font-semibold">Resources</th>
+                            <th class="px-6 py-3 font-semibold">Host Cluster</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y" style="border-color: var(--border-color)">
+                        {% for vm in vms %}
+                        <tr>
+                            <td class="px-6 py-3 text-center">
+                                <form action="/toggle_vm" method="POST">
                                     <input type="hidden" name="vm_id" value="{{ vm.id }}">
-                                    <button type="submit" class="bg-red-100 text-red-700 hover:bg-red-200 text-xs py-1 px-2 rounded shadow font-bold">⏹ Stop</button>
+                                    <input type="checkbox" name="is_selected" value="True" onchange="this.form.submit()" {% if vm.is_selected %}checked{% endif %} 
+                                           class="w-4 h-4 rounded cursor-pointer">
                                 </form>
-                                <form action="/run_now" method="POST" id="form-run-{{ vm.id }}">
-                                    <input type="hidden" name="vm_id" value="{{ vm.id }}">
-                                    <button type="submit" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-xs py-1 px-2 rounded shadow font-bold">▶ Run Now</button>
-                                </form>
-                            </div>
-                        </div>
-                        
-                        <div class="text-sm text-gray-600 mb-2 grid grid-cols-2">
-                            <span><strong>Last Status:</strong> 
-                                {% if vm.last_status == 'Success' %} <span class="text-green-600 font-bold">Success</span>
-                                {% elif vm.last_status == 'Failed' %} <span class="text-red-600 font-bold">Failed</span>
-                                {% else %} {{ vm.last_status }} {% endif %}
-                            </span>
-                            <span><strong>Last Backup:</strong> {{ vm.last_backup.strftime('%Y-%m-%d %H:%M') if vm.last_backup else 'Never' }}</span>
-                        </div>
-
-                        <!-- Live Progress Bar -->
-                        <div id="prog-container-{{ vm.id }}" class="mb-3 hidden">
-                            <div class="flex justify-between text-xs font-bold text-blue-600 mb-1">
-                                <span id="prog-text-{{ vm.id }}">Initializing Backup...</span>
-                                <span id="prog-pct-{{ vm.id }}">0%</span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2.5 shadow-inner">
-                              <div id="prog-bar-{{ vm.id }}" class="bg-blue-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
-                            </div>
-                        </div>
-
-                        <form action="/update_job" method="POST" class="bg-gray-50 p-3 rounded grid grid-cols-4 gap-2 items-end border">
-                            <input type="hidden" name="vm_id" value="{{ vm.id }}">
-                            <div>
-                                <label class="text-xs font-bold text-gray-700">Hour (0-23)</label>
-                                <input type="number" name="schedule_hour" value="{{ vm.schedule_hour }}" min="0" max="23" class="w-full border border-gray-300 p-1.5 rounded focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-gray-700">Minute (0-59)</label>
-                                <input type="number" name="schedule_minute" value="{{ vm.schedule_minute }}" min="0" max="59" class="w-full border border-gray-300 p-1.5 rounded focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-gray-700" title="Number of backup copies to keep">Versions</label>
-                                <input type="number" name="retention_count" value="{{ vm.retention_count }}" min="1" max="30" class="w-full border border-gray-300 p-1.5 rounded focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                            <div>
-                                <label class="flex items-center text-xs mb-1 font-bold text-gray-700">
-                                    <input type="checkbox" name="is_job_active" value="True" {% if vm.is_job_active %}checked{% endif %} class="mr-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"> Active
-                                </label>
-                                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs py-1.5 rounded font-bold transition-colors shadow">Save</button>
-                            </div>
-                        </form>
-                    </div>
-                    {% endif %}
-                {% else %}
-                    <div class="col-span-1 md:col-span-2 text-center text-gray-400 p-8 border-2 border-dashed rounded-xl">
-                        No VMs selected for backup.<br> Go to the Inventory tab to select target VMs to schedule.
-                    </div>
-                {% endfor %}
-            </div>
-
-            <!-- Logs Section inside Jobs -->
-            <h3 class="text-lg font-semibold text-gray-700 mt-8 border-b pb-2 mb-4">Recent Backup Logs</h3>
-            <div class="space-y-2 max-h-64 overflow-y-auto">
-                {% for log in logs %}
-                <div class="p-3 text-sm rounded border-l-4 shadow-sm {% if log.status == 'Success' %}bg-green-50 border-green-500{% else %}bg-red-50 border-red-500{% endif %}">
-                    <div class="font-bold flex justify-between">
-                        <span>{{ log.vm_name }} <span class="font-normal text-xs ml-2 text-gray-500">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span></span>
-                        <span class="{% if log.status == 'Success' %}text-green-600{% else %}text-red-600{% endif %} hover:underline cursor-default">{{ log.status }}</span>
-                    </div>
-                    <div class="text-gray-700 mt-1">{{ log.message }}</div>
-                </div>
-                {% else %}
-                <div class="p-4 text-sm text-center text-gray-400 italic bg-gray-50 rounded border border-dashed">No logs available yet. Background jobs will generate logs here.</div>
-                {% endfor %}
+                            </td>
+                            <td class="px-6 py-3 text-center">
+                                {% if vm.power_state == 'poweredOn' %}
+                                    <span class="status-badge status-success" title="Powered On">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>ON
+                                    </span>
+                                {% elif vm.power_state == 'poweredOff' %}
+                                    <span class="status-badge status-neutral" title="Powered Off">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5"></span>OFF
+                                    </span>
+                                {% else %}
+                                    <span class="status-badge status-neutral" title="{{ vm.power_state }}">
+                                        {{ vm.power_state or '???' }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-3 font-medium">{{ vm.vm_name }}</td>
+                            <td class="px-6 py-3 font-mono text-xs">
+                                <span class="opacity-80">{{ vm.cpu_count }} vCPU | {% if vm.memory_mb %}{{ vm.memory_mb // 1024 }}{% else %}0{% endif %}GB RAM | {{ vm.storage_gb }}GB</span>
+                            </td>
+                            <td class="px-6 py-3" style="color: var(--text-muted)">{{ vm.esxi_host.name }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="px-6 py-10 text-center font-medium" style="color: var(--text-muted)">No Inventory Data. Execute a Datacenter Scan.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Settings Tab -->
-        <div id="tab-settings" class="tab-content hidden bg-white shadow rounded-lg p-6">
-            <h2 class="text-2xl font-semibold text-gray-700 border-b pb-2 mb-6">Core Configuration</h2>
+        <!-- SETTINGS TAB -->
+        <div id="tab-settings" class="tab-content hidden">
+            <!-- Included abbreviated settings for layout - you can insert full settings code from previous implementations here -->
+            <h2 class="text-2xl font-bold mb-6">Engine Configuration</h2>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                <!-- ESXi Hosts Management -->
-                <div class="bg-gray-50 border rounded-xl overflow-hidden shadow-sm self-start">
-                    <div class="bg-blue-100 px-4 py-3 border-b font-bold text-blue-800">Target ESXi Hosts</div>
-                    <ul class="divide-y">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <!-- Advanced Tools -->
+                 <div class="lg:col-span-3 card p-5 flex flex-col md:flex-row gap-4 justify-between items-center" style="border-top: 4px solid #eab308">
+                    <div>
+                        <h3 class="font-bold flex items-center mb-1">
+                            <svg class="w-5 h-5 mr-2" style="color: #eab308" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                            Storage Consolidation Utility
+                        </h3>
+                        <p class="text-sm" style="color: var(--text-muted)">Forcefully remove orphaned snapshots across all selected hosts. May cause I/O stun.</p>
+                    </div>
+                    <form action="/cleanup_all_snapshots" method="POST" onsubmit="return confirm('Initiate global snapshot consolidation on all clusters?');">
+                        <button type="submit" class="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap text-yellow-600">Purge Snapshots</button>
+                    </form>
+                </div>
+
+                <!-- Datacenters List -->
+                <div class="card overflow-hidden flex flex-col h-full col-span-1">
+                    <div class="px-5 py-3 border-b font-semibold" style="border-color: var(--border-color); background-color: var(--bg-nav)">Registered Hosts</div>
+                    <ul class="divide-y flex-grow font-mono" style="border-color: var(--border-color)">
                         {% for host in esxi_hosts %}
-                        <li class="px-4 py-3 flex justify-between items-center bg-white hover:bg-gray-50 transition-colors">
+                        <li class="px-5 py-3 flex justify-between items-center text-sm">
                             <div>
-                                <span class="font-bold block">{{ host.name }}</span>
-                                <span class="text-xs text-gray-500">{{ host.host_ip }} as <i>{{ host.username }}</i></span>
+                                <span class="font-medium block">{{ host.name }}</span>
+                                <span class="text-xs" style="color: var(--brand)">{{ host.host_ip }} ({{ host.username }})</span>
                             </div>
-                            <form action="/delete_esxi_host" method="POST" onsubmit="return confirm('Remove this ESXi Host? Warning: This will delete associated VMs from the database.');">
+                            <form action="/delete_esxi_host" method="POST" onsubmit="return confirm('Remove Host Setup?');">
                                 <input type="hidden" name="host_id" value="{{ host.id }}">
-                                <button type="submit" class="text-red-500 hover:text-red-700 text-sm font-bold bg-red-50 px-3 py-1 rounded border border-red-200">Remove</button>
+                                <button type="submit" class="text-gray-500 hover:text-red-400 transition-colors" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                             </form>
                         </li>
                         {% else %}
-                        <li class="p-4 text-center text-sm text-gray-500">No ESXi hosts configured yet.</li>
+                        <li class="p-5 text-center text-sm" style="color: var(--text-muted)">No hosts configured.</li>
                         {% endfor %}
                     </ul>
                     
-                    <div class="bg-white p-4 border-t">
-                        <h4 class="font-bold text-sm text-gray-600 mb-3">Add New ESXi Host</h4>
+                    <div class="p-5 border-t" style="border-color: var(--border-color); background-color: var(--bg-nav)">
+                        <h4 class="font-semibold text-sm mb-3">Add New Host</h4>
                         <form action="/add_esxi_host" method="POST" class="space-y-3">
-                            <div class="grid grid-cols-2 gap-3">
-                                <div><input type="text" name="name" placeholder="Display Name (e.g. Site A)" required class="w-full border p-2 text-sm rounded shadow-sm"></div>
-                                <div><input type="text" name="host_ip" placeholder="IP Address or FQDN" required class="w-full border p-2 text-sm rounded shadow-sm"></div>
-                                <div><input type="text" name="username" placeholder="Root Username" required class="w-full border p-2 text-sm rounded shadow-sm"></div>
-                                <div><input type="password" name="password" placeholder="Password" required class="w-full border p-2 text-sm rounded shadow-sm"></div>
+                            <input type="text" name="name" placeholder="Alias (e.g. Cluster-A)" required class="w-full p-2 text-sm font-sans">
+                            <input type="text" name="host_ip" placeholder="IP Address or FQDN" required class="w-full p-2 text-sm font-sans">
+                            <div class="flex space-x-2">
+                                <input type="text" name="username" placeholder="User" required class="w-1/2 p-2 text-sm font-sans">
+                                <input type="password" name="password" placeholder="Pass" required class="w-1/2 p-2 text-sm font-sans">
                             </div>
-                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-sm shadow transition-colors">Add Host</button>
+                            <button type="submit" class="w-full btn-secondary py-2 text-sm font-medium">Add Host</button>
                         </form>
                     </div>
                 </div>
 
-                <form action="/save_config" method="POST" class="space-y-6">
-                    <!-- SMB -->
-                    <div class="bg-gray-50 p-5 rounded-xl border border-gray-100 shadow-sm">
-                        <div class="flex justify-between items-center border-b pb-2 mb-4">
-                            <h3 class="font-bold text-gray-700">SMB Destination Storage</h3>
-                            <button type="button" onclick="testSmb()" class="bg-indigo-500 hover:bg-indigo-600 text-white text-xs py-1.5 px-3 rounded shadow transition-colors font-bold">
-                                Test SMB Connection
-                            </button>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">UNC Network Path</label>
-                            <input type="text" name="smb_unc_path" value="{{ config.smb_unc_path }}" placeholder="\\TRUENAS\Backups" class="w-full border-gray-300 border p-2 rounded-md shadow-sm focus:ring-blue-500">
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">SMB Auth User</label>
-                                <input type="text" name="smb_user" value="{{ config.smb_user }}" class="w-full border-gray-300 border p-2 rounded-md shadow-sm focus:ring-blue-500">
+                <!-- Storage & Performance -->
+                <form action="/save_config" method="POST" class="col-span-1 lg:col-span-2 flex flex-col gap-6">
+                    <div class="card p-5">
+                        <div class="flex justify-between items-center mb-4 border-b pb-2" style="border-color: var(--border-color)">
+                            <h3 class="font-semibold text-lg">Target Storage</h3>
+                            <button type="button" onclick="testStorage()" class="text-xs font-medium hover:underline mr-4" style="color: var(--brand)">Verify Connection</button>
+                            <div class="flex space-x-3">
+                                <label class="flex items-center space-x-1 cursor-pointer">
+                                    <input type="radio" name="storage_type" value="SMB" onchange="toggleStorageFields()" {% if config.storage_type == 'SMB' or not config.storage_type %}checked{% endif %} class="w-3 h-3">
+                                    <span class="text-xs font-medium">SMB</span>
+                                </label>
+                                <label class="flex items-center space-x-1 cursor-pointer">
+                                    <input type="radio" name="storage_type" value="NFS" onchange="toggleStorageFields()" {% if config.storage_type == 'NFS' %}checked{% endif %} class="w-3 h-3">
+                                    <span class="text-xs font-medium">NFS</span>
+                                </label>
+                                <label class="flex items-center space-x-1 cursor-pointer">
+                                    <input type="radio" name="storage_type" value="S3" onchange="toggleStorageFields()" {% if config.storage_type == 'S3' %}checked{% endif %} class="w-3 h-3">
+                                    <span class="text-xs font-medium">S3</span>
+                                </label>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">SMB Password</label>
-                                <input type="password" name="smb_password" placeholder="Leave blank to keep existing" class="w-full border-gray-300 border p-2 rounded-md shadow-sm focus:ring-blue-500">
+                        </div>
+
+                        <!-- SMB Fields -->
+                        <div id="fields-SMB" class="storage-fields {% if config.storage_type != 'SMB' and config.storage_type %}hidden{% endif %}">
+                            <div class="mb-4">
+                                <span class="input-label">UNC Path</span>
+                                <input type="text" name="smb_unc_path" value="{{ config.smb_unc_path }}" placeholder="\\server\share\backups" class="w-full py-2 px-3 font-mono text-sm">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><span class="input-label">Username</span><input type="text" name="smb_user" value="{{ config.smb_user }}" class="w-full py-2 px-3 font-mono text-sm"></div>
+                                <div><span class="input-label">Password</span><input type="password" name="smb_password" placeholder="(Unchanged)" class="w-full py-2 px-3 font-mono text-sm"></div>
+                            </div>
+                        </div>
+
+                        <!-- NFS Fields -->
+                        <div id="fields-NFS" class="storage-fields {% if config.storage_type != 'NFS' %}hidden{% endif %}">
+                            <div class="mb-4">
+                                <span class="input-label">NFS Export Path</span>
+                                <input type="text" name="nfs_path" value="{{ config.nfs_path }}" placeholder="\\server\export" class="w-full py-2 px-3 font-mono text-sm">
+                                <p class="text-[10px] opacity-60 mt-1">* Requires "Client for NFS" Windows feature enabled.</p>
+                            </div>
+                        </div>
+
+                        <!-- S3 Fields -->
+                        <div id="fields-S3" class="storage-fields {% if config.storage_type != 'S3' %}hidden{% endif %}">
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div class="col-span-2">
+                                    <span class="input-label">S3 Endpoint (Optional for AWS)</span>
+                                    <input type="text" name="s3_endpoint" value="{{ config.s3_endpoint }}" placeholder="https://s3.wasabisys.com" class="w-full py-2 px-3 font-mono text-sm">
+                                </div>
+                                <div>
+                                    <span class="input-label">Access Key</span>
+                                    <input type="text" name="s3_access_key" value="{{ config.s3_access_key }}" class="w-full py-2 px-3 font-mono text-sm">
+                                </div>
+                                <div>
+                                    <span class="input-label">Secret Key</span>
+                                    <input type="password" name="s3_secret_key" placeholder="(Unchanged)" class="w-full py-2 px-3 font-mono text-sm">
+                                </div>
+                                <div>
+                                    <span class="input-label">Bucket Name</span>
+                                    <input type="text" name="s3_bucket" value="{{ config.s3_bucket }}" class="w-full py-2 px-3 font-mono text-sm">
+                                </div>
+                                <div>
+                                    <span class="input-label">Region</span>
+                                    <input type="text" name="s3_region" value="{{ config.s3_region }}" placeholder="us-east-1" class="w-full py-2 px-3 font-mono text-sm">
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- SMTP -->
-                    <div class="bg-gray-50 p-5 rounded-xl border border-gray-100 shadow-sm">
-                        <h3 class="font-bold text-gray-700 border-b pb-2 mb-4">Email Notifications (SMTP)</h3>
-                        <div class="grid grid-cols-2 gap-4">
+                    <div class="card p-5">
+                        <h3 class="font-semibold text-lg mb-4 border-b pb-2" style="border-color: var(--border-color)">Worker Parameters</h3>
+                        <div class="grid grid-cols-3 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">SMTP Server</label>
-                                <input type="text" name="smtp_server" value="{{ config.smtp_server }}" class="w-full border-gray-300 border p-2 rounded-md shadow-sm focus:ring-blue-500">
+                                <span class="input-label" title="HTTP Download Threads (0 = Auto)">Parallel Threads</span>
+                                <input type="number" name="perf_parallel_threads" value="{{ config.perf_parallel_threads }}" min="0" max="32" class="w-full py-2 px-3 text-center text-sm">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">To Email Address</label>
-                                <input type="email" name="smtp_to_email" value="{{ config.smtp_to_email }}" class="w-full border-gray-300 border p-2 rounded-md shadow-sm focus:ring-blue-500">
+                                <span class="input-label" title="Compression Level (Currently disabled for Native)">Compression</span>
+                                <input type="number" name="perf_compression_level" value="{{ config.perf_compression_level }}" min="0" max="9" class="w-full py-2 px-3 text-center text-sm disabled:opacity-50" disabled>
+                            </div>
+                            <div>
+                                <span class="input-label" title="Max minutes for ESXi ops">API Timeout (Min)</span>
+                                <input type="number" name="backup_timeout_mins" value="{{ config.backup_timeout_mins }}" min="5" max="1440" class="w-full py-2 px-3 text-center text-sm">
                             </div>
                         </div>
-                    </div>
-
-                    <div class="flex justify-end pt-2">
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg text-lg transition-transform transform hover:-translate-y-0.5">
-                            💾 Save Global Settings
-                        </button>
+                        
+                        <div class="mt-6 flex justify-end">
+                            <button type="submit" class="btn-primary px-6 py-2">Save Configuration</button>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- Restore Tab -->
-        <div id="tab-restore" class="tab-content hidden bg-white shadow rounded-lg p-6 border-t-4 border-orange-500">
-            <div class="flex justify-between items-center mb-6 border-b pb-3">
-                <h2 class="text-2xl font-bold text-orange-600">Disaster Recovery (Restore)</h2>
-                <button type="button" onclick="loadBackups()" class="text-sm bg-orange-100 text-orange-800 hover:bg-orange-200 hover:shadow py-2 px-4 rounded shadow font-bold transition-all">
-                    🔍 Scan SMB for .ova Backups
-                </button>
-            </div>
+        <!-- RESTORE TAB -->
+        <div id="tab-restore" class="tab-content hidden">
+            <h2 class="text-2xl font-bold mb-6">Disaster Recovery</h2>
             
-            <form action="/restore" method="POST" class="space-y-6" onsubmit="return confirm('WARNING: Are you sure you want to restore this VM to the selected ESXi Datastore?');">
-                <div class="bg-orange-50 p-5 rounded-xl border border-orange-200 shadow-sm">
-                    <h3 class="font-bold text-orange-800 border-b border-orange-200 pb-2 mb-4">Target Details</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div>
-                            <label class="text-sm font-bold text-gray-700 mb-1 block">Select Source Archive</label>
-                            <select name="source_ova" id="backupSelect" required class="w-full border border-orange-300 text-sm p-2 rounded-md shadow-sm bg-white focus:border-orange-500 focus:ring-orange-500">
-                                <option value="" disabled selected>Click "Scan SMB" First...</option>
-                            </select>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Restore Form -->
+                <div class="lg:col-span-1">
+                    <form action="/restore" method="POST" id="restoreForm" class="card p-6" onsubmit="return confirm('Launch restore operation to the target host? Existing VMs with the same name may cause conflicts if running.');">
+                        <div class="flex flex-col gap-5">
+
+                            <!-- Step 1: Choose VM -->
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="input-label">① Select VM to Restore</span>
+                                    <button type="button" onclick="loadGroupedBackups()" class="text-xs font-medium hover:underline" style="color: var(--brand)">Scan Repository</button>
+                                </div>
+                                <input type="text" id="vmSearchInput" placeholder="Search VMs..." oninput="filterVmList()" class="w-full py-2 px-3 text-sm mb-2 hidden" autocomplete="off">
+                                <div id="vmList" class="rounded overflow-hidden border text-sm" style="border-color: var(--border-color); max-height: 180px; overflow-y: auto;">
+                                    <div class="px-3 py-6 text-center text-xs opacity-50 italic">Click "Scan Repository" to load backups</div>
+                                </div>
+                            </div>
+
+                            <!-- Step 2: Choose Version -->
+                            <div id="versionSection" class="hidden">
+                                <span class="input-label">② Select Backup Version</span>
+                                <div id="versionList" class="grid grid-cols-1 gap-2 mt-1" style="max-height: 160px; overflow-y: auto;"></div>
+                                <input type="hidden" name="source_ova" id="selectedOvaPath" required>
+                                <p id="selectedVersionLabel" class="text-[10px] mt-1 font-mono truncate opacity-60"></p>
+                            </div>
+
+                            <!-- Step 3: Target Config -->
+                            <div>
+                                <span class="input-label">③ Target Hypervisor</span>
+                                <select name="target_esxi_id" id="esxiSelect" onchange="loadDatastores(this.value)" required class="w-full py-2.5 px-3 mt-1 text-sm">
+                                    <option value="" disabled selected>Select restoration target...</option>
+                                    {% for host in esxi_hosts %}
+                                    <option value="{{ host.id }}">{{ host.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <span class="input-label">Target Datastore</span>
+                                <select name="datastore" id="datastoreSelect" required class="w-full py-2.5 px-3 mt-1 text-sm">
+                                    <option value="" disabled selected>Select host first...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <span class="input-label">New VM Name</span>
+                                <input type="text" name="target_name" id="restoreTargetName" placeholder="e.g. MyVM_Restored" required class="w-full py-2.5 px-3 mt-1 text-sm">
+                            </div>
+                            <button type="submit" class="btn-primary py-3 font-semibold mt-1">Deploy Image</button>
                         </div>
-                        <div>
-                            <label class="text-sm font-bold text-gray-700 mb-1 block">Target ESXi Host</label>
-                            <select name="target_esxi_id" id="esxiSelect" onchange="loadDatastores(this.value)" required class="w-full border border-orange-300 text-sm p-2 rounded-md shadow-sm bg-white focus:border-orange-500">
-                                <option value="" disabled selected>Select Host...</option>
-                                {% for host in esxi_hosts %}
-                                <option value="{{ host.id }}">{{ host.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-sm font-bold text-gray-700 mb-1 block">ESXi Datastore</label>
-                            <select name="datastore" id="datastoreSelect" required class="w-full border border-orange-300 text-sm p-2 rounded-md shadow-sm bg-white focus:border-orange-500 disabled:opacity-50" disabled>
-                                <option value="" disabled selected>Select Target Host First...</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-sm font-bold text-gray-700 mb-1 block">New Virtual Machine Name</label>
-                            <input type="text" name="target_name" placeholder="e.g. SRV_Restored" required class="w-full border border-orange-300 text-sm p-2 rounded-md shadow-sm focus:border-orange-500">
+                    </form>
+                </div>
+
+
+                <!-- Restore Tasks Monitor -->
+                <div class="lg:col-span-2">
+                    <div class="card p-6">
+                        <h3 class="font-semibold text-lg mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            Active Restores
+                        </h3>
+                        <div id="restoreTasksList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- JS populated -->
+                            <p class="text-sm opacity-50 italic col-span-full py-4 text-center">No active or recent restore tasks.</p>
                         </div>
                     </div>
                 </div>
-                
-                <div class="flex flex-col sm:flex-row justify-end items-center pt-2">
-                    <p class="text-sm text-gray-500 mr-6 mb-4 sm:mb-0">Note: Restore runs in background. Watch Python console output for progress.</p>
-                    <button type="submit" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:-translate-y-0.5 text-lg w-full sm:w-auto">
-                        Start Injection 🚀
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Security Tab -->
-        <div id="tab-security" class="tab-content hidden bg-white shadow rounded-lg p-6">
-            <h2 class="text-2xl font-semibold text-gray-700 border-b pb-2 mb-6">User Management & Security</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <!-- User List -->
-                <div class="bg-gray-50 border rounded-xl overflow-hidden shadow-sm">
-                    <div class="bg-gray-100 px-4 py-3 border-b font-bold text-gray-700">System Administrators</div>
-                    <ul class="divide-y">
-                        {% for user in users %}
-                        <li class="px-4 py-3 flex justify-between items-center bg-white hover:bg-gray-50 transition-colors">
-                            <div>
-                                <span class="font-bold block">{{ user.username }}</span>
-                                <span class="text-xs text-gray-500">
-                                    {% if user.is_mfa_enabled %}✓ MFA Enabled{% else %}⚠ MFA Not Setup{% endif %}
-                                </span>
-                            </div>
-                            {% if current_user.username != user.username %}
-                            <form action="/delete_user" method="POST" onsubmit="return confirm('Delete this user?');">
-                                <input type="hidden" name="user_id" value="{{ user.id }}">
-                                <button type="submit" class="text-red-500 hover:text-red-700 text-sm font-bold bg-red-50 px-3 py-1 rounded border border-red-200">Remove</button>
-                            </form>
-                            {% else %}
-                            <span class="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded border border-blue-200 font-bold">You</span>
-                            {% endif %}
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-
-                <!-- Add User -->
-                <div class="bg-white border rounded-xl shadow-sm p-5 self-start">
-                    <h3 class="font-bold text-gray-700 mb-4 pb-2 border-b">Add New Administrator</h3>
-                    <form action="/add_user" method="POST" class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                            <input type="text" name="new_username" required class="w-full border-gray-300 border p-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Temporary Password</label>
-                            <input type="password" name="new_password" required class="w-full border-gray-300 border p-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                            <p class="text-xs text-gray-500 mt-1">User will be prompted to setup MFA on their first login.</p>
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-md shadow transition-colors">
-                            Create User
-                        </button>
-                    </form>
-                </div>
             </div>
         </div>
-
+        </div>
     </div>
 
     <!-- Footer -->
-    <footer class="bg-white border-t mt-auto py-4">
-        <div class="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500">
-            ESXi Backup Manager Enterprise &copy; 2026. Data resides locally.
+    <footer style="border-top: 1px solid var(--border-color); background-color: var(--bg-nav);" class="mt-auto py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <img src="/static/new logo.png" alt="THIS Cyber Security" class="h-10 object-contain" style="filter: drop-shadow(0 0 4px rgba(128,0,200,0.3))">
+                <div class="text-xs" style="color: var(--text-muted)">
+                    <span class="font-semibold block" style="color: var(--text-main)">THIS Cyber Security</span>
+                    <span>Powered by NovaBak Enterprise</span>
+                </div>
+            </div>
+            <p class="text-xs font-mono" style="color: var(--text-muted)">
+                &copy; {{ 2026 }} THIS Cyber Security Ltd. All rights reserved.
+            </p>
         </div>
     </footer>
 
-
+    <!-- Polling Logic -->
     <script>
-    async function testSmb() {
+    async function testStorage() {
+        try { let res = await fetch('/test_storage', {method: 'POST'}); let data = await res.json(); alert(data.message); } 
+        catch(e) { alert("Error testing storage connection."); }
+    }
+    function toggleStorageFields() {
+        const type = document.querySelector('input[name="storage_type"]:checked').value;
+        document.querySelectorAll('.storage-fields').forEach(el => el.classList.add('hidden'));
+        const target = document.getElementById('fields-' + type);
+        if (target) target.classList.remove('hidden');
+    }
+    // ─── Hierarchical Backup Picker ──────────────────────────────────────────
+    let _allGroupedBackups = [];
+
+    async function loadGroupedBackups() {
+        const vmList = document.getElementById('vmList');
+        const searchInput = document.getElementById('vmSearchInput');
+        vmList.innerHTML = '<div class="px-3 py-4 text-center text-xs opacity-50 italic">Scanning repository...</div>';
         try {
-            let res = await fetch('/test_smb', {method: 'POST'});
-            let data = await res.json();
-            alert(data.message);
+            const res = await fetch('/api/backups_grouped');
+            const data = await res.json();
+            if (data.error) {
+                vmList.innerHTML = `<div class="px-3 py-4 text-center text-xs text-red-400">${data.error}</div>`;
+                return;
+            }
+            _allGroupedBackups = data;
+            searchInput.classList.remove('hidden');
+            renderVmList(data);
         } catch(e) {
-            alert("Error connecting to server. Make sure settings were saved first.");
+            vmList.innerHTML = '<div class="px-3 py-4 text-center text-xs text-red-400">Scan failed</div>';
         }
     }
 
-    async function loadBackups() {
-        const selectBox = document.getElementById('backupSelect');
-        selectBox.innerHTML = '<option disabled selected>Scanning SMB...</option>';
-        try {
-            let res = await fetch('/get_backups', {method: 'GET'});
-            let backups = await res.json();
-            
-            if (backups.error) {
-                alert(backups.error);
-                selectBox.innerHTML = '<option disabled selected>Error loading.</option>';
-                return;
-            }
-            if (backups.length === 0) {
-                selectBox.innerHTML = '<option disabled selected>No backup files found in SMB share.</option>';
-                return;
-            }
-            
-            selectBox.innerHTML = '';
-            backups.forEach(b => {
-                let opt = document.createElement('option');
-                opt.value = b.path; 
-                opt.text = `${b.vm_name} (${b.date}) - [${b.size}]`;
-                selectBox.appendChild(opt);
-            });
-        } catch(e) {
-            alert("Error loading backups: " + e);
-            selectBox.innerHTML = '<option disabled selected>Network error.</option>';
+    function renderVmList(groups) {
+        const vmList = document.getElementById('vmList');
+        if (!groups || groups.length === 0) {
+            vmList.innerHTML = '<div class="px-3 py-4 text-center text-xs opacity-50 italic">Repository is empty</div>';
+            return;
+        }
+        vmList.innerHTML = groups.map(g => `
+            <div onclick="selectVm('${encodeURIComponent(JSON.stringify(g))}')"
+                 class="px-3 py-2.5 cursor-pointer flex justify-between items-center transition-colors hover:bg-blue-500/10 border-b"
+                 style="border-color: var(--border-color)">
+                <div class="font-medium text-sm truncate pr-2">${g.vm_name}</div>
+                <span class="text-[10px] font-mono shrink-0 opacity-60 bg-black/20 px-1.5 py-0.5 rounded">${g.versions.length} ver</span>
+            </div>`).join('');
+    }
+
+    function filterVmList() {
+        const q = document.getElementById('vmSearchInput').value.toLowerCase();
+        const filtered = _allGroupedBackups.filter(g => g.vm_name.toLowerCase().includes(q));
+        renderVmList(filtered);
+    }
+
+    function selectVm(encodedGroup) {
+        const group = JSON.parse(decodeURIComponent(encodedGroup));
+        // Highlight selected VM
+        document.querySelectorAll('#vmList > div').forEach(el => {
+            el.classList.remove('bg-blue-500/20');
+            if (el.querySelector('.font-medium')?.textContent === group.vm_name)
+                el.classList.add('bg-blue-500/20');
+        });
+
+        // Auto-fill VM name field
+        const nameInput = document.getElementById('restoreTargetName');
+        if (nameInput && !nameInput.value) nameInput.value = group.vm_name + '_Restored';
+
+        // Show version cards
+        const versionSection = document.getElementById('versionSection');
+        const versionList = document.getElementById('versionList');
+        versionSection.classList.remove('hidden');
+
+        versionList.innerHTML = group.versions.map((v, idx) => `
+            <button type="button" onclick="selectVersion('${v.path.replace(/'/g,"\\'")}', '${v.date}', '${v.size}')"
+                    id="vcard-${idx}"
+                    class="version-card w-full text-left rounded border px-3 py-2 transition-all hover:border-blue-500 hover:bg-blue-500/10"
+                    style="border-color: var(--border-color)">
+                <div class="flex justify-between items-center">
+                    <div class="font-mono font-semibold text-xs" style="color: var(--brand)">${v.date}</div>
+                    <div class="text-[10px] opacity-60 font-mono">${v.size}</div>
+                </div>
+            </button>`).join('');
+
+        // Auto-select latest (first) version
+        if (group.versions.length > 0) {
+            selectVersion(group.versions[0].path, group.versions[0].date, group.versions[0].size);
+            document.getElementById('vcard-0')?.classList.add('border-blue-500', 'bg-blue-500/10');
         }
     }
+
+    function selectVersion(path, date, size) {
+        document.getElementById('selectedOvaPath').value = path;
+        document.getElementById('selectedVersionLabel').textContent = `${date}  •  ${size}  •  ${path}`;
+        // Highlight selected card
+        document.querySelectorAll('.version-card').forEach(el => {
+            el.classList.remove('border-blue-500', 'bg-blue-500/10');
+        });
+        event?.target?.closest('.version-card')?.classList.add('border-blue-500', 'bg-blue-500/10');
+    }
+
+    // Legacy flat loader (kept for compatibility)
+    async function loadBackups() { await loadGroupedBackups(); }
 
     async function loadDatastores(hostId) {
-        const selectBox = document.getElementById('datastoreSelect');
-        selectBox.disabled = true;
-        selectBox.innerHTML = '<option disabled selected>Scanning Host...</option>';
-        
-        try {
-            let res = await fetch('/get_datastores/' + hostId);
-            let dsList = await res.json();
-            
-            if (dsList.error) {
-                alert(dsList.error);
-                selectBox.innerHTML = '<option disabled selected>Error loading.</option>';
-                return;
-            }
-            if (dsList.length === 0) {
-                selectBox.innerHTML = '<option disabled selected>No datastores found.</option>';
-                return;
-            }
-            
-            selectBox.innerHTML = '';
-            dsList.forEach(ds => {
-                let opt = document.createElement('option');
-                opt.value = ds; 
-                opt.text = ds;
-                selectBox.appendChild(opt);
-            });
-            selectBox.disabled = false;
-        } catch(e) {
-            alert("Error loading datastores: " + e);
-            selectBox.innerHTML = '<option disabled selected>Network error.</option>';
-        }
+        const selectBox = document.getElementById('datastoreSelect'); selectBox.disabled = true; selectBox.innerHTML = '<option disabled selected>Querying host...</option>';
+        try { let res = await fetch('/get_datastores/' + hostId); let dsList = await res.json();
+              selectBox.innerHTML = dsList.length === 0 ? '<option disabled selected>No datastores found</option>' : '';
+              if (!dsList.error && dsList.length > 0) {
+                  dsList.forEach(ds => { 
+                      let opt = document.createElement('option'); 
+                      opt.value = ds.name; 
+                      opt.text = `${ds.name}  [${ds.free_gb} GB Free]`; 
+                      selectBox.appendChild(opt); 
+                  });
+                  selectBox.disabled = false;
+              }
+        } catch(e) { selectBox.innerHTML = '<option disabled selected>Query failed</option>'; }
     }
     
-    // Live Polling for Backup Progress
+    // Live Progress & Syslog Polling
     setInterval(async () => {
         try {
+            // Main Job Progress
             let res = await fetch('/job_progress');
             let data = await res.json();
-            
-            for (let vm_id in data) {
-                let info = data[vm_id];
-                let container = document.getElementById('prog-container-' + vm_id);
-                if (!container) continue;
-                
-                let prog = info.progress || 0;
-                let is_active = info.current_action !== "";
-                
+            document.querySelectorAll('.vm-job-card').forEach(card => {
+                const vm_id = card.id.split('-').pop(); const info = data[vm_id];
                 let runBtn = document.getElementById('form-run-' + vm_id);
                 let stopBtn = document.getElementById('form-stop-' + vm_id);
-                
-                if (is_active || (prog > 0 && prog < 100)) {
-                    container.classList.remove('hidden');
-                    document.getElementById('prog-pct-' + vm_id).innerText = prog + '%';
-                    document.getElementById('prog-bar-' + vm_id).style.width = prog + '%';
-                    document.getElementById('prog-text-' + vm_id).innerText = info.current_action || 'Exporting OVA...';
-                    
+                let progWrap = document.getElementById('prog-wrap-' + vm_id);
+                if (info && (info.current_action !== "" || (info.progress > 0 && info.progress < 100))) {
+                    progWrap.classList.remove('hidden'); progWrap.classList.add('block');
+                    document.getElementById('prog-pct-' + vm_id).innerText = info.progress + '%';
+                    document.getElementById('prog-bar-' + vm_id).style.width = info.progress + '%';
+                    const speedBadge = info.speed_mbps > 0 ? ` <span style="color:var(--brand);font-size:9px;font-weight:600;">${info.speed_mbps} MB/s</span>` : '';
+                    document.getElementById('prog-text-' + vm_id).innerHTML = (info.current_action || 'Processing...') + speedBadge;
                     if (runBtn) runBtn.classList.add('hidden');
                     if (stopBtn) stopBtn.classList.remove('hidden');
+                    card.setAttribute('data-running', 'true');
                 } else {
-                    container.classList.add('hidden');
+                    progWrap.classList.remove('block'); progWrap.classList.add('hidden');
                     if (runBtn) runBtn.classList.remove('hidden');
                     if (stopBtn) stopBtn.classList.add('hidden');
+                    card.setAttribute('data-running', 'false');
+                }
+            });
+            if(document.getElementById('tab-jobs').classList.contains('hidden') === false) filterJobs();
+
+            // System Logs Polling
+            if(document.getElementById('tab-syslogs').classList.contains('hidden') === false) {
+                const sLines = document.getElementById('dev-lines-service').value || 100;
+                const sSearch = encodeURIComponent(document.getElementById('dev-search-service').value || "");
+                const wLines = document.getElementById('dev-lines-worker').value || 100;
+                const wSearch = encodeURIComponent(document.getElementById('dev-search-worker').value || "");
+
+                let logRes = await fetch(`/api/syslogs?s_lines=${sLines}&s_search=${sSearch}&w_lines=${wLines}&w_search=${wSearch}`);
+                let logData = await logRes.json();
+                
+                const tServ = document.getElementById('term-service');
+                const tWork = document.getElementById('term-worker');
+                
+                const isServAtBottom = tServ.scrollHeight - tServ.clientHeight <= tServ.scrollTop + 50;
+                const isWorkAtBottom = tWork.scrollHeight - tWork.clientHeight <= tWork.scrollTop + 50;
+
+                tServ.innerText = logData.service_log || "No data.";
+                tWork.innerText = logData.worker_log || "No data.";
+
+                if (isServAtBottom) tServ.scrollTop = tServ.scrollHeight;
+                if (isWorkAtBottom) tWork.scrollTop = tWork.scrollHeight;
+            }
+
+            // Restore Tasks Polling
+            if(document.getElementById('tab-restore').classList.contains('hidden') === false) {
+                let restRes = await fetch('/api/restores');
+                let restores = await restRes.json();
+                const list = document.getElementById('restoreTasksList');
+                if (restores.length === 0) {
+                    list.innerHTML = '<p class="text-sm opacity-50 italic col-span-full py-4 text-center">No active or recent restore tasks.</p>';
+                } else {
+                    list.innerHTML = restores.map(r => `
+                        <div class="card p-4 border relative" style="border-color: var(--border-color); background: rgba(255,255,255,0.03)">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <h4 class="font-bold text-sm truncate w-32" title="${r.target_name}">${r.target_name}</h4>
+                                    <p class="text-[10px] opacity-60">To: ${r.target_esxi}</p>
+                                </div>
+                                <div class="flex flex-col items-end gap-1">
+                                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded ${r.status === 'Success' ? 'bg-green-500/20 text-green-400' : r.status === 'Failed' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}">
+                                        ${r.status}
+                                    </span>
+                                    <div class="flex gap-1 mt-1">
+                                        ${r.status === 'In Progress' ? `
+                                            <button onclick="stopRestore(${r.id})" class="text-[9px] text-red-500 hover:text-red-400 flex items-center gap-1 bg-red-500/10 px-1 py-0.5 rounded">
+                                                <svg class="w-2 h-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"/></svg>
+                                                Stop
+                                            </button>
+                                        ` : ''}
+                                        <button onclick="deleteRestore(${r.id})" class="text-[9px] text-gray-400 hover:text-red-400 flex items-center gap-1 bg-gray-500/10 hover:bg-red-500/10 px-1 py-0.5 rounded" title="Remove Job">
+                                            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="space-y-1.5">
+                                <div class="flex justify-between text-[10px]">
+                                    <span class="truncate w-40 opacity-80">${r.action}</span>
+                                    <span>${r.progress}%</span>
+                                </div>
+                                <div class="w-full bg-black/30 rounded-full h-1 my-1">
+                                    <div class="bg-blue-500 h-1 rounded-full transition-all duration-500" style="width: ${r.progress}%"></div>
+                                </div>
+                            </div>
+                            ${r.error ? `<p class="text-[9px] text-red-500 mt-2 italic break-words leading-tight bg-red-950/20 p-1 rounded border border-red-900/30">${r.error}</p>` : ''}
+                            <div class="flex justify-between items-center mt-3 text-[9px] opacity-40">
+                                 <span>Started: ${r.start}</span>
+                            </div>
+                        </div>
+                    `).join('');
                 }
             }
-        } catch(e) {}
+        } catch(e) { console.error(e); }
     }, 2000);
+
+    async function stopRestore(id) {
+        if (!confirm('Stop this restore process?')) return;
+        try {
+            await fetch(`/api/stop_restore/${id}`, {method: 'POST'});
+        } catch(e) { console.error("Stop error:", e); }
+    }
+
+    async function deleteRestore(id) {
+        if (!confirm('Remove this restore task from the dashboard?')) return;
+        try {
+            await fetch(`/api/delete_restore/${id}`, {method: 'POST'});
+        } catch(e) { console.error("Delete error:", e); }
+    }
     </script>
 </body>
 </html>
