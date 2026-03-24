@@ -19,7 +19,10 @@ cd VMBackup
 docker-compose up -d
 ```
 
-Open your browser at: **http://localhost:8000**  
+Open your browser at: **https://localhost:8000** (or **https://localhost** if using Docker with port 443)
+
+> **Browser warning:** Since the certificate is self-signed, your browser will show a security warning. Click *Advanced → Proceed to localhost* to continue.
+
 Default login: `admin` / `admin` ← **Change this after first login**
 
 ---
