@@ -79,18 +79,11 @@ Open: **https://localhost** or **https://localhost:8000**
 
 ### Option B — Windows Native (Windows Server 2016+)
 
-```bat
-git clone https://github.com/haimtoledano/VMBackup.git
-cd VMBackup
+1. Download the release ZIP (`VMBackupEnterprise_Release.zip`)
+2. Extract to a folder (e.g. `C:\VMBackup\`)
+3. Right-click **`setup.bat`** → **Run as Administrator**
 
-:: Run as Administrator
-setup.bat
-```
-
-This will:
-1. Create a Python virtual environment
-2. Install all dependencies
-3. Register both the Web UI and Worker as Windows Scheduled Tasks (auto-start on boot)
+That's it. The installer will set up Python, install dependencies, and register both services to start automatically on boot.
 
 Open: **https://localhost:8000**
 
