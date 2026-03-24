@@ -139,28 +139,6 @@ def logout():
     response.delete_cookie("session_token")
     return response
 
-@app.post("/change_password")
-def change_password(
-    request: Request,
-    current_password: str = Form(...),
-    new_password: str = Form(...),
-    confirm_password: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    username = require_auth(request)
-    user = db.query(User).filter(User.username == username).first()
-
-    if not user or not auth.verify_password(current_password, user.hashed_password):
-        return RedirectResponse(url="/?tab=settings&pw_error=wrong_password", status_code=303)
-    if new_password != confirm_password:
-        return RedirectResponse(url="/?tab=settings&pw_error=mismatch", status_code=303)
-    if len(new_password) < 6:
-        return RedirectResponse(url="/?tab=settings&pw_error=too_short", status_code=303)
-
-    user.hashed_password = auth.get_password_hash(new_password)
-    db.commit()
-    log_info(f"[AUTH] Password changed for user: {username}")
-    return RedirectResponse(url="/?tab=settings&pw_ok=1", status_code=303)
 
 # ─── Role Enforcement ─────────────────────────────────────────────────────────
 
