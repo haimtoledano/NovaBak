@@ -197,6 +197,9 @@
                         <button id="nav-tab-inventory" onclick="switchTab('tab-inventory')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Inventory</button>
                         <button id="nav-tab-restore" onclick="switchTab('tab-restore')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Recovery</button>
                         <button id="nav-tab-syslogs" onclick="switchTab('tab-syslogs')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">System Logs</button>
+                        {% if current_user and current_user.role == 'admin' %}
+                        <button id="nav-tab-users" onclick="switchTab('tab-users')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Users</button>
+                        {% endif %}
                         <button id="nav-tab-settings" onclick="switchTab('tab-settings')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Settings</button>
                     </div>
                     
@@ -213,7 +216,113 @@
     </nav>
 
     <div class="max-w-7xl w-full mx-auto py-8 px-4 sm:px-6 lg:px-8 flex-1">
-        
+
+        <!-- USERS TAB (admin only) -->
+        {% if current_user and current_user.role == 'admin' %}
+        <div id="tab-users" class="tab-content hidden">
+            <h2 class="text-2xl font-bold mb-6">User Management</h2>
+
+            <!-- Feedback Banner -->
+            <div id="user-msg" class="hidden mb-4 px-4 py-3 rounded text-sm font-medium"></div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- Users Table -->
+                <div class="lg:col-span-2 card overflow-hidden">
+                    <div class="px-5 py-3 border-b font-semibold flex justify-between items-center" style="border-color: var(--border-color); background: var(--bg-nav)">
+                        <span>Users</span>
+                        <span class="text-xs opacity-50">{{ users|length }} user(s)</span>
+                    </div>
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-xs uppercase" style="color: var(--text-muted); border-bottom: 1px solid var(--border-color)">
+                                <th class="px-5 py-3 text-left">Username</th>
+                                <th class="px-5 py-3 text-left">Role</th>
+                                <th class="px-5 py-3 text-left">MFA</th>
+                                <th class="px-5 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y" style="border-color: var(--border-color)">
+                        {% for u in users %}
+                            <tr class="{% if u.username == current_user.username %}opacity-60{% endif %}">
+                                <td class="px-5 py-3 font-medium">
+                                    {{ u.username }}
+                                    {% if u.username == current_user.username %}<span class="text-[10px] ml-1 opacity-50">(you)</span>{% endif %}
+                                </td>
+                                <td class="px-5 py-3">
+                                    <form action="/admin/update_role" method="POST">
+                                        <input type="hidden" name="user_id" value="{{ u.id }}">
+                                        <select name="role" onchange="this.form.submit()" class="text-xs py-1 px-2 rounded border" style="border-color: var(--border-color)" {% if u.username == current_user.username %}disabled{% endif %}>
+                                            <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
+                                            <option value="operator" {% if u.role == 'operator' %}selected{% endif %}>Operator</option>
+                                            <option value="viewer" {% if u.role == 'viewer' %}selected{% endif %}>Viewer</option>
+                                        </select>
+                                    </form>
+                                </td>
+                                <td class="px-5 py-3">
+                                    {% if u.is_mfa_enabled %}
+                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">Enabled</span>
+                                    {% else %}
+                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-5 py-3">
+                                    <div class="flex gap-2 justify-end">
+                                        {% if u.username != current_user.username %}
+                                        <!-- Reset Password -->
+                                        <form action="/admin/reset_password" method="POST" onsubmit="return confirm('Reset password for {{ u.username }}?')">
+                                            <input type="hidden" name="user_id" value="{{ u.id }}">
+                                            <button type="submit" class="text-xs px-2 py-1 rounded border hover:bg-blue-500/10 hover:border-blue-500 transition-colors" style="border-color: var(--border-color)" title="Reset Password">
+                                                Reset PW
+                                            </button>
+                                        </form>
+                                        <!-- Reset MFA -->
+                                        <form action="/admin/reset_mfa" method="POST" onsubmit="return confirm('Reset MFA for {{ u.username }}? They will need to re-setup on next login.')">
+                                            <input type="hidden" name="user_id" value="{{ u.id }}">
+                                            <button type="submit" class="text-xs px-2 py-1 rounded border hover:bg-yellow-500/10 hover:border-yellow-500 transition-colors" style="border-color: var(--border-color)" title="Reset MFA">
+                                                Reset MFA
+                                            </button>
+                                        </form>
+                                        <!-- Delete -->
+                                        <form action="/admin/delete_user" method="POST" onsubmit="return confirm('Delete user {{ u.username }}? This cannot be undone.')">
+                                            <input type="hidden" name="user_id" value="{{ u.id }}">
+                                            <button type="submit" class="text-xs px-2 py-1 rounded border text-red-400 hover:bg-red-500/10 hover:border-red-500 transition-colors" style="border-color: var(--border-color)" title="Delete">
+                                                Delete
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Add User Card -->
+                <div class="card p-5">
+                    <h3 class="font-semibold text-base mb-4 pb-2 border-b" style="border-color: var(--border-color)">Add New User</h3>
+                    <form action="/admin/add_user" method="POST" class="space-y-4">
+                        <div>
+                            <span class="input-label">Username</span>
+                            <input type="text" name="username" required placeholder="e.g. john.smith" class="w-full py-2 px-3 mt-1 text-sm" autocomplete="off">
+                        </div>
+                        <div>
+                            <span class="input-label">Role</span>
+                            <select name="role" class="w-full py-2 px-3 mt-1 text-sm">
+                                <option value="operator">Operator (backup/restore)</option>
+                                <option value="viewer">Viewer (read-only)</option>
+                                <option value="admin">Admin (full access)</option>
+                            </select>
+                        </div>
+                        <p class="text-[10px] opacity-50">A temporary password will be generated and shown once. The user will be required to setup MFA on first login.</p>
+                        <button type="submit" class="btn-primary w-full py-2 text-sm font-semibold">Create User</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- JOBS TAB -->
         <div id="tab-jobs" class="tab-content">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 space-y-4 md:space-y-0">
@@ -957,6 +1066,8 @@
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById('tab-' + tab)?.classList.remove('hidden');
         }
+
+        // Password change feedback
         const pwOk = params.get('pw_ok');
         const pwErr = params.get('pw_error');
         const msgEl = document.getElementById('pw-msg');
@@ -974,8 +1085,46 @@
                 msgEl.style.color = '#f87171';
             }
         }
-        if (tab || pwOk || pwErr) window.history.replaceState({}, '', window.location.pathname);
+
+        // User management feedback
+        const userMsgEl = document.getElementById('user-msg');
+        if (userMsgEl) {
+            const newUser = params.get('new_user');
+            const newPw = params.get('new_pw');
+            const resetUser = params.get('reset_user');
+            const resetPw = params.get('reset_pw');
+            const userOk = params.get('user_ok');
+            const userErr = params.get('user_error');
+            if (newUser && newPw) {
+                userMsgEl.innerHTML = `User <strong>${newUser}</strong> created.<br>Temporary password: <code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;font-family:monospace;letter-spacing:0.05em">${newPw}</code><br><em style="font-size:11px;opacity:0.7">Save this — it will not be shown again.</em>`;
+                userMsgEl.classList.remove('hidden');
+                userMsgEl.style.background = 'rgba(34,197,94,0.12)';
+                userMsgEl.style.color = '#4ade80';
+            } else if (resetUser && resetPw) {
+                userMsgEl.innerHTML = `Password reset for <strong>${resetUser}</strong>.<br>New temporary password: <code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;font-family:monospace;letter-spacing:0.05em">${resetPw}</code><br><em style="font-size:11px;opacity:0.7">Save this — it will not be shown again.</em>`;
+                userMsgEl.classList.remove('hidden');
+                userMsgEl.style.background = 'rgba(59,130,246,0.12)';
+                userMsgEl.style.color = '#60a5fa';
+            } else if (userOk) {
+                const okMsgs = { deleted: 'User deleted successfully.', mfa_reset: 'MFA reset. User will be prompted to re-setup on next login.', role_updated: 'Role updated.' };
+                userMsgEl.textContent = okMsgs[userOk] || 'Done.';
+                userMsgEl.classList.remove('hidden');
+                userMsgEl.style.background = 'rgba(34,197,94,0.12)';
+                userMsgEl.style.color = '#4ade80';
+            } else if (userErr) {
+                const errMsgs = { exists: 'Username already exists.', self_delete: 'You cannot delete your own account.' };
+                userMsgEl.textContent = errMsgs[userErr] || 'An error occurred.';
+                userMsgEl.classList.remove('hidden');
+                userMsgEl.style.background = 'rgba(239,68,68,0.12)';
+                userMsgEl.style.color = '#f87171';
+            }
+        }
+
+        if (tab || pwOk || pwErr || params.get('new_user') || params.get('reset_user') || params.get('user_ok') || params.get('user_error')) {
+            window.history.replaceState({}, '', window.location.pathname);
+        }
     })();
+
     </script>
 
 </body>

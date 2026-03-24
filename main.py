@@ -162,6 +162,124 @@ def change_password(
     log_info(f"[AUTH] Password changed for user: {username}")
     return RedirectResponse(url="/?tab=settings&pw_ok=1", status_code=303)
 
+# ─── Role Enforcement ─────────────────────────────────────────────────────────
+
+def require_role(request: Request, *allowed_roles, db: Session = None):
+    """Returns the current user if they have one of the allowed roles, else raises 403."""
+    username = require_auth(request)
+    if db is None:
+        db = SessionLocal()
+    user = db.query(User).filter(User.username == username).first()
+    if not user or (user.role or "admin") not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return user
+
+def get_current_user_from_request(request: Request, db: Session = Depends(get_db)):
+    username = require_auth(request)
+    return db.query(User).filter(User.username == username).first()
+
+# ─── Admin: User Management ───────────────────────────────────────────────────
+
+import secrets
+import string
+
+def _gen_temp_password(length=12):
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+@app.post("/admin/add_user")
+def admin_add_user(
+    request: Request,
+    username: str = Form(...),
+    role: str = Form("operator"),
+    db: Session = Depends(get_db)
+):
+    require_role(request, "admin", db=db)
+    existing = db.query(User).filter(User.username == username).first()
+    if existing:
+        return RedirectResponse(url="/?tab=users&user_error=exists", status_code=303)
+    temp_pw = _gen_temp_password()
+    new_user = User(
+        username=username,
+        hashed_password=auth.get_password_hash(temp_pw),
+        role=role,
+        is_mfa_enabled=False
+    )
+    db.add(new_user)
+    db.commit()
+    log_info(f"[ADMIN] Created user '{username}' with role '{role}'")
+    # Encode temp password in URL so admin can copy it (shown once)
+    import urllib.parse
+    return RedirectResponse(url=f"/?tab=users&new_user={urllib.parse.quote(username)}&new_pw={urllib.parse.quote(temp_pw)}", status_code=303)
+
+@app.post("/admin/delete_user")
+def admin_delete_user(
+    request: Request,
+    user_id: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    current = require_role(request, "admin", db=db)
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        return RedirectResponse(url="/?tab=users", status_code=303)
+    if target.username == current.username:
+        return RedirectResponse(url="/?tab=users&user_error=self_delete", status_code=303)
+    db.delete(target)
+    db.commit()
+    log_info(f"[ADMIN] Deleted user '{target.username}'")
+    return RedirectResponse(url="/?tab=users&user_ok=deleted", status_code=303)
+
+@app.post("/admin/reset_password")
+def admin_reset_password(
+    request: Request,
+    user_id: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    require_role(request, "admin", db=db)
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        return RedirectResponse(url="/?tab=users", status_code=303)
+    temp_pw = _gen_temp_password()
+    target.hashed_password = auth.get_password_hash(temp_pw)
+    db.commit()
+    log_info(f"[ADMIN] Reset password for user '{target.username}'")
+    import urllib.parse
+    return RedirectResponse(url=f"/?tab=users&reset_user={urllib.parse.quote(target.username)}&reset_pw={urllib.parse.quote(temp_pw)}", status_code=303)
+
+@app.post("/admin/reset_mfa")
+def admin_reset_mfa(
+    request: Request,
+    user_id: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    require_role(request, "admin", db=db)
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        return RedirectResponse(url="/?tab=users", status_code=303)
+    target.is_mfa_enabled = False
+    target.mfa_secret = None
+    db.commit()
+    log_info(f"[ADMIN] Reset MFA for user '{target.username}' — will be prompted on next login")
+    return RedirectResponse(url="/?tab=users&user_ok=mfa_reset", status_code=303)
+
+@app.post("/admin/update_role")
+def admin_update_role(
+    request: Request,
+    user_id: int = Form(...),
+    role: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    current = require_role(request, "admin", db=db)
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target or target.username == current.username:
+        return RedirectResponse(url="/?tab=users", status_code=303)
+    if role not in ("admin", "operator", "viewer"):
+        return RedirectResponse(url="/?tab=users", status_code=303)
+    target.role = role
+    db.commit()
+    log_info(f"[ADMIN] Changed role of '{target.username}' to '{role}'")
+    return RedirectResponse(url="/?tab=users&user_ok=role_updated", status_code=303)
+
 @app.get("/")
 def read_root(request: Request, db: Session = Depends(get_db)):
     try:

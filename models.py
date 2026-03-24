@@ -12,8 +12,9 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-    mfa_secret = Column(String, nullable=True) # TOTP Secret
+    mfa_secret = Column(String, nullable=True)
     is_mfa_enabled = Column(Boolean, default=False)
+    role = Column(String, default="admin")  # admin | operator | viewer
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class ESXiHost(Base):
@@ -157,6 +158,7 @@ def init_db():
             ("is_cancelled", 'ALTER TABLE restore_jobs ADD COLUMN is_cancelled BOOLEAN DEFAULT 0'),
             ("speed_mbps", 'ALTER TABLE vms ADD COLUMN speed_mbps REAL DEFAULT 0.0'),
             ("power_off_for_backup", 'ALTER TABLE vms ADD COLUMN power_off_for_backup BOOLEAN DEFAULT 0'),
+            ("role", "ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'admin'"),
         ]
         
         from logger_util import log_info, log_warn
