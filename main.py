@@ -674,8 +674,8 @@ if __name__ == "__main__":
 
         log_info("=" * 55)
         log_info("  NovaBak is starting on HTTPS port 8000")
-        log_info("  Open: https://localhost:8000")
-        log_info("  (Browser will warn about self-signed cert — click Advanced → Proceed)")
+        log_info("Open: https://localhost:8000")
+        log_info("  (Browser will warn about self-signed cert - click Advanced -> Proceed)")
         log_info("=" * 55)
 
         uvicorn.run(
