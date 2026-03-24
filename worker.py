@@ -35,38 +35,64 @@ def cleanup_old_backups(storage, vm_name, retention_count):
         log_info(f"Retention: Removing old backup directory {f}")
         storage.delete_dir(f)
 
-def send_email_report(config, logs_today):
-    if not config.smtp_server or not config.smtp_to_email:
-        log_info("SMTP not configured. Skipping email.")
+def _smtp_send(config, to_addrs: list, subject: str, body: str):
+    """Low-level helper — sends one email to a list of recipients."""
+    if not config or not config.smtp_server or not to_addrs:
         return
-
     msg = EmailMessage()
-    msg['Subject'] = f"VM Backup Report - {datetime.date.today()}"
-    msg['From'] = config.smtp_user if config.smtp_user else "vmbackup@local"
-    msg['To'] = config.smtp_to_email
-
-    content = "Daily VM Backup Report\n\n"
-    for log in logs_today:
-        content += f"VM: {log.vm_name}\nStatus: {log.status}\nMessage: {log.message}\nTime: {log.timestamp}\n\n"
-
-    msg.set_content(content)
-
+    msg["Subject"] = subject
+    msg["From"] = config.smtp_user if config.smtp_user else "novabak@local"
+    msg["To"] = ", ".join(to_addrs)
+    msg.set_content(body)
     try:
         if config.smtp_use_ssl:
-            server = smtplib.SMTP_SSL(config.smtp_server, config.smtp_port)
+            server = smtplib.SMTP_SSL(config.smtp_server, config.smtp_port, timeout=30)
         else:
-            server = smtplib.SMTP(config.smtp_server, config.smtp_port)
-            
+            server = smtplib.SMTP(config.smtp_server, config.smtp_port, timeout=30)
         with server:
             if not config.smtp_use_ssl and config.smtp_use_tls:
                 server.starttls()
-                
             if config.smtp_user and config.smtp_password:
                 server.login(config.smtp_user, config.smtp_password)
             server.send_message(msg)
-        log_info("Email report sent successfully.")
+        log_info(f"[EMAIL] Sent '{subject}' to {to_addrs}")
     except Exception as e:
-        log_error(f"Failed to send email: {e}")
+        log_error(f"[EMAIL] Failed: {e}")
+
+
+def send_event_notification(event_key: str, subject: str, body: str):
+    """
+    Sends a notification to every user who is subscribed to `event_key`
+    and has a non-empty email address configured.
+    """
+    from models import User  # avoid circular import at module level
+    db = SessionLocal()
+    try:
+        config = db.query(Config).first()
+        if not config or not config.smtp_server:
+            return
+        users = db.query(User).all()
+        recipients = [
+            u.email for u in users
+            if u.email and event_key in [s.strip() for s in (u.notify_subscriptions or "").split(",") if s.strip()]
+        ]
+        if recipients:
+            _smtp_send(config, recipients, subject, body)
+    finally:
+        db.close()
+
+
+def send_email_report(config, logs_today):
+    """Legacy wrapper — sends a summary to the global smtp_to_email address."""
+    if not config or not config.smtp_server or not config.smtp_to_email:
+        log_info("SMTP not configured. Skipping email.")
+        return
+    body = "Daily VM Backup Report\n\n"
+    for log in logs_today:
+        body += f"VM: {log.vm_name}\nStatus: {log.status}\nMessage: {log.message}\nTime: {log.timestamp}\n\n"
+    _smtp_send(config, [config.smtp_to_email],
+               f"VM Backup Report - {datetime.date.today()}", body)
+
 
 def authenticate_smb(config):
     """ Authenticates to the SMB share on Windows using net use. Returns (bool, str) """
@@ -206,7 +232,7 @@ def perform_backup(vm_id: int):
             current_power = getattr(esxi_vm.runtime, 'powerState', 'poweredOff') if esxi_vm else 'poweredOff'
 
             if current_power != 'poweredOff':
-                vm.current_action = "⏹ Shutting down VM..."
+                vm.current_action = "Shutting down VM..."
                 vm.progress = 0
                 db.commit()
                 log_info(f"[PID {pid}] Power-off-for-backup enabled. Shutting down {vm.vm_name}...")
@@ -214,11 +240,21 @@ def perform_backup(vm_id: int):
                 if not ok:
                     raise Exception(f"Shutdown failed: {msg}")
                 powered_off_by_us = True
+                send_event_notification(
+                    "vm_powered_off",
+                    f"[NovaBak] VM Powered Off: {vm.vm_name}",
+                    f"VM '{vm.vm_name}' was powered off to perform a fast backup on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}."
+                )
                 log_info(f"[PID {pid}] {vm.vm_name} is now off. Proceeding with fast backup.")
             else:
                 log_info(f"[PID {pid}] power_off_for_backup: VM already off, skipping shutdown step.")
 
         # --- PREFLIGHT ---
+        send_event_notification(
+            "backup_start",
+            f"[NovaBak] Backup Started: {vm.vm_name}",
+            f"Backup job for VM '{vm.vm_name}' on host '{host.name}' has started at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}."
+        )
         vm.current_action = "Preflight checks..."
         vm.progress = 0
         db.commit()
@@ -268,8 +304,18 @@ def perform_backup(vm_id: int):
         
         if success:
             cleanup_old_backups(storage, vm.vm_name, vm.retention_count)
+            send_event_notification(
+                "backup_success",
+                f"[NovaBak] Backup Succeeded: {vm.vm_name}",
+                f"VM '{vm.vm_name}' backed up successfully at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}.\n\nDetails: {log_msg}"
+            )
         else:
             log_error(f"[PID {pid}] {log_msg}")
+            send_event_notification(
+                "backup_failure",
+                f"[NovaBak] Backup FAILED: {vm.vm_name}",
+                f"Backup for VM '{vm.vm_name}' FAILED at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}.\n\nError: {log_msg}"
+            )
             send_email_report(config, [BackupLog(vm_name=vm.vm_name, status="Failed", message=log_msg)])
 
         db.commit()
@@ -281,6 +327,11 @@ def perform_backup(vm_id: int):
         vm.current_action = ""
         vm.last_status = "Failed"
         db.commit()
+        send_event_notification(
+            "backup_failure",
+            f"[NovaBak] Backup FAILED: {vm.vm_name}",
+            f"Backup for VM '{vm.vm_name}' encountered an unexpected error.\n\nError: {e}"
+        )
         
     finally:
         try:
@@ -472,9 +523,20 @@ def perform_restore(config, target_ip, target_user, target_password, source_ova_
         if success:
             update_job(100, action="Completed", status="Success")
             log_info(f"Native Restore successful for {target_name}")
+            send_event_notification(
+                "restore_success",
+                f"[NovaBak] Restore Succeeded: {target_name}",
+                f"VM restore of '{target_name}' completed successfully at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}."
+            )
         else:
             update_job(None, error=msg)
             log_error(f"Native Restore Failed: {msg}")
+            send_event_notification(
+                "restore_failure",
+                f"[NovaBak] Restore FAILED: {target_name}",
+                f"VM restore of '{target_name}' FAILED.\n\nError: {msg}"
+            )
+
             
     except Exception as e:
         update_job(None, error=str(e))

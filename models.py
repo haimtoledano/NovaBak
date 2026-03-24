@@ -7,6 +7,17 @@ from config_env import SQLALCHEMY_DATABASE_URL, DATA_DIR
 
 Base = declarative_base()
 
+# Notification event keys available for user subscriptions
+NOTIFY_EVENTS = [
+    ("backup_success",  "Backup completed successfully"),
+    ("backup_failure",  "Backup failed"),
+    ("backup_start",    "Backup job started"),
+    ("restore_success", "Restore completed successfully"),
+    ("restore_failure", "Restore job failed"),
+    ("vm_powered_off",  "VM powered off for backup"),
+    ("snapshot_cleanup","Snapshot purge triggered"),
+]
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -16,6 +27,8 @@ class User(Base):
     is_mfa_enabled = Column(Boolean, default=False)
     role = Column(String, default="admin")  # admin | operator | viewer
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    email = Column(String, default="")  # Personal email for notifications
+    notify_subscriptions = Column(String, default="")  # Comma-separated event keys
 
 class ESXiHost(Base):
     __tablename__ = "esxi_hosts"
@@ -159,6 +172,8 @@ def init_db():
             ("speed_mbps", 'ALTER TABLE vms ADD COLUMN speed_mbps REAL DEFAULT 0.0'),
             ("power_off_for_backup", 'ALTER TABLE vms ADD COLUMN power_off_for_backup BOOLEAN DEFAULT 0'),
             ("role", "ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'admin'"),
+            ("email", "ALTER TABLE users ADD COLUMN email VARCHAR DEFAULT ''"),
+            ("notify_subscriptions", "ALTER TABLE users ADD COLUMN notify_subscriptions VARCHAR DEFAULT ''"),
         ]
         
         from logger_util import log_info, log_warn
