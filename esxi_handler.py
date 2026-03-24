@@ -207,7 +207,7 @@ def wait_for_vm_idle(si, vm_name, timeout_mins=15):
     return False, final_msg
 
 def disconnect_removable_devices(si, vm_name):
-    """ Disconnects any ISO images from CD-ROM drives and Floppy drives to prevent OVFTool InvalidState errors. """
+    """ Disconnects any ISO images from CD-ROM drives and Floppy drives before backup. """
     content = si.RetrieveContent()
     vm = content.searchIndex.FindByInventoryPath(f"ha-datacenter/vm/{vm_name}")
     

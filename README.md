@@ -64,7 +64,6 @@ All settings are managed from the **Settings** tab in the Web UI:
 
 - The `data/` directory holds the SQLite database and logs. Mount it as a volume (Docker) or keep it local (Windows).
 - **Never commit `data/` to Git** — it may contain credentials.
-- OVFTool (if used) goes in `bin/ovftool/`. It is also excluded from Git.
 
 ---
 

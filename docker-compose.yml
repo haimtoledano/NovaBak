@@ -11,8 +11,6 @@ services:
     volumes:
       # Persistent data: SQLite DB + logs
       - novabak_data:/app/data
-      # Optional: mount your OVFTool binary here
-      # - ./bin:/app/bin
     environment:
       - DATA_DIR=/app/data
     command: python -u main.py

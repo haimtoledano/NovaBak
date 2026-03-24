@@ -23,7 +23,6 @@ powershell -ExecutionPolicy Bypass -Command "Stop-ScheduledTask -TaskName 'VMBac
 powershell -ExecutionPolicy Bypass -Command "Stop-ScheduledTask -TaskName 'VMBackup_Worker' -ErrorAction SilentlyContinue; Unregister-ScheduledTask -TaskName 'VMBackup_Worker' -Confirm:$false -ErrorAction SilentlyContinue"
 powershell -ExecutionPolicy Bypass -Command "Stop-ScheduledTask -TaskName 'VMBackupEnterprise' -ErrorAction SilentlyContinue; Unregister-ScheduledTask -TaskName 'VMBackupEnterprise' -Confirm:$false -ErrorAction SilentlyContinue"
 taskkill /F /IM python.exe >nul 2>&1
-taskkill /F /IM ovftool.exe >nul 2>&1
 timeout /t 2 /nobreak >nul
 
 echo.
