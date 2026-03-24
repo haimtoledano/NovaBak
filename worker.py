@@ -10,7 +10,7 @@ import esxi_handler
 import backup_engine
 import storage_util
 from models import SessionLocal, Config, VM, BackupLog, RestoreJob
-from config_env import OVFTOOL_PATH
+from config_env import DATA_DIR
 from logger_util import log_info, log_warn, log_error, log_debug
 
 def cleanup_old_backups(storage, vm_name, retention_count):
@@ -145,13 +145,13 @@ def queue_backup(vm_id: int):
     db.close()
 
 def stop_job(vm_id: int):
-    """ Terminate an active OVFTool backup process. """
+    """ Terminate an active backup process for a VM. """
     pid = os.getpid()
     log_info(f"[PID {pid}] Stop request received for VM ID: {vm_id}")
     if vm_id in active_processes:
         try:
             p = active_processes[vm_id]
-            log_info(f"[PID {pid}] Terminating ovftool process (Sub-PID: {p.pid}) for VM ID: {vm_id}")
+            log_info(f"[PID {pid}] Terminating backup process for VM ID: {vm_id}")
             p.terminate()
             return True
         except Exception as e:
