@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# Data directory — contains DB with credentials, logs, etc.
+data/
+
+# Compiled distribution / release zips
+*.zip
+*.tar.gz
+
+# OVFTool binaries (large, platform-specific — users supply their own)
+bin/
+
+# IDE / OS
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# Lock files
+daemon.lock
+app.lock
+
+# Test scripts
+/tmp/
+test.txt

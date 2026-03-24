@@ -1,0 +1,14 @@
+# Exclude the same things as .gitignore
+__pycache__/
+*.py[cod]
+.venv/
+data/
+*.zip
+*.tar.gz
+bin/
+.git/
+.vscode/
+.idea/
+daemon.lock
+app.lock
+test.txt

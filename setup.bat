@@ -18,9 +18,12 @@ if %errorLevel% neq 0 (
 cd /d "%~dp0"
 
 echo.
-echo [0/4] Stopping existing service if running...
-powershell -ExecutionPolicy Bypass -Command "Stop-ScheduledTask -TaskName 'VMBackupEnterprise' -ErrorAction SilentlyContinue"
+echo [0/4] Stopping existing services if running...
+powershell -ExecutionPolicy Bypass -Command "Stop-ScheduledTask -TaskName 'VMBackup_Web' -ErrorAction SilentlyContinue; Unregister-ScheduledTask -TaskName 'VMBackup_Web' -Confirm:$false -ErrorAction SilentlyContinue"
+powershell -ExecutionPolicy Bypass -Command "Stop-ScheduledTask -TaskName 'VMBackup_Worker' -ErrorAction SilentlyContinue; Unregister-ScheduledTask -TaskName 'VMBackup_Worker' -Confirm:$false -ErrorAction SilentlyContinue"
+powershell -ExecutionPolicy Bypass -Command "Stop-ScheduledTask -TaskName 'VMBackupEnterprise' -ErrorAction SilentlyContinue; Unregister-ScheduledTask -TaskName 'VMBackupEnterprise' -Confirm:$false -ErrorAction SilentlyContinue"
 taskkill /F /IM python.exe >nul 2>&1
+taskkill /F /IM ovftool.exe >nul 2>&1
 timeout /t 2 /nobreak >nul
 
 echo.
@@ -40,18 +43,15 @@ if %errorLevel% neq 0 (
     exit /B
 )
 
-echo.
-echo [3/4] Generating Startup Service...
-echo @echo off > start_service.bat
-echo cd /d "%~dp0" >> start_service.bat
-echo call .venv\Scripts\activate.bat >> start_service.bat
-echo if not exist "data" mkdir "data" >> start_service.bat
-echo echo [%%date%% %%time%%] Starting VM Backup Service... ^>^> data\service.log >> start_service.bat
-echo python main.py ^>^> data\service.log 2^>^&1 >> start_service.bat
+echo [3/4] Background services are pre-configured in start_web.bat and start_worker.bat
 
 echo.
-echo [4/4] Registering Windows Background Service...
-powershell -ExecutionPolicy Bypass -Command "$Action = New-ScheduledTaskAction -Execute '%~dp0start_service.bat'; $Trigger = New-ScheduledTaskTrigger -AtStartup; $Principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest; $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit 0; Register-ScheduledTask -TaskName 'VMBackupEnterprise' -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Description 'VM Backup Enterprise Server' -Force; Start-ScheduledTask -TaskName 'VMBackupEnterprise'"
+echo [4/4] Registering Windows Background Services...
+:: Register Web UI Service
+powershell -ExecutionPolicy Bypass -Command "$Action = New-ScheduledTaskAction -Execute '%~dp0start_web.bat'; $Trigger = New-ScheduledTaskTrigger -AtStartup; $Principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest; $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit 0; Register-ScheduledTask -TaskName 'VMBackup_Web' -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Description 'VM Backup Enterprise Web UI' -Force; Start-ScheduledTask -TaskName 'VMBackup_Web'"
+
+:: Register Worker Daemon Service
+powershell -ExecutionPolicy Bypass -Command "$Action = New-ScheduledTaskAction -Execute '%~dp0start_worker.bat'; $Trigger = New-ScheduledTaskTrigger -AtStartup; $Principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest; $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit 0; Register-ScheduledTask -TaskName 'VMBackup_Worker' -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Description 'VM Backup Enterprise Worker Daemon' -Force; Start-ScheduledTask -TaskName 'VMBackup_Worker'"
 
 echo.
 echo ==========================================================

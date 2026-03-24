@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  # ─── Web UI ───────────────────────────────────────────────────────────────
+  web:
+    build: .
+    container_name: novabak_web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistent data: SQLite DB + logs
+      - novabak_data:/app/data
+      # Optional: mount your OVFTool binary here
+      # - ./bin:/app/bin
+    environment:
+      - DATA_DIR=/app/data
+    command: python -u main.py
+
+  # ─── Background Worker Daemon ─────────────────────────────────────────────
+  worker:
+    build: .
+    container_name: novabak_worker
+    restart: unless-stopped
+    depends_on:
+      - web
+    volumes:
+      # Same data volume — shared DB between web and worker
+      - novabak_data:/app/data
+    environment:
+      - DATA_DIR=/app/data
+    command: python -u worker_daemon.py
+
+volumes:
+  novabak_data:
+    driver: local
