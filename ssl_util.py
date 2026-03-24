@@ -68,7 +68,7 @@ def _generate_cert():
         f.write(cert.public_bytes(serialization.Encoding.PEM))
 
     log_info(f"[SSL] Certificate saved: {CERT_FILE}")
-    log_info(f"[SSL] Valid for {CERT_DAYS} days ({now.date()} → {(now + datetime.timedelta(days=CERT_DAYS)).date()})")
+    log_info(f"[SSL] Valid for {CERT_DAYS} days ({now.date()} -> {(now + datetime.timedelta(days=CERT_DAYS)).date()})")
 
 
 def _cert_needs_renewal(days_threshold=30):
