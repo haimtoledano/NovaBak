@@ -5,29 +5,64 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MFA Setup - NovaBak</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .card { background: #1a1d2e; border: 1px solid #2d3148; border-radius: 12px; }
+        .secret-box { background: #0f1117; border: 1px dashed #4c5080; border-radius: 8px; font-family: monospace; letter-spacing: 0.15em; }
+        input[type=text] { background: #0f1117; border: 1px solid #2d3148; color: #e2e8f0; border-radius: 8px; }
+        input[type=text]:focus { outline: none; border-color: #4f8ef7; }
+        .btn-primary { background: linear-gradient(135deg, #4f8ef7, #7c5cf7); color: white; border-radius: 8px; font-weight: 600; transition: opacity 0.2s; }
+        .btn-primary:hover { opacity: 0.9; }
+    </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center">
-        <h2 class="text-2xl font-bold text-blue-600 mb-2">Enable Two-Factor Auth</h2>
-        <p class="text-sm text-gray-600 mb-6">Scan the QR code below with your Authenticator App (Google/Microsoft), then enter the 6-digit code to verify.</p>
-        
-        {% if error %}
-        <div class="bg-red-100 text-red-700 p-2 mb-4 text-sm rounded">{{ error }}</div>
-        {% endif %}
-
-        <div class="flex justify-center mb-6">
-            <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code" class="border p-2 rounded shadow-sm">
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="card p-8 w-full max-w-md">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style="background: rgba(79,142,247,0.15)">
+                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+            </div>
+            <h2 class="text-xl font-bold text-white">Two-Factor Authentication</h2>
+            <p class="text-sm mt-1" style="color: #8892a4">Scan the QR code with your Authenticator app<br>then enter the 6-digit code to verify.</p>
         </div>
 
+        {% if error %}
+        <div class="mb-4 px-4 py-2 rounded text-sm font-medium" style="background: rgba(239,68,68,0.12); color: #f87171">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- QR Code -->
+        <div class="flex justify-center mb-4">
+            <div class="p-3 bg-white rounded-lg inline-block">
+                <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code" class="w-44 h-44">
+            </div>
+        </div>
+
+        <!-- Secret Text Code -->
+        <div class="mb-5">
+            <p class="text-xs font-semibold mb-2 text-center" style="color: #8892a4">
+                Can't scan? Enter this code manually in your app:
+            </p>
+            <div class="secret-box px-4 py-3 text-center text-blue-300 text-sm font-bold tracking-widest select-all">
+                {{ secret }}
+            </div>
+            <p class="text-[10px] text-center mt-1" style="color: #4c5080">
+                Save this code in a secure place — it won't be shown again.
+            </p>
+        </div>
+
+        <!-- Verify Form -->
         <form action="/mfa_verify" method="POST" class="space-y-4">
             <input type="hidden" name="secret" value="{{ secret }}">
             <div>
-                <input type="text" name="mfa_code" required placeholder="000111" class="text-center tracking-widest text-xl block w-full rounded-md border-gray-300 shadow-sm border p-3">
+                <input type="text" name="mfa_code" required placeholder="Enter 6-digit code"
+                       maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code"
+                       class="text-center tracking-widest text-xl w-full p-3">
             </div>
-            
-            <button type="submit" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded hover:bg-green-700">
-                Verify & Save
-            </button>
+            <button type="submit" class="btn-primary w-full py-3">Verify &amp; Enable MFA</button>
         </form>
     </div>
 </body>
