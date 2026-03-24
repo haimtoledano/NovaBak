@@ -26,6 +26,8 @@ copy backup_engine.py build_temp\ >nul
 copy config_env.py build_temp\ >nul
 copy logger_util.py build_temp\ >nul
 copy storage_util.py build_temp\ >nul
+copy ssl_util.py build_temp\ >nul
+copy init_db.py build_temp\ >nul
 copy start_web.bat build_temp\ >nul
 copy start_worker.bat build_temp\ >nul
 
