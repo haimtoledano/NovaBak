@@ -441,6 +441,8 @@ def update_job(
     retention_count: int = Form(2),
     is_job_active: bool = Form(False),
     power_off_for_backup: bool = Form(False),
+    schedule_frequency: str = Form("daily"),
+    schedule_days: str = Form("0,1,2,3,4,5,6"),
     db: Session = Depends(get_db)
 ):
     require_auth(request)
@@ -451,9 +453,13 @@ def update_job(
         vm.retention_count = retention_count
         vm.is_job_active = is_job_active
         vm.power_off_for_backup = power_off_for_backup
+        vm.schedule_frequency = schedule_frequency if schedule_frequency in ("daily", "weekly", "monthly") else "daily"
+        valid_days = [d.strip() for d in schedule_days.split(',') if d.strip().isdigit() and 0 <= int(d.strip()) <= 6]
+        vm.schedule_days = ','.join(valid_days) if valid_days else "0,1,2,3,4,5,6"
         db.commit()
         # The external worker_daemon.py will auto-detect this schedule change via md5 hash polling.
     return RedirectResponse(url="/", status_code=303)
+
 
 
 @app.post("/run_now")

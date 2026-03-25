@@ -99,6 +99,8 @@ class VM(Base):
     schedule_minute = Column(Integer, default=0)
     retention_count = Column(Integer, default=2) # Number of copies to keep
     is_job_active = Column(Boolean, default=True)
+    schedule_frequency = Column(String, default="daily")  # daily | weekly | monthly
+    schedule_days = Column(String, default="0,1,2,3,4,5,6")  # APScheduler day_of_week: 0=Mon … 6=Sun
     last_backup = Column(DateTime, nullable=True)
     last_status = Column(String, default="Never")
     progress = Column(Integer, default=0)
@@ -174,6 +176,8 @@ def init_db():
             ("role", "ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'admin'"),
             ("email", "ALTER TABLE users ADD COLUMN email VARCHAR DEFAULT ''"),
             ("notify_subscriptions", "ALTER TABLE users ADD COLUMN notify_subscriptions VARCHAR DEFAULT ''"),
+            ("schedule_frequency", "ALTER TABLE vms ADD COLUMN schedule_frequency VARCHAR DEFAULT 'daily'"),
+            ("schedule_days", "ALTER TABLE vms ADD COLUMN schedule_days VARCHAR DEFAULT '0,1,2,3,4,5,6'"),
         ]
         
         from logger_util import log_info, log_warn

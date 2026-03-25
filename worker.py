@@ -219,6 +219,9 @@ def perform_backup(vm_id: int):
         return
 
     powered_off_by_us = False  # Track if we shut down the VM so we can restore it
+    backup_start_time = datetime.datetime.now()
+    dest_path_info = ""
+    poweron_result = None  # None = not attempted, True = success, False = failed
 
     try:
         timeout_m = config.backup_timeout_mins if hasattr(config, 'backup_timeout_mins') else 15
@@ -253,7 +256,8 @@ def perform_backup(vm_id: int):
         send_event_notification(
             "backup_start",
             f"[NovaBak] Backup Started: {vm.vm_name}",
-            f"Backup job for VM '{vm.vm_name}' on host '{host.name}' has started at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}."
+            f"Backup job for VM '{vm.vm_name}' on host '{host.name}' has started at {backup_start_time.strftime('%Y-%m-%d %H:%M')}."
+            + (f"\nVM was powered off before backup." if powered_off_by_us else "")
         )
         vm.current_action = "Preflight checks..."
         vm.progress = 0
@@ -298,24 +302,52 @@ def perform_backup(vm_id: int):
         vm.speed_mbps = 0.0
         vm.last_backup = datetime.datetime.now()
         vm.last_status = "Success" if success else "Failed"
+        backup_end_time = datetime.datetime.now()
+        duration_s = int((backup_end_time - backup_start_time).total_seconds())
+        duration_str = f"{duration_s // 60}m {duration_s % 60}s"
+        # Build destination path string for email
+        try:
+            dest_path_info = storage.get_base_path().rstrip('/\\') + '/' + dest_rel_dir
+        except Exception:
+            dest_path_info = dest_rel_dir
 
         log_msg = result_msg
         db.add(BackupLog(vm_name=vm.vm_name, status=vm.last_status, message=log_msg))
         
         if success:
             cleanup_old_backups(storage, vm.vm_name, vm.retention_count)
-            send_event_notification(
-                "backup_success",
-                f"[NovaBak] Backup Succeeded: {vm.vm_name}",
-                f"VM '{vm.vm_name}' backed up successfully at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}.\n\nDetails: {log_msg}"
+            rich_body = (
+                f"Backup Report — {vm.vm_name}\n"
+                f"{'=' * 50}\n"
+                f"Status     : SUCCESS ✓\n"
+                f"VM         : {vm.vm_name}\n"
+                f"Host       : {host.name}\n"
+                f"Started    : {backup_start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"Finished   : {backup_end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"Duration   : {duration_str}\n"
+                f"Destination: {dest_path_info}\n"
+                f"Power State: {'VM was powered OFF for backup and powered ON after.' if powered_off_by_us else 'VM remained powered on (live backup).'}\n"
+                f"{'=' * 50}\n"
+                f"Details    : {log_msg}\n"
             )
+            send_event_notification("backup_success", f"[NovaBak] ✓ Backup Succeeded: {vm.vm_name}", rich_body)
         else:
             log_error(f"[PID {pid}] {log_msg}")
-            send_event_notification(
-                "backup_failure",
-                f"[NovaBak] Backup FAILED: {vm.vm_name}",
-                f"Backup for VM '{vm.vm_name}' FAILED at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}.\n\nError: {log_msg}"
+            rich_body = (
+                f"Backup Report — {vm.vm_name}\n"
+                f"{'=' * 50}\n"
+                f"Status     : FAILED ✗\n"
+                f"VM         : {vm.vm_name}\n"
+                f"Host       : {host.name}\n"
+                f"Started    : {backup_start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"Failed At  : {backup_end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"Duration   : {duration_str}\n"
+                f"Destination: {dest_path_info or 'N/A'}\n"
+                f"Power State: {'VM was powered off, may need manual power-on check.' if powered_off_by_us else 'VM remained powered on.'}\n"
+                f"{'=' * 50}\n"
+                f"Error      : {log_msg}\n"
             )
+            send_event_notification("backup_failure", f"[NovaBak] ✗ Backup FAILED: {vm.vm_name}", rich_body)
             send_email_report(config, [BackupLog(vm_name=vm.vm_name, status="Failed", message=log_msg)])
 
         db.commit()
@@ -354,9 +386,11 @@ def perform_backup(vm_id: int):
                 ok, msg = esxi_handler.poweron_vm(si, vm.vm_name, timeout_mins=3)
                 if ok:
                     log_info(f"[PID {pid}] {vm.vm_name} powered on successfully after backup.")
+                    poweron_result = True
                 else:
                     log_error(f"[PID {pid}] Failed to power on {vm.vm_name} after backup: {msg}")
                     db.add(BackupLog(vm_name=vm.vm_name, status="Warning", message=f"Backup done but power-on failed: {msg}"))
+                    poweron_result = False
                 vm.current_action = ""
                 db.commit()
             except Exception as e:
@@ -382,21 +416,34 @@ def start_scheduler():
     
     for vm in vms:
         job_id = f"backup_{vm.id}"
+        freq = getattr(vm, 'schedule_frequency', 'daily') or 'daily'
+        days = getattr(vm, 'schedule_days', '0,1,2,3,4,5,6') or '0,1,2,3,4,5,6'
+
+        # Build cron kwargs based on frequency
+        cron_kwargs = dict(hour=vm.schedule_hour, minute=vm.schedule_minute)
+        if freq == 'monthly':
+            cron_kwargs['day'] = 1   # 1st of each month
+        else:
+            # daily or weekly: honour the selected days of week
+            cron_kwargs['day_of_week'] = days
+
         scheduler.add_job(
-            queue_backup, 
-            'cron', 
-            hour=vm.schedule_hour, 
-            minute=vm.schedule_minute, 
+            queue_backup,
+            'cron',
+            **cron_kwargs,
             args=[vm.id],
             id=job_id,
-            misfire_grace_time=30 # Prevent firing if way past due
+            misfire_grace_time=60
         )
-        log_info(f"Scheduled job {job_id} for {vm.vm_name} at {vm.schedule_hour:02d}:{vm.schedule_minute:02d}")
+        day_names = ['Mo','Tu','We','Th','Fr','Sa','Su']
+        day_label = ','.join(day_names[int(d)] for d in days.split(',') if d.strip().isdigit()) if freq != 'monthly' else '1st'
+        log_info(f"Scheduled job {job_id} for {vm.vm_name} at {vm.schedule_hour:02d}:{vm.schedule_minute:02d} ({freq}: {day_label})")
     
     if not scheduler.running:
         scheduler.start()
     db.close()
     return scheduler
+
 
 def get_available_backups(config):
     """ Scans the target storage and returns a list of available backups. """
