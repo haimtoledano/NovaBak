@@ -421,10 +421,14 @@ def start_scheduler():
 
         # Build cron kwargs based on frequency
         cron_kwargs = dict(hour=vm.schedule_hour, minute=vm.schedule_minute)
-        if freq == 'monthly':
-            cron_kwargs['day'] = 1   # 1st of each month
-        else:
-            # daily or weekly: honour the selected days of week
+        if freq == 'daily':
+            pass  # No day restriction — fires every day of the week
+        elif freq == 'weekly':
+            cron_kwargs['day_of_week'] = days  # Run on selected weekdays
+        elif freq == 'monthly':
+            # First occurrence of selected weekday(s) in each month
+            # day='1-7' means days 1-7 of the month; combined with day_of_week gives "first X of month"
+            cron_kwargs['day'] = '1-7'
             cron_kwargs['day_of_week'] = days
 
         scheduler.add_job(
