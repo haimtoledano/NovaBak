@@ -137,6 +137,11 @@
             navBtn.classList.remove('border-transparent', 'text-[var(--text-muted)]');
             navBtn.classList.add('border-[var(--brand)]', 'text-[var(--brand)]');
             localStorage.setItem('activeTab', tabId);
+
+            // Auto-scan repository when switching to Recovery tab
+            if (tabId === 'tab-restore' && typeof loadGroupedBackups === 'function') {
+                loadGroupedBackups();
+            }
         }
 
         function filterJobs() {
@@ -820,6 +825,7 @@
                         <p class="text-[10px] opacity-50 mt-3">Notifications are sent on backup completion or failure. Leave SMTP Server empty to disable.</p>
                     </div>
                 </form>
+            </div><!-- end settings grid -->
 
             <!-- MY PROFILE SECTION (visible to all users) -->
             <div id="profile-saved-msg" class="hidden mt-4 px-4 py-3 rounded text-sm font-medium" style="background:rgba(34,197,94,0.12); color:#4ade80;">
