@@ -455,14 +455,17 @@ def get_available_backups(config):
     try:
         # List major VM directories
         vm_dirs = storage.list_dirs("")
+        log_info(f"[SCAN] Storage type={config.storage_type}. Found {len(vm_dirs)} top-level dirs: {vm_dirs}")
         for vm_name in vm_dirs:
             # List date folders within each VM directory
             date_folders = storage.list_dirs(vm_name)
+            log_info(f"[SCAN] VM '{vm_name}' → {len(date_folders)} date folders: {date_folders}")
             for date_folder in date_folders:
                 rel_date_dir = f"{vm_name}/{date_folder}"
                 
                 # Look for descriptor files
                 files = storage.list_files(rel_date_dir)
+                log_info(f"[SCAN]   {rel_date_dir} → files: {files}")
                 found_vmx = next((f for f in files if f.endswith('.vmx')), None)
                 found_ovf = next((f for f in files if f.endswith('.ovf')), None)
                 found_ova = next((f for f in files if f.endswith('.ova')), None)
@@ -490,11 +493,14 @@ def get_available_backups(config):
                         "size": size_str
                     })
     except Exception as e:
-        log_error(f"Error scanning storage repository: {e}")
+        import traceback
+        log_error(f"Error scanning storage repository: {e}\n{traceback.format_exc()}")
         
+    log_info(f"[SCAN] Total backups found: {len(backups)}")
     # Sort by date descending
     backups.sort(key=lambda x: x["date"], reverse=True)
     return backups
+
 
 def perform_restore(config, target_ip, target_user, target_password, source_ova_path, target_name, datastore, restore_job_id):
     """ Restores a VM by uploading backup files to ESXi and registering them. """
