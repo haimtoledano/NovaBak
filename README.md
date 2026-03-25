@@ -23,13 +23,14 @@ NovaBak is a self-hosted, web-based backup and disaster recovery platform for **
 ### Key Features
 
 - **Agentless backup** — uses ESXi's native HTTP datastore access and snapshot API (pyVmomi), no software installed on VMs
-- **Per-VM scheduling** — independent cron-like schedule (hour + minute) and retention policy per VM
+- **Advanced Scheduling** — granular cron-like scheduling with Daily, Weekly (specific days), and Monthly (first occurrence) intervals per VM
 - **Live or Power-Off backup modes** — backup running VMs safely, or power them off temporarily for faster throughput
 - **Hierarchical Disaster Recovery** — browse backups by VM, choose a specific date version, and restore to any host/datastore
 - **Multiple storage backends** — SMB/CIFS, NFS, or S3-compatible (AWS, Wasabi, MinIO)
 - **Role-Based Access Control** — Admin / Operator / Viewer with forced MFA for all users
-- **HTTPS** — auto-generated self-signed TLS certificate on first run
-- **Email notifications** — SMTP alerts on backup success/failure
+- **Multi-Theme UI** — modern Web UI with Light, Dark, and Cyberpunk visual modes and instant auto-save forms
+- **Granular Email Notifications** — SMTP alerts with per-user event subscriptions (e.g. Backup Success, Restore Failure)
+- **HTTPS & Security** — auto-generated self-signed TLS certificate on first run
 
 ---
 
