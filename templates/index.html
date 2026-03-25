@@ -444,9 +444,12 @@
                                     </div>
                                 </div>
 
-                                <!-- Days of week (hidden when Monthly) -->
+                                <!-- Days of week (hidden for Daily, shown for Weekly & Monthly) -->
                                 <div class="mb-2" id="days-row-{{ vm.id }}">
-                                    <span class="input-label text-[10px]">Days</span>
+                                    <div class="flex items-center justify-between">
+                                        <span class="input-label text-[10px]" id="days-label-{{ vm.id }}">Days</span>
+                                        <span class="text-[9px] opacity-50" id="days-hint-{{ vm.id }}"></span>
+                                    </div>
                                     <input type="hidden" name="schedule_days" id="days-hidden-{{ vm.id }}" value="{{ vm.schedule_days or '0,1,2,3,4,5,6' }}">
                                     <div class="grid grid-cols-7 gap-0.5 mt-1">
                                         {% set cur_days = (vm.schedule_days or '0,1,2,3,4,5,6').split(',') %}
@@ -1023,12 +1026,26 @@
     }
 
     function showDaysRow(vmId) {
-        const freq = document.querySelector(`#job-form-${vmId} input[name="schedule_frequency"]:checked`);
+        const freqEl = document.querySelector(`#job-form-${vmId} input[name="schedule_frequency"]:checked`);
+        const freq = freqEl ? freqEl.value : 'daily';
         const row = document.getElementById('days-row-' + vmId);
-        if (row) row.style.opacity = (freq && freq.value === 'monthly') ? '0.3' : '1';
-        // Disable checkboxes for Monthly (they won't matter but shouldn't confuse user)
+        const hint = document.getElementById('days-hint-' + vmId);
         const cbs = document.querySelectorAll(`.day-cb-${vmId}`);
-        cbs.forEach(cb => cb.disabled = (freq && freq.value === 'monthly'));
+
+        if (freq === 'daily') {
+            // Daily = every day, day picker irrelevant
+            if (row) row.style.opacity = '0.35';
+            cbs.forEach(cb => cb.disabled = true);
+            if (hint) hint.textContent = 'runs every day';
+        } else if (freq === 'weekly') {
+            if (row) row.style.opacity = '1';
+            cbs.forEach(cb => cb.disabled = false);
+            if (hint) hint.textContent = 'pick which days';
+        } else if (freq === 'monthly') {
+            if (row) row.style.opacity = '1';
+            cbs.forEach(cb => cb.disabled = false);
+            if (hint) hint.textContent = 'first occurrence in month';
+        }
     }
 
     // On page load: init visibility for all job forms
