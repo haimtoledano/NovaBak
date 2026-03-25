@@ -154,7 +154,7 @@ All configuration is managed through the **Settings** tab in the web UI:
 |---|---|
 | **Registered Hosts** | Add/remove ESXi hosts (IP, credentials) |
 | **Target Storage** | SMB share, NFS export, or S3 bucket for backup files |
-| **Worker Parameters** | Parallel threads, compression level, API timeout |
+| **Worker Parameters** | Parallel threads, API timeout |
 | **Email Alerts** | SMTP server, TLS/SSL, recipient address |
 
 ---
