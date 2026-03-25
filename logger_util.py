@@ -15,7 +15,11 @@ def _get_log_path():
 def log(message, level="INFO"):
     """Prints a timestamped message to stdout AND appends to the log file."""
     msg = f"[{get_timestamp()}][{level}] {message}"
-    # Always print to stdout (visible in `docker logs`)
+    # Always print to stdout (visible in `docker logs`) — force UTF-8 to avoid cp1252 crashes
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
     print(msg, flush=True)
     # Also write to file (visible in Diagnostics Console)
     try:
