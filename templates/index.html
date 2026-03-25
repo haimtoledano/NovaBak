@@ -1118,7 +1118,7 @@
         versionSection.classList.remove('hidden');
 
         versionList.innerHTML = group.versions.map((v, idx) => `
-            <button type="button" onclick="selectVersion('${v.path.replace(/'/g,"\\'")}', '${v.date}', '${v.size}')"
+            <button type="button" onclick="selectVersion('${v.path.replace(/\\/g, '\\\\').replace(/'/g,"\\'")}', '${v.date}', '${v.size}')"
                     id="vcard-${idx}"
                     class="version-card w-full text-left rounded border px-3 py-2 transition-all hover:border-blue-500 hover:bg-blue-500/10"
                     style="border-color: var(--border-color)">
