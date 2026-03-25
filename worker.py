@@ -459,13 +459,13 @@ def get_available_backups(config):
         for vm_name in vm_dirs:
             # List date folders within each VM directory
             date_folders = storage.list_dirs(vm_name)
-            log_info(f"[SCAN] VM '{vm_name}' → {len(date_folders)} date folders: {date_folders}")
+            log_info(f"[SCAN] VM '{vm_name}' -> {len(date_folders)} date folders: {date_folders}")
             for date_folder in date_folders:
                 rel_date_dir = f"{vm_name}/{date_folder}"
                 
                 # Look for descriptor files
                 files = storage.list_files(rel_date_dir)
-                log_info(f"[SCAN]   {rel_date_dir} → files: {files}")
+                log_info(f"[SCAN]   {rel_date_dir} -> files: {files}")
                 found_vmx = next((f for f in files if f.endswith('.vmx')), None)
                 found_ovf = next((f for f in files if f.endswith('.ovf')), None)
                 found_ova = next((f for f in files if f.endswith('.ova')), None)
