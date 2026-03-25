@@ -14,6 +14,7 @@ services:
       - novabak_data:/app/data
     environment:
       - DATA_DIR=/app/data
+      - LOG_FILE=service.log
     command: python -u main.py
 
   # ─── Background Worker Daemon ─────────────────────────────────────────────
@@ -28,8 +29,10 @@ services:
       - novabak_data:/app/data
     environment:
       - DATA_DIR=/app/data
+      - LOG_FILE=worker.log
     command: python -u worker_daemon.py
 
 volumes:
   novabak_data:
     driver: local
+
