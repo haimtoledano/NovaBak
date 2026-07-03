@@ -1,0 +1,444 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+from typing import List, Optional
+
+import auth
+from api.deps import get_db, get_api_user, require_api_role, bearer_scheme, _user_from_token, cookie_sec
+from api.schemas import (
+    LoginRequest, TokenResponse, ApiKeyCreateRequest, ApiKeyCreateResponse, ApiKeyInfo,
+    StorageConfigUpdate, ConfigResponse, ConfigUpdate, TestResult,
+    ESXiHostCreate, ESXiHostResponse, VmUpdate, VmResponse, SyncResult,
+    UserResponse, UserCreateRequest, UserCreateResponse, UserRoleUpdate,
+    PasswordResetResponse, ProfileUpdate, BackupLogEntry, SystemLogsResponse,
+    RestoreCreateRequest, RestoreResponse,
+)
+from models import User, ApiKey
+from services import backup_ops
+from services import user_ops
+
+router = APIRouter(tags=["api-v1"])
+
+
+def _authenticate_login(db: Session, username: str, password: str, mfa_code: Optional[str] = None) -> User:
+    user = db.query(User).filter(User.username == username).first()
+    if not user or not auth.verify_password(password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+    if user.is_mfa_enabled:
+        if not mfa_code or not auth.verify_totp(user.mfa_secret, mfa_code):
+            raise HTTPException(status_code=401, detail="MFA code required or invalid")
+    return user
+
+
+# ─── Auth / Tokens ────────────────────────────────────────────────────────────
+
+@router.post("/auth/token", response_model=TokenResponse)
+@router.post("/auth/login", response_model=TokenResponse)
+def create_token(body: LoginRequest, db: Session = Depends(get_db)):
+    """Create a short-lived JWT bearer token (7 days). Use for API key creation or direct API calls."""
+    user = _authenticate_login(db, body.username, body.password, body.mfa_code)
+    return TokenResponse(access_token=auth.create_access_token(user.username))
+
+
+@router.post("/auth/api-keys", response_model=ApiKeyCreateResponse)
+def create_api_key(
+    body: ApiKeyCreateRequest,
+    db: Session = Depends(get_db),
+    bearer: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    cookie_token: str = Depends(cookie_sec),
+):
+    """
+    Create a long-lived API key (`nbak_...`).
+
+    Authenticate with session cookie, Bearer token, or username/password in body.
+    """
+    user = None
+    token = bearer.credentials if bearer else cookie_token
+    if token:
+        try:
+            user = _user_from_token(db, token)
+        except HTTPException:
+            user = None
+    if user is None:
+        if not body.username or not body.password:
+            raise HTTPException(
+                status_code=401,
+                detail="Not authenticated. Log in to the UI or provide credentials.",
+            )
+        user = _authenticate_login(db, body.username, body.password, body.mfa_code)
+
+    if (user.role or "admin") != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can create API keys")
+
+    raw_key, api_key = auth.create_api_key(db, user.id, body.name)
+    return ApiKeyCreateResponse(id=api_key.id, name=api_key.name, key=raw_key)
+
+
+@router.get("/auth/api-keys", response_model=List[ApiKeyInfo])
+def list_api_keys(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin")),
+):
+    keys = db.query(ApiKey).filter(ApiKey.user_id == user.id).order_by(ApiKey.created_at.desc()).all()
+    return [
+        ApiKeyInfo(
+            id=k.id,
+            name=k.name,
+            created_at=k.created_at.isoformat() if k.created_at else "",
+            last_used_at=k.last_used_at.isoformat() if k.last_used_at else None,
+        )
+        for k in keys
+    ]
+
+
+@router.delete("/auth/api-keys/{key_id}")
+def revoke_api_key(
+    key_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin")),
+):
+    key = db.query(ApiKey).filter(ApiKey.id == key_id, ApiKey.user_id == user.id).first()
+    if not key:
+        raise HTTPException(status_code=404, detail="API key not found")
+    db.delete(key)
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/auth/me", response_model=UserResponse)
+def get_me(user: User = Depends(get_api_user)):
+    return UserResponse(**user_ops.user_to_dict(user))
+
+
+# ─── Config ─────────────────────────────────────────────────────────────────
+
+@router.get("/config", response_model=ConfigResponse)
+def get_config(db: Session = Depends(get_db), user: User = Depends(get_api_user)):
+    config = backup_ops.get_or_create_config(db)
+    return ConfigResponse(**backup_ops.config_to_dict(config))
+
+
+@router.put("/config", response_model=ConfigResponse)
+def update_config(
+    body: ConfigUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin")),
+):
+    config = backup_ops.update_full_config(db, body.model_dump(exclude_unset=True))
+    return ConfigResponse(**backup_ops.config_to_dict(config))
+
+
+@router.put("/config/storage", response_model=ConfigResponse)
+def update_storage(
+    body: StorageConfigUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin")),
+):
+    config = backup_ops.update_storage_config(db, body.model_dump(exclude_unset=True))
+    return ConfigResponse(**backup_ops.config_to_dict(config))
+
+
+@router.post("/config/storage/test", response_model=TestResult)
+def test_storage(db: Session = Depends(get_db), user: User = Depends(require_api_role("admin", "operator"))):
+    ok, message = backup_ops.test_storage(db)
+    return TestResult(ok=ok, message=message)
+
+
+@router.post("/config/email/test", response_model=TestResult)
+def test_email(db: Session = Depends(get_db), user: User = Depends(require_api_role("admin"))):
+    ok, message = backup_ops.test_smtp(db)
+    return TestResult(ok=ok, message=message)
+
+
+# ─── Users ────────────────────────────────────────────────────────────────────
+
+@router.get("/users", response_model=List[UserResponse])
+def list_users(db: Session = Depends(get_db), user: User = Depends(require_api_role("admin"))):
+    return [UserResponse(**user_ops.user_to_dict(u)) for u in user_ops.list_users(db)]
+
+
+@router.post("/users", response_model=UserCreateResponse, status_code=201)
+def create_user(
+    body: UserCreateRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin")),
+):
+    try:
+        new_user, temp_pw = user_ops.create_user(db, body.username, body.role)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return UserCreateResponse(user=UserResponse(**user_ops.user_to_dict(new_user)), temporary_password=temp_pw)
+
+
+@router.delete("/users/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin")),
+):
+    try:
+        user_ops.delete_user(db, user_id, user.username)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
+
+
+@router.patch("/users/{user_id}/role", response_model=UserResponse)
+def update_user_role(
+    user_id: int,
+    body: UserRoleUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin")),
+):
+    try:
+        target = user_ops.update_role(db, user_id, body.role, user.username)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return UserResponse(**user_ops.user_to_dict(target))
+
+
+@router.post("/users/{user_id}/reset-password", response_model=PasswordResetResponse)
+def reset_user_password(
+    user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin")),
+):
+    try:
+        target, temp_pw = user_ops.reset_password(db, user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return PasswordResetResponse(username=target.username, temporary_password=temp_pw)
+
+
+@router.post("/users/{user_id}/reset-mfa")
+def reset_user_mfa(
+    user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin")),
+):
+    try:
+        target = user_ops.reset_mfa(db, user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"ok": True, "username": target.username, "message": "MFA reset; user will be prompted on next login"}
+
+
+@router.patch("/profile", response_model=UserResponse)
+def update_profile(
+    body: ProfileUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_api_user),
+):
+    updated = user_ops.update_profile(
+        db,
+        user.username,
+        email=body.email,
+        notify_subscriptions=body.notify_subscriptions,
+    )
+    return UserResponse(**user_ops.user_to_dict(updated))
+
+
+# ─── ESXi Hosts ───────────────────────────────────────────────────────────────
+
+@router.get("/hosts", response_model=List[ESXiHostResponse])
+def list_hosts(db: Session = Depends(get_db), user: User = Depends(get_api_user)):
+    from models import ESXiHost
+    hosts = db.query(ESXiHost).all()
+    return [ESXiHostResponse(**backup_ops.host_to_dict(h)) for h in hosts]
+
+
+@router.post("/hosts", response_model=ESXiHostResponse, status_code=201)
+def create_host(
+    body: ESXiHostCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin")),
+):
+    try:
+        host = backup_ops.add_esxi_host(db, body.name, body.host_ip, body.username, body.password)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return ESXiHostResponse(**backup_ops.host_to_dict(host))
+
+
+@router.delete("/hosts/{host_id}")
+def remove_host(
+    host_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin")),
+):
+    if not backup_ops.delete_esxi_host(db, host_id):
+        raise HTTPException(status_code=404, detail="Host not found")
+    return {"ok": True}
+
+
+@router.get("/hosts/{host_id}/datastores")
+def host_datastores(
+    host_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_api_user),
+):
+    try:
+        return backup_ops.get_datastores(db, host_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ConnectionError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.post("/hosts/{host_id}/sync-vms", response_model=SyncResult)
+def sync_vms(
+    host_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin", "operator")),
+):
+    try:
+        result = backup_ops.sync_vms_for_host(db, host_id)
+        return SyncResult(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ConnectionError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+# ─── VMs ──────────────────────────────────────────────────────────────────────
+
+@router.get("/vms", response_model=List[VmResponse])
+def list_vms(db: Session = Depends(get_db), user: User = Depends(get_api_user)):
+    from models import VM
+    vms = db.query(VM).order_by(VM.vm_name).all()
+    return [VmResponse(**backup_ops.vm_to_dict(v)) for v in vms]
+
+
+@router.patch("/vms/{vm_id}", response_model=VmResponse)
+def patch_vm(
+    vm_id: int,
+    body: VmUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin", "operator")),
+):
+    try:
+        vm = backup_ops.update_vm_job(db, vm_id, body.model_dump(exclude_unset=True))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return VmResponse(**backup_ops.vm_to_dict(vm))
+
+
+@router.post("/vms/{vm_id}/run")
+def run_vm_backup(
+    vm_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin", "operator")),
+):
+    try:
+        backup_ops.trigger_backup(db, vm_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"ok": True, "message": "Backup queued"}
+
+
+@router.post("/vms/{vm_id}/stop")
+def stop_vm_backup(
+    vm_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin", "operator")),
+):
+    try:
+        backup_ops.stop_backup(db, vm_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"ok": True, "message": "Stop requested"}
+
+
+@router.post("/jobs/stop-all")
+def stop_all_backups(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin", "operator")),
+):
+    stopped = backup_ops.stop_all_backups(db)
+    return {"ok": True, "count": len(stopped), "vms": stopped}
+
+
+# ─── Backups & Restores ───────────────────────────────────────────────────────
+
+@router.get("/backups")
+def list_backups(db: Session = Depends(get_db), user: User = Depends(get_api_user)):
+    try:
+        return backup_ops.list_backups_grouped(db)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/restores", response_model=List[RestoreResponse])
+def list_restores(
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_api_user),
+):
+    return [RestoreResponse(**item) for item in backup_ops.list_restores(db, limit=limit)]
+
+
+@router.post("/restores", response_model=RestoreResponse, status_code=202)
+def create_restore(
+    body: RestoreCreateRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin", "operator")),
+):
+    try:
+        job = backup_ops.start_restore(
+            db, body.target_esxi_id, body.source_ova, body.target_name, body.datastore
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return RestoreResponse(**backup_ops.restore_to_dict(job))
+
+
+@router.post("/restores/{job_id}/stop")
+def stop_restore_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin", "operator")),
+):
+    try:
+        job = backup_ops.stop_restore(db, job_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True, "id": job.id, "message": "Stop requested"}
+
+
+@router.delete("/restores/{job_id}")
+def delete_restore_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin", "operator")),
+):
+    if not backup_ops.delete_restore(db, job_id):
+        raise HTTPException(status_code=404, detail="Restore job not found")
+    return {"ok": True}
+
+
+# ─── Logs & Monitoring ────────────────────────────────────────────────────────
+
+@router.get("/logs/backup", response_model=List[BackupLogEntry])
+def backup_logs(
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_api_user),
+):
+    return [BackupLogEntry(**entry) for entry in backup_ops.list_backup_logs(db, limit=limit)]
+
+
+@router.get("/logs/system", response_model=SystemLogsResponse)
+def system_logs(
+    service_lines: int = 100,
+    service_search: str = "",
+    worker_lines: int = 100,
+    worker_search: str = "",
+    user: User = Depends(require_api_role("admin", "operator")),
+):
+    logs = backup_ops.get_system_logs(service_lines, service_search, worker_lines, worker_search)
+    return SystemLogsResponse(**logs)
+
+
+@router.get("/jobs/progress")
+def jobs_progress(db: Session = Depends(get_db), user: User = Depends(get_api_user)):
+    return backup_ops.job_progress(db)

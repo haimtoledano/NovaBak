@@ -18,6 +18,17 @@ import time
 from logger_util import log_info, log_warn, log_error, log_critical
 
 app = FastAPI(title="NovaBak")
+
+from api.v1.router import router as v1_router
+v1_app = FastAPI(
+    title="NovaBak API v1",
+    version="1.0.0",
+    docs_url="/docs",
+    openapi_url="/openapi.json",
+)
+v1_app.include_router(v1_router)
+app.mount("/api/v1", v1_app)
+
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 _static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 os.makedirs(_static_dir, exist_ok=True)
@@ -271,6 +282,8 @@ def read_root(request: Request, db: Session = Depends(get_db)):
     logs = db.query(BackupLog).order_by(BackupLog.timestamp.desc()).limit(10).all()
     users = db.query(User).all()
     esxi_hosts = db.query(ESXiHost).all()
+    selected_vm_count = db.query(VM).filter(VM.is_selected == True).count()
+    setup_wizard_suggested = len(esxi_hosts) == 0 or selected_vm_count == 0
             
     from models import NOTIFY_EVENTS
     return templates.TemplateResponse("index.html", {
@@ -281,6 +294,7 @@ def read_root(request: Request, db: Session = Depends(get_db)):
         "users": users,
         "current_user": user,
         "esxi_hosts": esxi_hosts,
+        "setup_wizard_suggested": setup_wizard_suggested,
         "notify_events": NOTIFY_EVENTS,
     })
 
@@ -306,6 +320,11 @@ def save_config(
     perf_compression_level: int = Form(0),
     perf_parallel_threads: int = Form(0),
     backup_timeout_mins: int = Form(15),
+    max_global_backups: int = Form(10),
+    max_backups_per_host: int = Form(2),
+    datastore_min_free_pct: int = Form(15),
+    datastore_headroom_gb: int = Form(10),
+    datastore_est_multiplier: float = Form(2.0),
 
     storage_type: str = Form("SMB"),
     nfs_path: str = Form(""),
@@ -344,6 +363,11 @@ def save_config(
     config.perf_parallel_threads = perf_parallel_threads
     config.perf_compression_level = perf_compression_level
     config.backup_timeout_mins = backup_timeout_mins
+    config.max_global_backups = max(1, min(32, max_global_backups))
+    config.max_backups_per_host = max(1, min(8, max_backups_per_host))
+    config.datastore_min_free_pct = max(5, min(50, datastore_min_free_pct))
+    config.datastore_headroom_gb = max(0, min(500, datastore_headroom_gb))
+    config.datastore_est_multiplier = max(1.0, min(3.0, float(datastore_est_multiplier)))
     
     config.storage_type = storage_type
     config.nfs_path = nfs_path
@@ -355,7 +379,15 @@ def save_config(
     config.s3_region = s3_region
     
     db.commit()
-    return RedirectResponse(url="/", status_code=303)
+
+    try:
+        worker.configure_concurrency(config)
+    except Exception:
+        pass
+
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JSONResponse({"ok": True, "message": "Configuration saved."})
+    return RedirectResponse(url="/?saved=settings", status_code=303)
 
 @app.post("/add_esxi_host")
 def add_esxi_host(

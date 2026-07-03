@@ -1,0 +1,390 @@
+        <div id="tab-settings" class="tab-content hidden">
+            <div class="settings-layout">
+                <aside class="settings-sidebar">
+                    <div class="settings-sidebar-nav card">
+                        <div class="settings-sidebar-header">Settings</div>
+                        <nav class="settings-nav" aria-label="Settings sections">
+                            <button type="button" class="settings-nav-item active" data-settings-panel="profile" onclick="showSettingsPanel('profile')">
+                                <svg class="settings-nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                Profile
+                            </button>
+                            {% if current_user and current_user.role == 'admin' %}
+                            <button type="button" class="settings-nav-item" data-settings-panel="storage" onclick="showSettingsPanel('storage')">
+                                <svg class="settings-nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7c-2 0-3 1-3 3z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h6v6H9z"></path></svg>
+                                Storage
+                            </button>
+                            <button type="button" class="settings-nav-item" data-settings-panel="hosts" onclick="showSettingsPanel('hosts')">
+                                <svg class="settings-nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
+                                ESXi Hosts
+                            </button>
+                            <button type="button" class="settings-nav-item" data-settings-panel="engine" onclick="showSettingsPanel('engine')">
+                                <svg class="settings-nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                Engine
+                            </button>
+                            <button type="button" class="settings-nav-item" data-settings-panel="email" onclick="showSettingsPanel('email')">
+                                <svg class="settings-nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                Email (SMTP)
+                            </button>
+                            <button type="button" class="settings-nav-item" data-settings-panel="api" onclick="showSettingsPanel('api')">
+                                <svg class="settings-nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                                API Keys
+                            </button>
+                            <button type="button" class="settings-nav-item" data-settings-panel="maintenance" onclick="showSettingsPanel('maintenance')">
+                                <svg class="settings-nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                Maintenance
+                            </button>
+                            {% endif %}
+                        </nav>
+                        {% if current_user and current_user.role == 'admin' %}
+                        <div class="settings-sidebar-footer">
+                            <button type="button" onclick="openSetupWizard()" class="settings-wizard-btn">Setup wizard</button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </aside>
+
+                <div class="settings-content">
+                    <div id="profile-saved-msg" class="hidden mb-4 px-4 py-3 rounded text-sm font-medium" style="background:rgba(34,197,94,0.12); color:#4ade80;">
+                        ✓ Notification preferences saved.
+                    </div>
+
+                    <!-- Profile -->
+                    <div id="settings-panel-profile" class="settings-panel">
+                        <h2 class="settings-panel-title">Profile</h2>
+                        <p class="settings-panel-desc">Your account details and notification preferences.</p>
+                        <form action="/profile/update" method="POST">
+                            <input type="hidden" name="notify_subscriptions" id="profile-subs-input" value="{{ current_user.notify_subscriptions or '' }}">
+                            <div class="card p-5">
+                                <div class="flex flex-wrap justify-between items-start gap-3 mb-4 border-b pb-4" style="border-color: var(--border-color)">
+                                    <p class="text-sm" style="color: var(--text-muted)">Logged in as <strong>{{ current_user.username }}</strong> · {{ current_user.role }}</p>
+                                    <button type="submit" class="btn-primary px-4 py-2 text-sm font-semibold" onclick="buildSubsList()">Save preferences</button>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <span class="input-label">Email address</span>
+                                        <input type="email" name="email" value="{{ current_user.email or '' }}" placeholder="you@example.com" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                        <p class="text-[10px] opacity-50 mt-1">Notifications are sent here, independent of the global SMTP recipient.</p>
+                                    </div>
+                                    <div>
+                                        <span class="input-label">Notify me when…</span>
+                                        <div class="mt-2 space-y-2">
+                                            {% for key, label in notify_events %}
+                                            <label class="flex items-center gap-3 cursor-pointer group">
+                                                <input type="checkbox" class="notify-event-checkbox w-4 h-4 rounded" data-key="{{ key }}"
+                                                       {% if current_user.notify_subscriptions and key in current_user.notify_subscriptions.split(',') %}checked{% endif %}>
+                                                <span class="text-sm group-hover:text-[var(--brand)] transition-colors">{{ label }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    {% if current_user and current_user.role == 'admin' %}
+                    <form action="/save_config" method="POST" id="settings-config-form">
+                        <!-- Storage -->
+                        <div id="settings-panel-storage" class="settings-panel hidden">
+                            <h2 class="settings-panel-title">Storage</h2>
+                            <p class="settings-panel-desc">Where NovaBak writes backup files.</p>
+                            <div class="card p-5">
+                                <div class="flex flex-wrap justify-between items-center gap-3 mb-4 border-b pb-3" style="border-color: var(--border-color)">
+                                    <div class="flex space-x-3">
+                                        <label class="flex items-center space-x-1 cursor-pointer">
+                                            <input type="radio" name="storage_type" value="SMB" onchange="toggleStorageFields()" {% if config.storage_type == 'SMB' or not config.storage_type %}checked{% endif %} class="w-3 h-3">
+                                            <span class="text-xs font-medium">SMB</span>
+                                        </label>
+                                        <label class="flex items-center space-x-1 cursor-pointer">
+                                            <input type="radio" name="storage_type" value="NFS" onchange="toggleStorageFields()" {% if config.storage_type == 'NFS' %}checked{% endif %} class="w-3 h-3">
+                                            <span class="text-xs font-medium">NFS</span>
+                                        </label>
+                                        <label class="flex items-center space-x-1 cursor-pointer">
+                                            <input type="radio" name="storage_type" value="S3" onchange="toggleStorageFields()" {% if config.storage_type == 'S3' %}checked{% endif %} class="w-3 h-3">
+                                            <span class="text-xs font-medium">S3</span>
+                                        </label>
+                                    </div>
+                                    <button type="button" onclick="testStorage()" class="text-xs font-medium hover:underline" style="color: var(--brand)">Verify connection</button>
+                                </div>
+
+                                <div id="fields-SMB" class="storage-fields {% if config.storage_type != 'SMB' and config.storage_type %}hidden{% endif %}">
+                                    <div class="mb-4">
+                                        <span class="input-label">UNC Path</span>
+                                        <input type="text" name="smb_unc_path" value="{{ config.smb_unc_path }}" placeholder="\\server\share\backups" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div><span class="input-label">Username</span><input type="text" name="smb_user" value="{{ config.smb_user }}" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
+                                        <div><span class="input-label">Password</span><input type="password" name="smb_password" placeholder="(Unchanged)" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
+                                    </div>
+                                </div>
+
+                                <div id="fields-NFS" class="storage-fields {% if config.storage_type != 'NFS' %}hidden{% endif %}">
+                                    <span class="input-label">NFS Export Path</span>
+                                    <input type="text" name="nfs_path" value="{{ config.nfs_path }}" placeholder="/mnt/backups" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                    <p class="text-[10px] opacity-60 mt-1">Local path or mount point on this server.</p>
+                                </div>
+
+                                <div id="fields-S3" class="storage-fields {% if config.storage_type != 'S3' %}hidden{% endif %}">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div class="sm:col-span-2">
+                                            <span class="input-label">S3 Endpoint (optional for AWS)</span>
+                                            <input type="text" name="s3_endpoint" value="{{ config.s3_endpoint }}" placeholder="https://s3.wasabisys.com" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                        </div>
+                                        <div><span class="input-label">Access Key</span><input type="text" name="s3_access_key" value="{{ config.s3_access_key }}" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
+                                        <div><span class="input-label">Secret Key</span><input type="password" name="s3_secret_key" placeholder="(Unchanged)" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
+                                        <div><span class="input-label">Bucket Name</span><input type="text" name="s3_bucket" value="{{ config.s3_bucket }}" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
+                                        <div><span class="input-label">Region</span><input type="text" name="s3_region" value="{{ config.s3_region }}" placeholder="us-east-1" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-6 flex justify-end">
+                                    <button type="submit" class="btn-primary px-6 py-2 text-sm font-semibold">Save storage</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Engine -->
+                        <div id="settings-panel-engine" class="settings-panel hidden">
+                            <h2 class="settings-panel-title">Engine</h2>
+                            <p class="settings-panel-desc">Worker performance, concurrency limits, and datastore safety checks.</p>
+                            <div class="card p-5">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <div>
+                                        <div class="field-label-row">
+                                            <span class="input-label">Parallel threads</span>
+                                            <span class="field-tip" tabindex="0" aria-label="Help: Parallel threads">
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span class="field-tip-text">Download streams per backup. Set 0 for automatic.</span>
+                                            </span>
+                                        </div>
+                                        <input type="number" name="perf_parallel_threads" value="{{ config.perf_parallel_threads }}" min="0" max="32" class="w-full py-2 px-3 text-center text-sm">
+                                    </div>
+                                    <div>
+                                        <div class="field-label-row">
+                                            <span class="input-label">Compression</span>
+                                            <span class="field-tip" tabindex="0" aria-label="Help: Compression">
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span class="field-tip-text">Reserved for a future release. Current engine does not compress VMDKs.</span>
+                                            </span>
+                                        </div>
+                                        <input type="number" name="perf_compression_level" value="{{ config.perf_compression_level }}" min="0" max="9" class="w-full py-2 px-3 text-center text-sm disabled:opacity-50" disabled>
+                                    </div>
+                                    <div>
+                                        <div class="field-label-row">
+                                            <span class="input-label">API timeout (min)</span>
+                                            <span class="field-tip" tabindex="0" aria-label="Help: API timeout">
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span class="field-tip-text">Max wait time for ESXi snapshot and cleanup tasks.</span>
+                                            </span>
+                                        </div>
+                                        <input type="number" name="backup_timeout_mins" value="{{ config.backup_timeout_mins }}" min="5" max="1440" class="w-full py-2 px-3 text-center text-sm">
+                                    </div>
+                                    <div>
+                                        <div class="field-label-row">
+                                            <span class="input-label">Max global backups</span>
+                                            <span class="field-tip" tabindex="0" aria-label="Help: Max global backups">
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span class="field-tip-text">Max concurrent backups across all hosts. Extra jobs queue.</span>
+                                            </span>
+                                        </div>
+                                        <input type="number" name="max_global_backups" value="{{ config.max_global_backups or 10 }}" min="1" max="32" class="w-full py-2 px-3 text-center text-sm">
+                                    </div>
+                                    <div>
+                                        <div class="field-label-row">
+                                            <span class="input-label">Max per host</span>
+                                            <span class="field-tip" tabindex="0" aria-label="Help: Max per host">
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span class="field-tip-text">Concurrent backups per ESXi host. Lower if snapshots fill datastores.</span>
+                                            </span>
+                                        </div>
+                                        <input type="number" name="max_backups_per_host" value="{{ config.max_backups_per_host or 2 }}" min="1" max="8" class="w-full py-2 px-3 text-center text-sm">
+                                    </div>
+                                    <div>
+                                        <div class="field-label-row">
+                                            <span class="input-label">Min datastore free %</span>
+                                            <span class="field-tip" tabindex="0" aria-label="Help: Min datastore free">
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span class="field-tip-text">Skip backup if source datastore free space is below this threshold.</span>
+                                            </span>
+                                        </div>
+                                        <input type="number" name="datastore_min_free_pct" value="{{ config.datastore_min_free_pct or 15 }}" min="5" max="50" class="w-full py-2 px-3 text-center text-sm">
+                                    </div>
+                                    <div>
+                                        <div class="field-label-row">
+                                            <span class="input-label">Datastore headroom (GB)</span>
+                                            <span class="field-tip" tabindex="0" aria-label="Help: Datastore headroom">
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span class="field-tip-text">Extra free GB required beyond estimated backup size.</span>
+                                            </span>
+                                        </div>
+                                        <input type="number" name="datastore_headroom_gb" value="{{ config.datastore_headroom_gb or 10 }}" min="0" max="500" class="w-full py-2 px-3 text-center text-sm">
+                                    </div>
+                                    <div>
+                                        <div class="field-label-row">
+                                            <span class="input-label">Disk estimate multiplier</span>
+                                            <span class="field-tip" tabindex="0" aria-label="Help: Disk estimate multiplier">
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span class="field-tip-text">Temp disk use estimate = VM disk size × multiplier (1.0 when powered off).</span>
+                                            </span>
+                                        </div>
+                                        <input type="number" name="datastore_est_multiplier" value="{{ config.datastore_est_multiplier or 2.0 }}" min="1" max="3" step="0.1" class="w-full py-2 px-3 text-center text-sm">
+                                    </div>
+                                </div>
+                                <div class="mt-6 flex justify-end">
+                                    <button type="submit" class="btn-primary px-6 py-2 text-sm font-semibold">Save engine settings</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email SMTP -->
+                        <div id="settings-panel-email" class="settings-panel hidden">
+                            <h2 class="settings-panel-title">Email (SMTP)</h2>
+                            <p class="settings-panel-desc">Global SMTP server for backup notifications. Leave empty to disable.</p>
+                            <div class="card p-5">
+                                <div class="flex justify-end mb-4">
+                                    <button type="button" onclick="testSmtp()" class="text-xs font-medium hover:underline" style="color: var(--brand)">Send test email</button>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="sm:col-span-2 md:col-span-1">
+                                        <span class="input-label">SMTP server</span>
+                                        <input type="text" name="smtp_server" value="{{ config.smtp_server }}" placeholder="smtp.gmail.com" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                    </div>
+                                    <div>
+                                        <span class="input-label">Port</span>
+                                        <input type="number" name="smtp_port" value="{{ config.smtp_port }}" placeholder="587" min="1" max="65535" class="w-full py-2 px-3 text-center font-mono text-sm mt-1">
+                                    </div>
+                                    <div>
+                                        <span class="input-label">Username</span>
+                                        <input type="text" name="smtp_user" value="{{ config.smtp_user }}" placeholder="user@domain.com" class="w-full py-2 px-3 font-mono text-sm mt-1" autocomplete="off">
+                                    </div>
+                                    <div>
+                                        <span class="input-label">Password</span>
+                                        <input type="password" name="smtp_password" placeholder="(Unchanged)" class="w-full py-2 px-3 font-mono text-sm mt-1" autocomplete="new-password">
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <span class="input-label">Default recipient email</span>
+                                        <input type="email" name="smtp_to_email" value="{{ config.smtp_to_email }}" placeholder="alerts@yourdomain.com" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                    </div>
+                                    <div class="sm:col-span-2 flex flex-wrap items-center gap-6 pt-1">
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" name="smtp_use_tls" value="True" {% if config.smtp_use_tls %}checked{% endif %} class="w-4 h-4 rounded">
+                                            <span class="text-sm font-medium">Use STARTTLS</span>
+                                            <span class="text-xs opacity-50">(port 587)</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" name="smtp_use_ssl" value="True" {% if config.smtp_use_ssl %}checked{% endif %} class="w-4 h-4 rounded">
+                                            <span class="text-sm font-medium">Use SSL/TLS</span>
+                                            <span class="text-xs opacity-50">(port 465)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="mt-6 flex justify-end">
+                                    <button type="submit" class="btn-primary px-6 py-2 text-sm font-semibold">Save email settings</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- ESXi Hosts -->
+                    <div id="settings-panel-hosts" class="settings-panel hidden">
+                        <h2 class="settings-panel-title">ESXi Hosts</h2>
+                        <p class="settings-panel-desc">Registered hypervisors for backup and restore.</p>
+                        <div class="card overflow-hidden">
+                            <div class="px-5 py-3 border-b font-semibold text-sm" style="border-color: var(--border-color); background-color: var(--bg-nav)">Registered hosts</div>
+                            <ul class="divide-y font-mono" style="border-color: var(--border-color)">
+                                {% for host in esxi_hosts %}
+                                <li class="px-5 py-3 flex justify-between items-center text-sm">
+                                    <div>
+                                        <span class="font-medium block font-sans">{{ host.name }}</span>
+                                        <span class="text-xs" style="color: var(--brand)">{{ host.host_ip }} ({{ host.username }})</span>
+                                    </div>
+                                    <form action="/delete_esxi_host" method="POST" data-confirm="Remove this host from NovaBak?" data-confirm-title="Remove host">
+                                        <input type="hidden" name="host_id" value="{{ host.id }}">
+                                        <button type="submit" class="text-gray-500 hover:text-red-400 transition-colors" title="Delete">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </button>
+                                    </form>
+                                </li>
+                                {% else %}
+                                <li class="p-8 text-center text-sm" style="color: var(--text-muted)">No hosts configured.</li>
+                                {% endfor %}
+                            </ul>
+                            <div class="p-5 border-t" style="border-color: var(--border-color); background-color: var(--bg-nav)">
+                                <h4 class="font-semibold text-sm mb-3">Add host</h4>
+                                <form action="/add_esxi_host" method="POST" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <input type="text" name="name" placeholder="Alias (e.g. esxi-01)" required class="w-full p-2 text-sm font-sans">
+                                    <input type="text" name="host_ip" placeholder="IP or FQDN" required class="w-full p-2 text-sm font-sans">
+                                    <input type="text" name="username" placeholder="Username" required class="w-full p-2 text-sm font-sans">
+                                    <input type="password" name="password" placeholder="Password" required class="w-full p-2 text-sm font-sans">
+                                    <div class="sm:col-span-2">
+                                        <button type="submit" class="btn-secondary py-2 px-4 text-sm font-medium">Add host</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API Keys -->
+                    <div id="settings-panel-api" class="settings-panel hidden">
+                        <h2 class="settings-panel-title">API Keys</h2>
+                        <p class="settings-panel-desc">Long-lived tokens for automation. Use as <code class="text-xs px-1 py-0.5 rounded" style="background: var(--bg-nav)">Authorization: Bearer nbak_…</code></p>
+                        <div class="card p-5">
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 mb-4 pb-4 border-b" style="border-color: var(--border-color)">
+                                <a href="/api/v1/docs" target="_blank" class="text-xs font-medium hover:underline" style="color: var(--brand)">Open API documentation →</a>
+                                <div class="flex gap-2 items-end">
+                                    <div>
+                                        <span class="input-label">Token name</span>
+                                        <input type="text" id="api-key-name" placeholder="e.g. automation" class="w-48 sm:w-56 py-2 px-3 text-sm mt-1">
+                                    </div>
+                                    <button type="button" onclick="createApiKey()" class="btn-primary px-4 py-2 text-sm font-semibold whitespace-nowrap">Create token</button>
+                                </div>
+                            </div>
+
+                            <div id="api-key-created-banner" class="hidden mb-4 p-4 rounded-lg border" style="border-color: #22c55e; background: rgba(34,197,94,0.1)">
+                                <p class="text-sm font-semibold mb-2" style="color: #4ade80">Token created — copy it now. It will not be shown again.</p>
+                                <div class="flex gap-2 items-center flex-wrap">
+                                    <code id="api-key-new-value" class="flex-1 min-w-0 p-3 rounded text-xs font-mono break-all" style="background: var(--bg-app)"></code>
+                                    <button type="button" onclick="copyNewApiKey()" class="btn-secondary px-3 py-2 text-sm whitespace-nowrap">Copy</button>
+                                    <button type="button" onclick="dismissApiKeyBanner()" class="text-xs opacity-60 hover:opacity-100 px-2">Dismiss</button>
+                                </div>
+                            </div>
+
+                            <div id="api-keys-error" class="hidden mb-3 text-sm text-red-400"></div>
+
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-left text-xs uppercase tracking-wide" style="color: var(--text-muted)">
+                                        <th class="pb-2 font-medium">Name</th>
+                                        <th class="pb-2 font-medium">Created</th>
+                                        <th class="pb-2 font-medium">Last used</th>
+                                        <th class="pb-2 font-medium text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="api-keys-table-body">
+                                    <tr><td colspan="4" class="py-6 text-center" style="color: var(--text-muted)">Loading tokens…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Maintenance -->
+                    <div id="settings-panel-maintenance" class="settings-panel hidden">
+                        <h2 class="settings-panel-title">Maintenance</h2>
+                        <p class="settings-panel-desc">Advanced operations — use with caution.</p>
+                        <div class="card p-5 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center" style="border-left: 4px solid #eab308">
+                            <div>
+                                <h3 class="font-bold flex items-center mb-1">
+                                    <svg class="w-5 h-5 mr-2" style="color: #eab308" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                    Snapshot consolidation
+                                </h3>
+                                <p class="text-sm" style="color: var(--text-muted)">Forcefully remove orphaned snapshots across all selected hosts. May cause I/O stun.</p>
+                            </div>
+                            <form action="/cleanup_all_snapshots" method="POST" data-confirm="Initiate global snapshot consolidation on all clusters? This may cause I/O stun." data-confirm-title="Purge snapshots">
+                                <button type="submit" class="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap text-yellow-600">Purge snapshots</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div><!-- end tab-settings -->

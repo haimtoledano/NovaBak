@@ -12,6 +12,7 @@ services:
     volumes:
       # Persistent data: SQLite DB + logs
       - novabak_data:/app/data
+      - /mnt/backups:/mnt/backups
     environment:
       - DATA_DIR=/app/data
       - LOG_FILE=service.log
@@ -27,6 +28,7 @@ services:
     volumes:
       # Same data volume — shared DB between web and worker
       - novabak_data:/app/data
+      - /mnt/backups:/mnt/backups
     environment:
       - DATA_DIR=/app/data
       - LOG_FILE=worker.log

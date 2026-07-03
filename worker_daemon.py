@@ -2,7 +2,7 @@ import os
 import sys
 import time
 import hashlib
-from models import SessionLocal, VM, init_db
+from models import SessionLocal, VM, Config, init_db
 import worker
 from logger_util import log_info, log_error, log_critical
 
@@ -22,8 +22,14 @@ def run_daemon():
     pid = os.getpid()
     log_info(f"[PID {pid}] Starting Backup Engine Daemon...")
     
-    # Initial scheduler start
+    # Initial scheduler start + concurrency limits
     worker.start_scheduler()
+    db = SessionLocal()
+    try:
+        config = db.query(Config).first()
+        worker.configure_concurrency(config or Config())
+    finally:
+        db.close()
     last_hash = get_schedule_hash()
     
     log_info(f"[PID {pid}] Enter polling loop. Monitoring DB for manual triggers and schedule changes.")
@@ -52,8 +58,7 @@ def run_daemon():
             for vm in pending_stops:
                 log_info(f"[PID {pid}] Found manual stop request for VM: {vm.vm_name}")
                 worker.stop_job(vm.id)
-                vm.current_action = ""
-                vm.progress = 0
+                vm.current_action = "Stopping..."
                 db.commit()
                 
             db.close()
