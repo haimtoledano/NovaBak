@@ -114,6 +114,13 @@
         .job-schedule-inline input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .jobs-view-btn { padding: 0.375rem 0.75rem; font-size: 0.75rem; font-weight: 600; border-radius: 0.375rem; border: 1px solid var(--border-color); color: var(--text-muted); background: var(--bg-card); }
         .jobs-view-btn.active { border-color: var(--brand); color: var(--brand); background: rgba(59, 130, 246, 0.08); }
+        .jobs-sort-th { cursor: pointer; user-select: none; white-space: nowrap; }
+        .jobs-sort-th:hover { color: var(--text-main); }
+        .jobs-sort-th.active { color: var(--brand); }
+        .jobs-sort-ind { display: inline-block; width: 0.75rem; margin-left: 0.15rem; opacity: 0.85; }
+        .jobs-bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; margin-bottom: 0.75rem; border: 1px solid var(--border-color); border-radius: 0.375rem; background: var(--bg-nav); }
+        .jobs-bulk-bar.hidden { display: none; }
+        .job-row-cb { width: 1rem; height: 1rem; cursor: pointer; accent-color: var(--brand); }
 
         .modal-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
         .modal-overlay.hidden { display: none; }
@@ -283,6 +290,138 @@
                 else if (filterStat === 'success') matchesStatus = (status === 'Success');
                 card.style.display = (matchesSearch && matchesStatus) ? 'block' : 'none';
             });
+            updateJobsBulkBar();
+        }
+
+        let _jobsSort = { key: 'name', dir: 'asc' };
+
+        function sortJobsTable(key) {
+            if (_jobsSort.key === key) {
+                _jobsSort.dir = _jobsSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                _jobsSort.key = key;
+                _jobsSort.dir = 'asc';
+            }
+            const tbody = document.querySelector('#jobsListView tbody');
+            if (!tbody) return;
+
+            const pairs = [];
+            tbody.querySelectorAll('.vm-job-row').forEach(row => {
+                const vmId = row.id.replace('row-', '');
+                pairs.push({ row, detail: document.getElementById('job-detail-' + vmId) });
+            });
+
+            const dir = _jobsSort.dir === 'asc' ? 1 : -1;
+            pairs.sort((a, b) => {
+                const ar = a.row;
+                const br = b.row;
+                let av;
+                let bv;
+                if (key === 'name') {
+                    av = (ar.getAttribute('data-name') || '').toLowerCase();
+                    bv = (br.getAttribute('data-name') || '').toLowerCase();
+                } else if (key === 'host') {
+                    av = (ar.getAttribute('data-host') || '').toLowerCase();
+                    bv = (br.getAttribute('data-host') || '').toLowerCase();
+                } else if (key === 'lastbackup') {
+                    av = parseFloat(ar.getAttribute('data-lastbackup') || '0');
+                    bv = parseFloat(br.getAttribute('data-lastbackup') || '0');
+                } else if (key === 'status') {
+                    av = ar.getAttribute('data-status-sort') || '';
+                    bv = br.getAttribute('data-status-sort') || '';
+                } else if (key === 'schedule') {
+                    av = (ar.getAttribute('data-schedule') || '').toLowerCase();
+                    bv = (br.getAttribute('data-schedule') || '').toLowerCase();
+                } else {
+                    return 0;
+                }
+                if (av < bv) return -1 * dir;
+                if (av > bv) return 1 * dir;
+                return 0;
+            });
+
+            pairs.forEach(({ row, detail }) => {
+                tbody.appendChild(row);
+                if (detail) tbody.appendChild(detail);
+            });
+            updateJobsSortIndicators();
+        }
+
+        function updateJobsSortIndicators() {
+            document.querySelectorAll('.jobs-sort-th').forEach(th => {
+                const key = th.getAttribute('data-sort-key');
+                const ind = th.querySelector('.jobs-sort-ind');
+                th.classList.toggle('active', key === _jobsSort.key);
+                if (ind) ind.textContent = key === _jobsSort.key ? (_jobsSort.dir === 'asc' ? '↑' : '↓') : '';
+            });
+        }
+
+        function getVisibleJobRows() {
+            return [...document.querySelectorAll('.vm-job-row')].filter(row => row.style.display !== 'none');
+        }
+
+        function getSelectedJobRows() {
+            return getVisibleJobRows().filter(row => row.querySelector('.job-row-cb:checked'));
+        }
+
+        function updateJobsBulkBar() {
+            const selected = getSelectedJobRows();
+            const bar = document.getElementById('jobsBulkBar');
+            const countEl = document.getElementById('jobsBulkCount');
+            const selectAll = document.getElementById('jobs-select-all');
+            const visible = getVisibleJobRows();
+            if (countEl) countEl.textContent = `${selected.length} selected`;
+            if (bar) bar.classList.toggle('hidden', selected.length === 0);
+            if (selectAll) {
+                selectAll.indeterminate = selected.length > 0 && selected.length < visible.length;
+                selectAll.checked = visible.length > 0 && selected.length === visible.length;
+            }
+        }
+
+        function toggleSelectAllJobs(checked) {
+            getVisibleJobRows().forEach(row => {
+                const cb = row.querySelector('.job-row-cb');
+                if (cb) cb.checked = checked;
+            });
+            updateJobsBulkBar();
+        }
+
+        function clearJobSelection() {
+            document.querySelectorAll('.job-row-cb').forEach(cb => { cb.checked = false; });
+            updateJobsBulkBar();
+        }
+
+        async function abortSelectedJobs() {
+            const rows = getSelectedJobRows().filter(r => r.getAttribute('data-running') === 'true');
+            if (!rows.length) {
+                await showAlert('No running backups among the selected VMs.', { title: 'Abort selected' });
+                return;
+            }
+            const ok = await showConfirm(`Abort ${rows.length} running backup(s)?`, { title: 'Abort selected', confirmText: 'Abort', danger: true });
+            if (!ok) return;
+            let stopped = 0;
+            for (const row of rows) {
+                const vmId = row.id.replace('row-', '');
+                try {
+                    const res = await fetch(`/api/v1/vms/${vmId}/stop`, { method: 'POST' });
+                    if (res.ok) stopped++;
+                } catch (e) { /* continue */ }
+            }
+            await showAlert(`Stop requested for ${stopped} backup(s).`, { title: 'Backups stopping', confirmText: 'OK' });
+            clearJobSelection();
+        }
+
+        async function removeSelectedJobs() {
+            const rows = getSelectedJobRows();
+            if (!rows.length) return;
+            const ok = await showConfirm(`Remove ${rows.length} VM(s) from backup tasks?`, { title: 'Remove selected', confirmText: 'Remove', danger: true });
+            if (!ok) return;
+            for (const row of rows) {
+                const vmId = row.id.replace('row-', '');
+                const vmName = row.getAttribute('data-name') || 'VM';
+                await removeVmFromTasks(parseInt(vmId, 10), vmName, true);
+            }
+            clearJobSelection();
         }
 
         function setJobsView(view) {
@@ -369,6 +508,7 @@
             applyTheme(savedTheme);
             
             filterJobs();
+            updateJobsSortIndicators();
             setJobsView(localStorage.getItem('jobsView') || 'list');
             initConfirmForms();
 
@@ -558,18 +698,28 @@
             </div>
 
             <!-- LIST VIEW -->
+            <div id="jobsBulkBar" class="jobs-bulk-bar hidden">
+                <span id="jobsBulkCount" class="text-sm font-medium">0 selected</span>
+                <button type="button" onclick="abortSelectedJobs()" class="btn-danger px-3 py-1.5 text-xs font-medium">Abort selected</button>
+                <button type="button" onclick="removeSelectedJobs()" class="btn-secondary px-3 py-1.5 text-xs font-medium hover:text-red-400 hover:border-red-400/50">Remove selected</button>
+                <button type="button" onclick="clearJobSelection()" class="text-xs font-medium opacity-60 hover:opacity-100">Clear</button>
+            </div>
+
             <div id="jobsListView" class="card overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="jobs-table">
                         <thead>
                             <tr>
+                                <th class="w-10 text-center">
+                                    <input type="checkbox" id="jobs-select-all" class="job-row-cb" title="Select all visible" onchange="toggleSelectAllJobs(this.checked)">
+                                </th>
                                 <th class="w-8"></th>
-                                <th>Virtual Machine</th>
-                                <th>Host</th>
-                                <th>Status</th>
+                                <th class="jobs-sort-th" data-sort-key="name" onclick="sortJobsTable('name')">Virtual Machine<span class="jobs-sort-ind"></span></th>
+                                <th class="jobs-sort-th" data-sort-key="host" onclick="sortJobsTable('host')">Host<span class="jobs-sort-ind"></span></th>
+                                <th class="jobs-sort-th" data-sort-key="status" onclick="sortJobsTable('status')">Status<span class="jobs-sort-ind"></span></th>
                                 <th>Progress</th>
-                                <th>Last Backup</th>
-                                <th>Schedule</th>
+                                <th class="jobs-sort-th" data-sort-key="lastbackup" onclick="sortJobsTable('lastbackup')">Last Backup<span class="jobs-sort-ind"></span></th>
+                                <th class="jobs-sort-th" data-sort-key="schedule" onclick="sortJobsTable('schedule')">Schedule<span class="jobs-sort-ind"></span></th>
                                 <th class="text-right">Actions</th>
                             </tr>
                         </thead>
@@ -579,9 +729,16 @@
                             <tr class="vm-job-row"
                                 id="row-{{ vm.id }}"
                                 data-name="{{ vm.vm_name }}"
+                                data-host="{{ vm.esxi_host.name }}"
+                                data-lastbackup="{{ vm.last_backup.timestamp() if vm.last_backup else 0 }}"
+                                data-schedule="{{ (vm.schedule_frequency or 'daily') }} {{ '%02d'|format(vm.schedule_hour) }}:{{ '%02d'|format(vm.schedule_minute) }}"
                                 data-status="{{ vm.last_status or 'None' }}"
+                                data-status-sort="{% if vm.current_action and vm.current_action != '' %}0-running{% elif vm.last_status == 'Failed' %}1-failed{% elif vm.last_status == 'Cancelled' %}2-cancelled{% elif vm.last_status == 'Success' %}3-success{% elif vm.last_status == 'Skipped' %}4-skipped{% else %}5-idle{% endif %}"
                                 data-scheduled="{{ 'true' if vm.is_job_active else 'false' }}"
                                 data-running="{{ 'true' if (vm.current_action and vm.current_action != '') else 'false' }}">
+                                <td class="text-center">
+                                    <input type="checkbox" class="job-row-cb" value="{{ vm.id }}" onchange="updateJobsBulkBar()">
+                                </td>
                                 <td>
                                     <button type="button" onclick="toggleJobDetail({{ vm.id }})" class="p-1 rounded hover:bg-white/5" title="Schedule settings">
                                         <svg id="job-chevron-{{ vm.id }}" class="w-4 h-4 transition-transform" style="color: var(--text-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
@@ -633,13 +790,13 @@
                                 </td>
                             </tr>
                             <tr class="job-detail-row hidden" id="job-detail-{{ vm.id }}">
-                                <td colspan="8">
+                                <td colspan="9">
                                     {% include 'partials/job_schedule_form.html' %}
                                 </td>
                             </tr>
                             {% endif %}
                         {% else %}
-                            <tr><td colspan="8" class="py-10 text-center" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</td></tr>
+                            <tr><td colspan="9" class="py-10 text-center" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</td></tr>
                         {% endfor %}
                         </tbody>
                     </table>
@@ -1243,15 +1400,17 @@
         }
     }
 
-    async function removeVmFromTasks(vmId, vmName) {
+    async function removeVmFromTasks(vmId, vmName, skipConfirm = false) {
         const row = document.getElementById('row-' + vmId);
         const card = document.getElementById('card-' + vmId);
         const isRunning = row?.getAttribute('data-running') === 'true' || card?.getAttribute('data-running') === 'true';
-        const msg = isRunning
-            ? `${vmName} has a backup running. Remove from tasks anyway? It will no longer appear here or run on schedule.`
-            : `Remove ${vmName} from backup tasks? You can re-enable it from Inventory.`;
-        const ok = await showConfirm(msg, { title: 'Remove from tasks', confirmText: 'Remove', danger: true });
-        if (!ok) return;
+        if (!skipConfirm) {
+            const msg = isRunning
+                ? `${vmName} has a backup running. Remove from tasks anyway? It will no longer appear here or run on schedule.`
+                : `Remove ${vmName} from backup tasks? You can re-enable it from Inventory.`;
+            const ok = await showConfirm(msg, { title: 'Remove from tasks', confirmText: 'Remove', danger: true });
+            if (!ok) return;
+        }
         try {
             const res = await fetch(`/api/v1/vms/${vmId}`, {
                 method: 'PATCH',
@@ -1271,15 +1430,19 @@
 
             const tbody = document.querySelector('#jobsListView tbody');
             if (tbody && !tbody.querySelector('.vm-job-row')) {
-                tbody.innerHTML = '<tr><td colspan="8" class="py-10 text-center" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="py-10 text-center" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</td></tr>';
             }
             const grid = document.getElementById('jobsGridView');
             if (grid && !grid.querySelector('.vm-job-card')) {
                 grid.innerHTML = '<div class="col-span-full card p-10 text-center border-dashed font-medium" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</div>';
             }
             if (typeof filterJobs === 'function') filterJobs();
+            if (typeof updateJobsBulkBar === 'function') updateJobsBulkBar();
         } catch (e) {
-            await showAlert('Could not remove task: ' + (e.message || 'Unknown error'), { title: 'Remove failed' });
+            if (!skipConfirm) {
+                await showAlert('Could not remove task: ' + (e.message || 'Unknown error'), { title: 'Remove failed' });
+            }
+            throw e;
         }
     }
 
