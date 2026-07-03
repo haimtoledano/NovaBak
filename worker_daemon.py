@@ -2,7 +2,7 @@ import os
 import sys
 import time
 import hashlib
-from models import SessionLocal, VM, init_db
+from models import SessionLocal, VM, Config, init_db
 import worker
 from logger_util import log_info, log_error, log_critical
 
