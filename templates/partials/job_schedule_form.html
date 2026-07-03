@@ -2,21 +2,15 @@
     <input type="hidden" name="vm_id" value="{{ vm.id }}">
 
     <div class="flex items-center gap-3 flex-nowrap overflow-x-auto py-1 min-h-[2.75rem]">
-        <div class="flex items-center gap-1 shrink-0">
+        <select name="schedule_frequency"
+                class="px-2 py-1 text-xs font-semibold rounded border shrink-0"
+                style="border-color: var(--border-color); background: var(--bg-card); color: var(--text-main)"
+                onchange="showDaysRow({{ vm.id }}); autoSaveJob({{ vm.id }}, this.form)"
+                title="Backup frequency">
             {% for freq_val, freq_label in [('daily','Daily'),('weekly','Weekly'),('monthly','Monthly')] %}
-            <label class="relative cursor-pointer">
-                <input type="radio" name="schedule_frequency" value="{{ freq_val }}"
-                       {% if (vm.schedule_frequency or 'daily') == freq_val %}checked{% endif %}
-                       class="sr-only peer"
-                       onchange="showDaysRow({{ vm.id }}); autoSaveJob({{ vm.id }}, this.form)">
-                <div class="px-2.5 py-1 text-xs font-semibold rounded border whitespace-nowrap transition-all
-                            peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)] peer-checked:bg-blue-500/10
-                            border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--brand)]/50">
-                    {{ freq_label }}
-                </div>
-            </label>
+            <option value="{{ freq_val }}" {% if (vm.schedule_frequency or 'daily') == freq_val %}selected{% endif %}>{{ freq_label }}</option>
             {% endfor %}
-        </div>
+        </select>
 
         <div class="w-px h-6 shrink-0 job-days-sep" style="background: var(--border-color)"></div>
 

@@ -1544,6 +1544,12 @@
         return getJobForms(vmId)[0];
     }
 
+    function getJobScheduleFrequency(form) {
+        const sel = form.querySelector('select[name="schedule_frequency"]');
+        if (sel) return sel.value || 'daily';
+        return form.querySelector('input[name="schedule_frequency"]:checked')?.value || 'daily';
+    }
+
     function syncJobFormFields(sourceForm, targetForm) {
         if (!sourceForm || !targetForm || sourceForm === targetForm) return;
         sourceForm.querySelectorAll('input[name]').forEach(src => {
@@ -1562,6 +1568,10 @@
             } else {
                 tgt.value = src.value;
             }
+        });
+        sourceForm.querySelectorAll('select[name]').forEach(src => {
+            const tgt = targetForm.querySelector(`select[name="${src.name}"]`);
+            if (tgt) tgt.value = src.value;
         });
     }
 
@@ -1641,7 +1651,7 @@
 
     function applyDaysRowVisibility(form) {
         if (!form) return;
-        const freq = form.querySelector('input[name="schedule_frequency"]:checked')?.value || 'daily';
+        const freq = getJobScheduleFrequency(form);
         const row = form.querySelector('.job-days-row');
         const seps = form.querySelectorAll('.job-days-sep');
         const hint = form.querySelector('.job-days-hint');
