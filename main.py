@@ -18,6 +18,17 @@ import time
 from logger_util import log_info, log_warn, log_error, log_critical
 
 app = FastAPI(title="NovaBak")
+
+from api.v1.router import router as v1_router
+v1_app = FastAPI(
+    title="NovaBak API v1",
+    version="1.0.0",
+    docs_url="/docs",
+    openapi_url="/openapi.json",
+)
+v1_app.include_router(v1_router)
+app.mount("/api/v1", v1_app)
+
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 _static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 os.makedirs(_static_dir, exist_ok=True)

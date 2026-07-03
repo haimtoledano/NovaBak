@@ -142,6 +142,9 @@
             if (tabId === 'tab-restore' && typeof loadGroupedBackups === 'function') {
                 loadGroupedBackups();
             }
+            if (tabId === 'tab-settings' && typeof loadApiKeys === 'function') {
+                loadApiKeys();
+            }
         }
 
         function filterJobs() {
@@ -830,6 +833,58 @@
                 </form>
             </div><!-- end settings grid -->
 
+            {% if current_user and current_user.role == 'admin' %}
+            <!-- API ACCESS TOKENS (admin only) -->
+            <div class="mt-6 card p-5" style="border-top: 4px solid var(--brand)">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4 border-b pb-4" style="border-color: var(--border-color)">
+                    <div>
+                        <h3 class="font-semibold text-lg flex items-center gap-2">
+                            <svg class="w-5 h-5" style="color: var(--brand)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                            API Access Tokens
+                        </h3>
+                        <p class="text-sm mt-1" style="color: var(--text-muted)">
+                            Long-lived keys for automation and scripts. Use as
+                            <code class="text-xs px-1 py-0.5 rounded" style="background: var(--bg-app)">Authorization: Bearer nbak_...</code>
+                        </p>
+                        <a href="/api/v1/docs" target="_blank" class="text-xs font-medium hover:underline mt-1 inline-block" style="color: var(--brand)">Open API documentation &rarr;</a>
+                    </div>
+                    <div class="flex gap-2 items-end shrink-0">
+                        <div>
+                            <span class="input-label">Token name</span>
+                            <input type="text" id="api-key-name" placeholder="e.g. automation-ci" class="w-56 py-2 px-3 text-sm mt-1">
+                        </div>
+                        <button type="button" onclick="createApiKey()" class="btn-primary px-4 py-2 text-sm font-semibold whitespace-nowrap">Create Token</button>
+                    </div>
+                </div>
+
+                <div id="api-key-created-banner" class="hidden mb-4 p-4 rounded-lg border" style="border-color: #22c55e; background: rgba(34,197,94,0.1)">
+                    <p class="text-sm font-semibold mb-2" style="color: #4ade80">Token created — copy it now. It will not be shown again.</p>
+                    <div class="flex gap-2 items-center">
+                        <code id="api-key-new-value" class="flex-1 p-3 rounded text-xs font-mono break-all" style="background: var(--bg-app)"></code>
+                        <button type="button" onclick="copyNewApiKey()" class="btn-secondary px-3 py-2 text-sm whitespace-nowrap">Copy</button>
+                        <button type="button" onclick="dismissApiKeyBanner()" class="text-xs opacity-60 hover:opacity-100 px-2">Dismiss</button>
+                    </div>
+                </div>
+
+                <div id="api-keys-error" class="hidden mb-3 text-sm text-red-400"></div>
+
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-xs uppercase tracking-wide" style="color: var(--text-muted)">
+                            <th class="pb-2 font-medium">Name</th>
+                            <th class="pb-2 font-medium">Created</th>
+                            <th class="pb-2 font-medium">Last used</th>
+                            <th class="pb-2 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="api-keys-table-body">
+                        <tr><td colspan="4" class="py-6 text-center" style="color: var(--text-muted)">Loading tokens...</td></tr>
+                    </tbody>
+                </table>
+                <p class="text-[10px] opacity-50 mt-3">Tokens are tied to your admin account. Revoke any key you no longer use.</p>
+            </div>
+            {% endif %}
+
             <!-- MY PROFILE SECTION (visible to all users) -->
             <div id="profile-saved-msg" class="hidden mt-4 px-4 py-3 rounded text-sm font-medium" style="background:rgba(34,197,94,0.12); color:#4ade80;">
                 ✓ Notification preferences saved.
@@ -986,6 +1041,115 @@
         const checked = [...document.querySelectorAll('.notify-event-checkbox:checked')].map(el => el.dataset.key);
         const inp = document.getElementById('profile-subs-input');
         if (inp) inp.value = checked.join(',');
+    }
+
+    // ─── API Access Tokens (Settings) ─────────────────────────────────────────
+    function formatApiKeyDate(iso) {
+        if (!iso) return '—';
+        try { return new Date(iso).toLocaleString(); } catch (e) { return iso; }
+    }
+
+    function dismissApiKeyBanner() {
+        document.getElementById('api-key-created-banner')?.classList.add('hidden');
+        const el = document.getElementById('api-key-new-value');
+        if (el) el.textContent = '';
+    }
+
+    function copyNewApiKey() {
+        const text = document.getElementById('api-key-new-value')?.textContent || '';
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => alert('Token copied to clipboard.')).catch(() => {
+            alert('Copy this token:\n' + text);
+        });
+    }
+
+    function showApiKeysError(msg) {
+        const box = document.getElementById('api-keys-error');
+        if (!box) return;
+        box.textContent = msg;
+        box.classList.remove('hidden');
+    }
+
+    function clearApiKeysError() {
+        document.getElementById('api-keys-error')?.classList.add('hidden');
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    async function loadApiKeys() {
+        const tbody = document.getElementById('api-keys-table-body');
+        if (!tbody) return;
+        clearApiKeysError();
+        try {
+            const res = await fetch('/api/v1/auth/api-keys');
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || `HTTP ${res.status}`);
+            }
+            const keys = await res.json();
+            if (!keys.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center" style="color: var(--text-muted)">No API tokens yet. Create one above.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = keys.map(k => `
+                <tr class="border-t" style="border-color: var(--border-color)">
+                    <td class="py-3 font-medium">${escapeHtml(k.name)}</td>
+                    <td class="py-3 text-xs" style="color: var(--text-muted)">${formatApiKeyDate(k.created_at)}</td>
+                    <td class="py-3 text-xs" style="color: var(--text-muted)">${formatApiKeyDate(k.last_used_at)}</td>
+                    <td class="py-3 text-right">
+                        <button type="button" onclick="revokeApiKey(${k.id}, ${JSON.stringify(k.name)})" class="text-xs text-red-400 hover:text-red-300 font-medium">Revoke</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-red-400">Failed to load tokens.</td></tr>';
+            showApiKeysError(e.message || 'Failed to load API tokens.');
+        }
+    }
+
+    async function createApiKey() {
+        const nameInput = document.getElementById('api-key-name');
+        const name = (nameInput?.value || '').trim();
+        if (!name) {
+            alert('Enter a name for the token.');
+            nameInput?.focus();
+            return;
+        }
+        clearApiKeysError();
+        try {
+            const res = await fetch('/api/v1/auth/api-keys', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name}),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+            document.getElementById('api-key-new-value').textContent = data.key;
+            document.getElementById('api-key-created-banner').classList.remove('hidden');
+            if (nameInput) nameInput.value = '';
+            await loadApiKeys();
+        } catch (e) {
+            showApiKeysError(e.message || 'Failed to create token.');
+            alert('Could not create token: ' + (e.message || 'Unknown error'));
+        }
+    }
+
+    async function revokeApiKey(id, name) {
+        if (!confirm(`Revoke API token "${name}"? Scripts using it will stop working.`)) return;
+        clearApiKeysError();
+        try {
+            const res = await fetch(`/api/v1/auth/api-keys/${id}`, {method: 'DELETE'});
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.detail || `HTTP ${res.status}`);
+            }
+            await loadApiKeys();
+        } catch (e) {
+            showApiKeysError(e.message || 'Failed to revoke token.');
+            alert('Could not revoke token: ' + (e.message || 'Unknown error'));
+        }
     }
 
     // ─── Task Card Auto-Save ─────────────────────────────────────────────────

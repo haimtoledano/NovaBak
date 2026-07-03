@@ -29,6 +29,18 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     email = Column(String, default="")  # Personal email for notifications
     notify_subscriptions = Column(String, default="")  # Comma-separated event keys
+    api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    name = Column(String)
+    key_hash = Column(String, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)
+    user = relationship("User", back_populates="api_keys")
 
 class ESXiHost(Base):
     __tablename__ = "esxi_hosts"
