@@ -282,6 +282,8 @@ def read_root(request: Request, db: Session = Depends(get_db)):
     logs = db.query(BackupLog).order_by(BackupLog.timestamp.desc()).limit(10).all()
     users = db.query(User).all()
     esxi_hosts = db.query(ESXiHost).all()
+    selected_vm_count = db.query(VM).filter(VM.is_selected == True).count()
+    setup_wizard_suggested = len(esxi_hosts) == 0 or selected_vm_count == 0
             
     from models import NOTIFY_EVENTS
     return templates.TemplateResponse("index.html", {
@@ -292,6 +294,7 @@ def read_root(request: Request, db: Session = Depends(get_db)):
         "users": users,
         "current_user": user,
         "esxi_hosts": esxi_hosts,
+        "setup_wizard_suggested": setup_wizard_suggested,
         "notify_events": NOTIFY_EVENTS,
     })
 

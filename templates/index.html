@@ -121,6 +121,71 @@
         .modal-panel { position: relative; width: 100%; max-width: 28rem; padding: 1.5rem; border-radius: 0.75rem; animation: modalIn 0.15s ease-out; }
         @keyframes modalIn { from { opacity: 0; transform: scale(0.96) translateY(4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
+        .wizard-overlay { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 0.75rem; }
+        .wizard-overlay.hidden { display: none; }
+        .wizard-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); }
+        .wizard-panel {
+            position: relative; width: 100%; max-width: 72rem;
+            height: min(44rem, calc(100vh - 1.5rem));
+            display: flex; flex-direction: column; overflow: hidden;
+            border-radius: 0.5rem; animation: modalIn 0.15s ease-out;
+        }
+        .wizard-topbar {
+            display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+            padding: 1.125rem 1.5rem; border-bottom: 1px solid var(--border-color); background: var(--bg-nav);
+        }
+        .wizard-close {
+            padding: 0.375rem; border-radius: 0.375rem; color: var(--text-muted);
+            transition: color 0.15s, background 0.15s;
+        }
+        .wizard-close:hover { color: var(--text-main); background: var(--btn-sec); }
+
+        .wizard-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+        .wizard-nav {
+            width: 13rem; flex-shrink: 0; border-right: 1px solid var(--border-color);
+            background: var(--bg-nav); padding: 0.875rem 0; overflow-y: auto;
+            align-self: stretch;
+        }
+        .wizard-nav-item {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.75rem 1.125rem; font-size: 0.875rem; color: var(--text-muted);
+            border-left: 3px solid transparent; transition: color 0.15s, border-color 0.15s, background 0.15s;
+        }
+        .wizard-nav-num {
+            width: 1.375rem; height: 1.375rem; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 9999px; font-size: 0.6875rem; font-weight: 600;
+            border: 1px solid var(--border-color); color: var(--text-muted); background: var(--bg-card);
+        }
+        .wizard-nav-label { font-weight: 500; line-height: 1.2; }
+        .wizard-nav-item.active {
+            color: var(--text-main); border-left-color: var(--brand); background: rgba(59,130,246,0.06);
+        }
+        .wizard-nav-item.active .wizard-nav-num { border-color: var(--brand); background: var(--brand); color: #fff; }
+        .wizard-nav-item.done { color: var(--text-muted); }
+        .wizard-nav-item.done .wizard-nav-num { border-color: rgba(16,185,129,0.5); color: #34d399; background: rgba(16,185,129,0.08); }
+
+        .wizard-content {
+            flex: 1; min-height: 0; overflow: hidden; position: relative;
+        }
+        .wizard-step {
+            position: absolute; inset: 0; overflow-y: auto;
+            padding: 1.5rem 2rem;
+        }
+        .wizard-step-inner { display: flex; flex-direction: column; min-height: 100%; }
+        .wizard-step-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+        .wizard-footer {
+            flex-shrink: 0;
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); background: var(--bg-nav);
+        }
+
+        @media (max-width: 640px) {
+            .wizard-nav { width: 3.25rem; }
+            .wizard-nav-label { display: none; }
+            .wizard-nav-item { justify-content: center; padding: 0.625rem 0.5rem; }
+        }
+
         /* Minimal scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-app); }
@@ -390,10 +455,10 @@
     <nav class="nav-bar sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
-                <div class="flex items-center space-x-3">
+                <button type="button" onclick="switchTab('tab-jobs')" class="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity" title="Tasks">
                     <img src="/static/novabak_logo.png" class="w-8 h-8 rounded" alt="NovaBak Logo">
                     <span class="font-bold text-xl tracking-wide uppercase">NovaBak</span>
-                </div>
+                </button>
                 <div class="flex items-center">
                     <div class="hidden md:flex space-x-6 mr-6 h-full">
                         <button id="nav-tab-jobs" onclick="switchTab('tab-jobs')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Tasks</button>
@@ -827,8 +892,16 @@
 
         <!-- SETTINGS TAB -->
         <div id="tab-settings" class="tab-content hidden">
-            <!-- Included abbreviated settings for layout - you can insert full settings code from previous implementations here -->
-            <h2 class="text-2xl font-bold mb-6">Engine Configuration</h2>
+            <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+                <h2 class="text-2xl font-bold">Engine Configuration</h2>
+                {% if current_user and current_user.role == 'admin' %}
+                <button type="button" onclick="openSetupWizard()" class="btn-secondary px-3 py-1.5 text-sm font-medium whitespace-nowrap">Setup wizard</button>
+                {% endif %}
+            </div>
+            <div id="config-saved-msg" class="hidden mb-4 px-4 py-3 rounded text-sm font-medium" style="background:rgba(34,197,94,0.12); color:#4ade80;">
+                ✓ Configuration saved.
+            </div>
+            <div id="config-save-error" class="hidden mb-4 px-4 py-3 rounded text-sm font-medium" style="background:rgba(239,68,68,0.12); color:#f87171;"></div>
             
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
@@ -1204,6 +1277,9 @@
     </footer>
 
     <!-- App modal (confirm / alert) -->
+    {% if current_user and current_user.role == 'admin' %}
+    {% include 'partials/setup_wizard.html' %}
+    {% endif %}
     <div id="appModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
         <div class="modal-backdrop" onclick="closeAppModal(false)"></div>
         <div class="modal-panel card shadow-2xl">
@@ -1735,6 +1811,410 @@
             window.history.replaceState({}, '', window.location.pathname);
         }
     })();
+
+    // ─── Setup wizard ─────────────────────────────────────────────────────────
+    const wizardState = { step: 1, hosts: [], vms: [], applying: false };
+    const WIZARD_STEP_NAMES = ['Backup storage', 'ESXi hosts', 'Select VMs', 'Schedule', 'Complete'];
+    const WIZARD_TOTAL_STEPS = 5;
+
+    async function wizardApi(method, path, body) {
+        const opts = { method, headers: {} };
+        if (body !== undefined) {
+            opts.headers['Content-Type'] = 'application/json';
+            opts.body = JSON.stringify(body);
+        }
+        const res = await fetch('/api/v1' + path, opts);
+        let data = {};
+        try { data = await res.json(); } catch (_) {}
+        if (!res.ok) {
+            const detail = data.detail;
+            const msg = typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail.map(d => d.msg || d).join(', ') : res.statusText);
+            throw new Error(msg || 'Request failed');
+        }
+        return data;
+    }
+
+    function wizardShowError(msg) {
+        const el = document.getElementById('wizardError');
+        if (!el) return;
+        if (msg) { el.textContent = msg; el.classList.remove('hidden'); }
+        else { el.textContent = ''; el.classList.add('hidden'); }
+    }
+
+    function wizardHostLabel(hostId) {
+        const h = wizardState.hosts.find(x => x.id === hostId);
+        return h ? h.name : ('Host #' + hostId);
+    }
+
+    function wizardShouldProtect(name) {
+        const lower = (name || '').toLowerCase();
+        if (lower.startsWith('tpl-') || lower.startsWith('template')) return false;
+        if (lower.includes('novabak')) return false;
+        if (lower.startsWith('vcls')) return false;
+        return true;
+    }
+
+    function wizardUpdateStepUi() {
+        const step = wizardState.step;
+        document.querySelectorAll('.wizard-step').forEach(el => {
+            el.classList.toggle('hidden', parseInt(el.dataset.wizardStep, 10) !== step);
+        });
+        document.querySelectorAll('.wizard-nav-item').forEach(item => {
+            const n = parseInt(item.dataset.step, 10);
+            item.classList.toggle('active', n === step);
+            item.classList.toggle('done', n < step);
+        });
+        const stepName = WIZARD_STEP_NAMES[step - 1] || '';
+        const counterText = `Step ${step} of ${WIZARD_TOTAL_STEPS}`;
+        const counterEl = document.getElementById('wizard-step-counter');
+        const nameEl = document.getElementById('wizard-step-current-name');
+        if (counterEl) counterEl.textContent = counterText;
+        if (nameEl) nameEl.textContent = stepName;
+        const backBtn = document.getElementById('wizard-back-btn');
+        const nextBtn = document.getElementById('wizard-next-btn');
+        if (backBtn) backBtn.classList.toggle('hidden', step <= 1 || step >= WIZARD_TOTAL_STEPS);
+        if (nextBtn) {
+            nextBtn.classList.remove('hidden');
+            nextBtn.textContent = step === 4 ? 'Apply & Finish' : (step === WIZARD_TOTAL_STEPS ? 'Go to Tasks' : 'Continue');
+        }
+        if (step === 4) wizardShowDaysRow();
+    }
+
+    function wizardGoToStep(n) {
+        wizardState.step = n;
+        wizardUpdateStepUi();
+    }
+
+    async function openSetupWizard() {
+        const el = document.getElementById('setupWizard');
+        if (!el) return;
+        wizardState.step = 1;
+        wizardState.hosts = [];
+        wizardState.vms = [];
+        wizardState.applying = false;
+        wizardShowError('');
+        el.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        try {
+            const existing = await wizardApi('GET', '/hosts');
+            wizardState.hosts = existing;
+        } catch (_) {}
+        wizardRefreshHostList();
+        wizardInitStorageSelection();
+        wizardShowDaysRow();
+        wizardUpdateStepUi();
+    }
+
+    function wizardInitStorageSelection() {
+        if (!document.querySelector('input[name="wizard_storage_type"]:checked')) {
+            const nfs = document.querySelector('input[name="wizard_storage_type"][value="NFS"]');
+            if (nfs) nfs.checked = true;
+        }
+        wizardToggleStorageFields();
+    }
+
+    function wizardToggleStorageFields() {
+        const type = document.querySelector('input[name="wizard_storage_type"]:checked')?.value || 'NFS';
+        document.querySelectorAll('.wizard-storage-fields').forEach(el => el.classList.add('hidden'));
+        const target = document.getElementById('wizard-fields-' + type);
+        if (target) target.classList.remove('hidden');
+    }
+
+    function wizardUpdateDaysHidden() {
+        const checked = [...document.querySelectorAll('.wizard-day-cb:checked')].map(el => el.dataset.day);
+        const hidden = document.getElementById('wizard-schedule-days');
+        if (hidden) hidden.value = checked.length ? checked.join(',') : '0,1,2,3,4,5,6';
+    }
+
+    function wizardShowDaysRow() {
+        const freqEl = document.querySelector('input[name="wizard_schedule_frequency"]:checked');
+        const freq = freqEl ? freqEl.value : 'daily';
+        const row = document.getElementById('wizard-days-row');
+        const hint = document.getElementById('wizard-days-hint');
+        const cbs = document.querySelectorAll('.wizard-day-cb');
+
+        if (freq === 'daily') {
+            if (row) row.style.opacity = '0.35';
+            cbs.forEach(cb => { cb.disabled = true; cb.checked = true; });
+            if (hint) hint.textContent = 'runs every day';
+            wizardUpdateDaysHidden();
+        } else if (freq === 'weekly') {
+            if (row) row.style.opacity = '1';
+            cbs.forEach(cb => { cb.disabled = false; });
+            if (hint) hint.textContent = 'pick which days';
+        } else if (freq === 'monthly') {
+            if (row) row.style.opacity = '1';
+            cbs.forEach(cb => { cb.disabled = false; });
+            if (hint) hint.textContent = 'first occurrence in month';
+        }
+    }
+
+    function wizardGetStoragePayload() {
+        const type = document.querySelector('input[name="wizard_storage_type"]:checked')?.value || 'NFS';
+        const body = { storage_type: type };
+        if (type === 'SMB') {
+            body.smb_unc_path = document.getElementById('wizard-smb-path')?.value?.trim() || '';
+            body.smb_user = document.getElementById('wizard-smb-user')?.value?.trim() || '';
+            const pass = document.getElementById('wizard-smb-password')?.value;
+            if (pass) body.smb_password = pass;
+        } else if (type === 'NFS') {
+            body.nfs_path = document.getElementById('wizard-nfs-path')?.value?.trim() || '/mnt/backups';
+        } else if (type === 'S3') {
+            body.s3_endpoint = document.getElementById('wizard-s3-endpoint')?.value?.trim() || '';
+            body.s3_access_key = document.getElementById('wizard-s3-access-key')?.value?.trim() || '';
+            const sk = document.getElementById('wizard-s3-secret-key')?.value;
+            if (sk) body.s3_secret_key = sk;
+            body.s3_bucket = document.getElementById('wizard-s3-bucket')?.value?.trim() || '';
+            body.s3_region = document.getElementById('wizard-s3-region')?.value?.trim() || '';
+        }
+        return body;
+    }
+
+    function closeSetupWizard(skipReload) {
+        const el = document.getElementById('setupWizard');
+        if (el) el.classList.add('hidden');
+        document.body.style.overflow = '';
+        if (!skipReload && wizardState.step >= WIZARD_TOTAL_STEPS) {
+            localStorage.setItem('setup_wizard_done', '1');
+            window.location.reload();
+        }
+    }
+
+    function wizardBack() {
+        if (wizardState.step > 1 && wizardState.step < WIZARD_TOTAL_STEPS) wizardGoToStep(wizardState.step - 1);
+    }
+
+    function wizardSetNextBusy(busy, label) {
+        const nextBtn = document.getElementById('wizard-next-btn');
+        if (!nextBtn) return;
+        nextBtn.disabled = busy;
+        if (busy && label) nextBtn.textContent = label;
+        else wizardUpdateStepUi();
+    }
+
+    async function wizardNext() {
+        wizardShowError('');
+        try {
+            if (wizardState.step === 1) {
+                await wizardSaveStorage();
+                wizardGoToStep(2);
+            } else if (wizardState.step === 2) {
+                await wizardEnsureHosts();
+                wizardSetNextBusy(true, 'Discovering VMs…');
+                const warnings = await wizardDiscoverVms();
+                await wizardLoadVms();
+                wizardGoToStep(3);
+                if (warnings.length) wizardShowError('Some hosts could not be synced: ' + warnings.join('; '));
+            } else if (wizardState.step === 3) {
+                wizardGoToStep(4);
+            } else if (wizardState.step === 4) {
+                await wizardApply();
+                wizardGoToStep(5);
+            } else if (wizardState.step === 5) {
+                localStorage.setItem('setup_wizard_done', '1');
+                closeSetupWizard(true);
+                switchTab('tab-jobs');
+                return;
+            }
+        } catch (e) {
+            wizardShowError(e.message || String(e));
+        } finally {
+            wizardSetNextBusy(false);
+        }
+    }
+
+    async function wizardSaveStorage() {
+        const status = document.getElementById('wizard-storage-status');
+        if (status) {
+            status.classList.remove('hidden');
+            status.textContent = 'Testing storage connection…';
+            status.style.background = 'rgba(59,130,246,0.08)';
+            status.style.color = 'var(--text-muted)';
+        }
+        await wizardApi('PUT', '/config/storage', wizardGetStoragePayload());
+        const test = await wizardApi('POST', '/config/storage/test');
+        if (!test.ok) throw new Error(test.message || 'Storage test failed');
+        if (status) {
+            status.textContent = '✓ ' + test.message;
+            status.style.background = 'rgba(34,197,94,0.12)';
+            status.style.color = '#4ade80';
+        }
+    }
+
+    function wizardRefreshHostList() {
+        const ul = document.getElementById('wizard-host-list');
+        if (!ul) return;
+        if (!wizardState.hosts.length) {
+            ul.innerHTML = '<li class="px-4 py-3 text-center text-sm" style="color:var(--text-muted)">No hosts added yet.</li>';
+            return;
+        }
+        ul.innerHTML = wizardState.hosts.map(h =>
+            `<li class="px-4 py-3 flex justify-between items-center gap-3">
+                <div>
+                    <span class="font-medium block">${escapeHtml(h.name)}</span>
+                    <span class="text-xs font-mono" style="color:var(--brand)">${escapeHtml(h.host_ip)}</span>
+                </div>
+                <button type="button" onclick="wizardDeleteHost(${h.id})" class="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0" title="Remove host">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+            </li>`
+        ).join('');
+    }
+
+    async function wizardDeleteHost(hostId) {
+        const host = wizardState.hosts.find(h => h.id === hostId);
+        const label = host ? host.name : 'this host';
+        const ok = await showConfirm(`Remove ${label} from NovaBak?`, { title: 'Remove host', confirmText: 'Remove', danger: true });
+        if (!ok) return;
+        wizardShowError('');
+        try {
+            await wizardApi('DELETE', `/hosts/${hostId}`);
+            wizardState.hosts = wizardState.hosts.filter(h => h.id !== hostId);
+            wizardRefreshHostList();
+        } catch (e) {
+            wizardShowError(e.message || String(e));
+        }
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    async function wizardAddHost() {
+        wizardShowError('');
+        const name = document.getElementById('wizard-host-name')?.value?.trim();
+        const host_ip = document.getElementById('wizard-host-ip')?.value?.trim();
+        const username = document.getElementById('wizard-host-user')?.value?.trim();
+        const password = document.getElementById('wizard-host-pass')?.value || '';
+        if (!name || !host_ip || !username || !password) {
+            wizardShowError('Fill in alias, host, username, and password.');
+            return;
+        }
+        try {
+            const host = await wizardApi('POST', '/hosts', { name, host_ip, username, password });
+            if (!wizardState.hosts.some(h => h.id === host.id)) wizardState.hosts.push(host);
+            wizardRefreshHostList();
+            document.getElementById('wizard-host-pass').value = '';
+        } catch (e) {
+            wizardShowError(e.message);
+        }
+    }
+
+    async function wizardEnsureHosts() {
+        const existing = await wizardApi('GET', '/hosts');
+        existing.forEach(h => {
+            if (!wizardState.hosts.some(x => x.id === h.id)) wizardState.hosts.push(h);
+        });
+        wizardRefreshHostList();
+        if (!wizardState.hosts.length) throw new Error('Add at least one ESXi host.');
+    }
+
+    async function wizardDiscoverVms() {
+        const errors = [];
+        for (const h of wizardState.hosts) {
+            try {
+                await wizardApi('POST', `/hosts/${h.id}/sync-vms`);
+            } catch (e) {
+                errors.push(`${h.name}: ${e.message}`);
+            }
+        }
+        if (errors.length === wizardState.hosts.length) {
+            throw new Error('Could not discover VMs from any host. ' + errors.join('; '));
+        }
+        return errors;
+    }
+
+    async function wizardLoadVms() {
+        wizardState.vms = await wizardApi('GET', '/vms');
+        wizardState.vms.forEach(v => { v._selected = wizardShouldProtect(v.vm_name); });
+        wizardRenderVmTable();
+    }
+
+    function wizardRenderVmTable() {
+        const tbody = document.getElementById('wizard-vm-table');
+        if (!tbody) return;
+        if (!wizardState.vms.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-sm" style="color:var(--text-muted)">No VMs found on registered hosts.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = wizardState.vms.map(v => `
+            <tr>
+                <td class="text-center"><input type="checkbox" data-vm-id="${v.id}" ${v._selected ? 'checked' : ''} onchange="wizardToggleVm(${v.id}, this.checked)"></td>
+                <td class="font-mono text-xs">${escapeHtml(v.vm_name)}</td>
+                <td class="text-xs" style="color:var(--text-muted)">${escapeHtml(wizardHostLabel(v.esxi_host_id))}</td>
+                <td class="text-right text-xs">${v.storage_gb ? v.storage_gb.toFixed(1) + ' GB' : '—'}</td>
+            </tr>`).join('');
+    }
+
+    function wizardToggleVm(id, checked) {
+        const v = wizardState.vms.find(x => x.id === id);
+        if (v) v._selected = checked;
+    }
+
+    function wizardSelectAllVms(on) {
+        wizardState.vms.forEach(v => { v._selected = on; });
+        wizardRenderVmTable();
+    }
+
+    function wizardSelectRecommended() {
+        wizardState.vms.forEach(v => { v._selected = wizardShouldProtect(v.vm_name); });
+        wizardRenderVmTable();
+    }
+
+    async function wizardApply() {
+        const hour = parseInt(document.getElementById('wizard-schedule-hour')?.value || '2', 10);
+        const minute = parseInt(document.getElementById('wizard-schedule-minute')?.value || '0', 10);
+        const retention = parseInt(document.getElementById('wizard-retention')?.value || '7', 10);
+        const stagger = document.getElementById('wizard-stagger-hosts')?.checked ?? true;
+        const jobActive = document.getElementById('wizard-job-active')?.checked ?? true;
+        const frequency = document.querySelector('input[name="wizard_schedule_frequency"]:checked')?.value || 'daily';
+        wizardUpdateDaysHidden();
+        const scheduleDays = document.getElementById('wizard-schedule-days')?.value || '0,1,2,3,4,5,6';
+
+        const selected = wizardState.vms.filter(v => v._selected);
+        if (!selected.length) throw new Error('Select at least one VM to protect.');
+        if (frequency === 'weekly' && !document.querySelectorAll('.wizard-day-cb:checked').length) {
+            throw new Error('Pick at least one day for a weekly schedule.');
+        }
+
+        const hostIds = [...new Set(selected.map(v => v.esxi_host_id).filter(Boolean))].sort((a, b) => a - b);
+        const hostHour = {};
+        hostIds.forEach((hid, i) => { hostHour[hid] = (hour + (stagger ? i : 0)) % 24; });
+
+        let updated = 0;
+        for (const v of wizardState.vms) {
+            const body = v._selected ? {
+                is_selected: true,
+                is_job_active: jobActive,
+                schedule_hour: hostHour[v.esxi_host_id] ?? hour,
+                schedule_minute: minute,
+                retention_count: retention,
+                schedule_frequency: frequency,
+                schedule_days: scheduleDays,
+                power_off_for_backup: false,
+            } : { is_selected: false, is_job_active: false };
+            await wizardApi('PATCH', `/vms/${v.id}`, body);
+            if (v._selected) updated++;
+        }
+
+        const summary = document.getElementById('wizard-summary');
+        if (summary) {
+            summary.innerHTML = `
+                <p><strong>${updated}</strong> VM(s) scheduled (${frequency})${jobActive ? '' : ' — inactive until enabled'}.</p>
+                <p class="mt-1 opacity-80">${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')} UTC${stagger && hostIds.length > 1 ? ' · staggered by host' : ''} · Keep ${retention}</p>`;
+        }
+        localStorage.setItem('setup_wizard_done', '1');
+    }
+
+    document.getElementById('setupWizard')?.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeSetupWizard(true);
+    });
+
+    {% if setup_wizard_suggested and current_user and current_user.role == 'admin' %}
+    if (!localStorage.getItem('setup_wizard_done')) {
+        openSetupWizard();
+    }
+    {% endif %}
 
 
     </script>
