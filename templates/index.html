@@ -333,20 +333,16 @@
 
         function initConfirmForms() {
             document.querySelectorAll('form[data-confirm]').forEach(form => {
+                if (form.dataset.confirmBound === '1') return;
+                form.dataset.confirmBound = '1';
                 form.addEventListener('submit', async e => {
-                    if (form.dataset.confirmed === '1') {
-                        form.dataset.confirmed = '';
-                        return;
-                    }
                     e.preventDefault();
                     const msg = form.getAttribute('data-confirm');
                     const danger = form.getAttribute('data-confirm-danger') !== 'false';
                     const title = form.getAttribute('data-confirm-title') || 'Confirm';
-                    const ok = await showConfirm(msg, { title, danger });
-                    if (ok) {
-                        form.dataset.confirmed = '1';
-                        form.requestSubmit();
-                    }
+                    const confirmText = form.getAttribute('data-confirm-submit') || 'Confirm';
+                    const ok = await showConfirm(msg, { title, confirmText, danger });
+                    if (ok) form.submit(); // native submit — bypasses this listener
                 });
             });
         }
@@ -1948,6 +1944,14 @@
             switchTab('tab-settings');
             if (typeof showSettingsPanel === 'function') showSettingsPanel('profile');
             const msg = document.getElementById('profile-saved-msg');
+            if (msg) msg.classList.remove('hidden');
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+
+        if (params.get('purge_started')) {
+            switchTab('tab-settings');
+            if (typeof showSettingsPanel === 'function') showSettingsPanel('maintenance');
+            const msg = document.getElementById('purge-started-msg');
             if (msg) msg.classList.remove('hidden');
             window.history.replaceState({}, '', window.location.pathname);
         }

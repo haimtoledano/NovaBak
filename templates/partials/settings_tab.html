@@ -371,6 +371,9 @@
                     <div id="settings-panel-maintenance" class="settings-panel hidden">
                         <h2 class="settings-panel-title">Maintenance</h2>
                         <p class="settings-panel-desc">Advanced operations — use with caution.</p>
+                        <div id="purge-started-msg" class="hidden mb-4 px-4 py-3 rounded text-sm font-medium" style="background:rgba(34,197,94,0.12); color:#4ade80;">
+                            ✓ Snapshot purge started in the background. Check logs for progress.
+                        </div>
                         <div class="card p-5 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center" style="border-left: 4px solid #eab308">
                             <div>
                                 <h3 class="font-bold flex items-center mb-1">
@@ -379,7 +382,7 @@
                                 </h3>
                                 <p class="text-sm" style="color: var(--text-muted)">Forcefully remove orphaned snapshots across all selected hosts. May cause I/O stun.</p>
                             </div>
-                            <form action="/cleanup_all_snapshots" method="POST" data-confirm="Initiate global snapshot consolidation on all clusters? This may cause I/O stun." data-confirm-title="Purge snapshots">
+                            <form id="purge-snapshots-form" action="/cleanup_all_snapshots" method="POST" data-confirm="Initiate global snapshot consolidation on all selected hosts? This may cause I/O stun." data-confirm-title="Purge snapshots" data-confirm-submit="Purge" data-confirm-danger="true">
                                 <button type="submit" class="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap text-yellow-600">Purge snapshots</button>
                             </form>
                         </div>
