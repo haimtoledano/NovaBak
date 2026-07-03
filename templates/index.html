@@ -689,7 +689,6 @@
                         <option value="error">Failed Backups</option>
                         <option value="success">Successful Backups</option>
                     </select>
-                    <button type="button" onclick="stopAllBackups()" class="btn-danger px-3 py-2 text-sm font-medium whitespace-nowrap">Abort All</button>
                     <div class="flex rounded-md overflow-hidden border" style="border-color: var(--border-color)">
                         <button type="button" id="jobsViewList" onclick="setJobsView('list')" class="jobs-view-btn active rounded-none">List</button>
                         <button type="button" id="jobsViewCards" onclick="setJobsView('cards')" class="jobs-view-btn rounded-none border-l" style="border-color: var(--border-color)">Cards</button>
@@ -1443,19 +1442,6 @@
                 await showAlert('Could not remove task: ' + (e.message || 'Unknown error'), { title: 'Remove failed' });
             }
             throw e;
-        }
-    }
-
-    async function stopAllBackups() {
-        const ok = await showConfirm('Abort all running backups?', { title: 'Abort all backups', confirmText: 'Abort all', danger: true });
-        if (!ok) return;
-        try {
-            const res = await fetch('/api/v1/jobs/stop-all', {method: 'POST'});
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
-            await showAlert(`Stop requested for ${data.count || 0} backup(s).`, { title: 'Backups stopping', confirmText: 'OK' });
-        } catch (e) {
-            await showAlert('Could not abort backups: ' + (e.message || 'Unknown error'), { title: 'Abort failed' });
         }
     }
 
