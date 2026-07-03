@@ -376,7 +376,15 @@ def save_config(
     config.s3_region = s3_region
     
     db.commit()
-    return RedirectResponse(url="/", status_code=303)
+
+    try:
+        worker.configure_concurrency(config)
+    except Exception:
+        pass
+
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JSONResponse({"ok": True, "message": "Configuration saved."})
+    return RedirectResponse(url="/?saved=settings", status_code=303)
 
 @app.post("/add_esxi_host")
 def add_esxi_host(

@@ -392,6 +392,14 @@
             filterJobs();
             setJobsView(localStorage.getItem('jobsView') || 'list');
             initConfirmForms();
+            initSettingsConfigForm();
+
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('saved') === 'settings') {
+                switchTab('tab-settings');
+                showConfigSavedBanner();
+                history.replaceState({}, '', window.location.pathname);
+            }
 
             document.getElementById('appModalCancel')?.addEventListener('click', () => closeAppModal(false));
             document.getElementById('appModalConfirm')?.addEventListener('click', () => closeAppModal(true));
@@ -854,8 +862,11 @@
 
         <!-- SETTINGS TAB -->
         <div id="tab-settings" class="tab-content hidden">
-            <!-- Included abbreviated settings for layout - you can insert full settings code from previous implementations here -->
             <h2 class="text-2xl font-bold mb-6">Engine Configuration</h2>
+            <div id="config-saved-msg" class="hidden mb-4 px-4 py-3 rounded text-sm font-medium" style="background:rgba(34,197,94,0.12); color:#4ade80;">
+                ✓ Configuration saved.
+            </div>
+            <div id="config-save-error" class="hidden mb-4 px-4 py-3 rounded text-sm font-medium" style="background:rgba(239,68,68,0.12); color:#f87171;"></div>
             
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
@@ -910,7 +921,7 @@
                 </div>
 
                 <!-- Storage & Performance -->
-                <form action="/save_config" method="POST" class="col-span-1 lg:col-span-2 flex flex-col gap-6">
+                <form id="settings-config-form" action="/save_config" method="POST" class="col-span-1 lg:col-span-2 flex flex-col gap-6">
                     <div class="card p-5">
                         <div class="flex justify-between items-center mb-4 border-b pb-2" style="border-color: var(--border-color)">
                             <h3 class="font-semibold text-lg">Target Storage</h3>
@@ -1064,8 +1075,9 @@
                             </div>
                         </div>
                         
-                        <div class="mt-6 flex justify-end">
-                            <button type="submit" class="btn-primary px-6 py-2">Save Configuration</button>
+                        <div class="mt-6 flex justify-end items-center gap-3">
+                            <span id="config-save-status" class="text-sm hidden" style="color: var(--text-muted)"></span>
+                            <button type="submit" id="config-save-btn" class="btn-primary px-6 py-2">Save Configuration</button>
                         </div>
                     </div>
 
@@ -1317,6 +1329,54 @@
         try { let res = await fetch('/test_storage', {method: 'POST'}); let data = await res.json(); await showAlert(data.message, { title: 'Storage test' }); }
         catch(e) { await showAlert('Error testing storage connection.', { title: 'Storage test' }); }
     }
+
+    function showConfigSavedBanner() {
+        const ok = document.getElementById('config-saved-msg');
+        const err = document.getElementById('config-save-error');
+        if (err) err.classList.add('hidden');
+        if (ok) {
+            ok.classList.remove('hidden');
+            setTimeout(() => ok.classList.add('hidden'), 4000);
+        }
+    }
+
+    function initSettingsConfigForm() {
+        const form = document.getElementById('settings-config-form');
+        if (!form) return;
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            const btn = document.getElementById('config-save-btn');
+            const status = document.getElementById('config-save-status');
+            const errBox = document.getElementById('config-save-error');
+            const data = new FormData(form);
+            if (!data.has('smtp_use_tls')) data.set('smtp_use_tls', 'false');
+            if (!data.has('smtp_use_ssl')) data.set('smtp_use_ssl', 'false');
+            if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+            if (status) { status.textContent = 'Saving…'; status.classList.remove('hidden'); }
+            if (errBox) errBox.classList.add('hidden');
+            try {
+                const res = await fetch('/save_config', {
+                    method: 'POST',
+                    body: data,
+                    headers: {'X-Requested-With': 'fetch'},
+                });
+                if (!res.ok) throw new Error('Save failed (' + res.status + ')');
+                const result = await res.json().catch(() => ({ ok: true }));
+                if (result.ok === false) throw new Error(result.message || 'Save failed');
+                showConfigSavedBanner();
+                if (status) status.classList.add('hidden');
+            } catch (err) {
+                if (errBox) {
+                    errBox.textContent = 'Could not save configuration: ' + (err.message || 'Unknown error');
+                    errBox.classList.remove('hidden');
+                }
+                if (status) status.classList.add('hidden');
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Save Configuration'; }
+            }
+        });
+    }
+
     async function testSmtp() {
         try { 
             let res = await fetch('/api/test_smtp', {method: 'POST'}); 
