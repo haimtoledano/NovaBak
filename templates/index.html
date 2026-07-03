@@ -694,9 +694,6 @@
                                             <input type="hidden" name="vm_id" value="{{ vm.id }}">
                                             <button type="submit" class="btn-primary p-1.5 rounded text-xs px-2 font-medium">Run</button>
                                         </form>
-                                        <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary p-1.5 rounded text-xs" title="Remove from tasks">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -746,9 +743,6 @@
                                         Run Now
                                     </button>
                                 </form>
-                                <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary p-1.5 rounded" title="Remove from tasks">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                </button>
                             </div>
                         </div>
 
@@ -777,9 +771,16 @@
                         </div>
 
                         <div class="mt-auto pt-4 text-xs" style="border-top: 1px solid var(--border-color); color: var(--text-muted)">
-                            {{ (vm.schedule_frequency or 'daily')|title }} at {{ '%02d'|format(vm.schedule_hour) }}:{{ '%02d'|format(vm.schedule_minute) }} · keep {{ vm.retention_count }}
-                            {% if vm.is_job_active %} · <span style="color: var(--brand)">Active</span>{% else %} · Paused{% endif %}
-                            <div class="mt-2 opacity-70">Switch to List view and expand the row to edit schedule.</div>
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    {{ (vm.schedule_frequency or 'daily')|title }} at {{ '%02d'|format(vm.schedule_hour) }}:{{ '%02d'|format(vm.schedule_minute) }} · keep {{ vm.retention_count }}
+                                    {% if vm.is_job_active %} · <span style="color: var(--brand)">Active</span>{% else %} · Paused{% endif %}
+                                    <div class="mt-2 opacity-70">Switch to List view and expand the row to edit schedule.</div>
+                                </div>
+                                <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary px-3 py-1.5 rounded text-xs font-medium hover:text-red-400 hover:border-red-400/50 shrink-0" title="Remove from tasks">
+                                    Remove
+                                </button>
+                            </div>
                         </div>
 
                     </div>
@@ -1541,6 +1542,19 @@
         if (hidden) hidden.value = checked.length ? checked.join(',') : '0,1,2,3,4,5,6';
     }
 
+    function updatePowerModeLabel(vmId) {
+        const cb = document.querySelector(`#job-form-${vmId} input[name="power_off_for_backup"]`);
+        const el = document.getElementById('power-mode-label-' + vmId);
+        if (!cb || !el) return;
+        if (cb.checked) {
+            el.textContent = 'Power off — faster backup';
+            el.className = 'text-xs font-medium whitespace-nowrap text-orange-500';
+        } else {
+            el.textContent = 'Live — VM stays on';
+            el.className = 'text-xs font-medium whitespace-nowrap text-emerald-600';
+        }
+    }
+
     function showDaysRow(vmId) {
         const freqEl = document.querySelector(`#job-form-${vmId} input[name="schedule_frequency"]:checked`);
         const freq = freqEl ? freqEl.value : 'daily';
@@ -1572,6 +1586,7 @@
         document.querySelectorAll('[id^="job-form-"]').forEach(form => {
             const vmId = form.id.replace('job-form-', '');
             showDaysRow(vmId);
+            updatePowerModeLabel(vmId);
         });
     });
 
