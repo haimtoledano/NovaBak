@@ -133,6 +133,21 @@
         .jobs-table tbody tr.vm-job-row:hover { background: rgba(59, 130, 246, 0.04); }
         .jobs-table .prog-container { height: 4px; margin-top: 4px; }
         .job-detail-row td { background: var(--bg-nav); padding: 0.6rem 1.25rem 0.75rem; }
+        .job-actions-wrap { position: relative; display: inline-block; }
+        .job-actions-menu {
+            position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 60;
+            min-width: 15.5rem; max-width: 17rem; padding: 0.75rem;
+            border-radius: 0.5rem; border: 1px solid var(--border-color);
+            background: var(--bg-card); box-shadow: 0 10px 28px rgba(0,0,0,0.16); text-align: left;
+        }
+        .job-actions-menu.hidden { display: none; }
+        .job-actions-menu-header {
+            font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+            color: var(--text-muted); margin-bottom: 0.5rem; padding-bottom: 0.375rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .jobs-table td.actions-cell { overflow: visible; position: relative; }
+        #jobsListView.card { overflow: visible; }
         .job-schedule-inline input[type="number"] { -moz-appearance: textfield; }
         .job-schedule-inline input[type="number"]::-webkit-outer-spin-button,
         .job-schedule-inline input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -418,7 +433,6 @@
                 const isScheduled = row.getAttribute('data-scheduled') === 'true';
                 const isRunning = row.getAttribute('data-running') === 'true';
                 const vmId = row.id.replace('row-', '');
-                const detail = document.getElementById('job-detail-' + vmId);
 
                 let matchesSearch = name.includes(searchQ);
                 let matchesStatus = true;
@@ -430,10 +444,6 @@
 
                 const show = matchesSearch && matchesStatus;
                 row.style.display = show ? '' : 'none';
-                if (detail && detail.classList.contains('hidden') === false && !show) {
-                    detail.classList.add('hidden');
-                }
-                if (detail) detail.style.display = show ? '' : 'none';
             });
 
             document.querySelectorAll('.vm-job-card').forEach(card => {
@@ -464,16 +474,13 @@
             const tbody = document.querySelector('#jobsListView tbody');
             if (!tbody) return;
 
-            const pairs = [];
-            tbody.querySelectorAll('.vm-job-row').forEach(row => {
-                const vmId = row.id.replace('row-', '');
-                pairs.push({ row, detail: document.getElementById('job-detail-' + vmId) });
-            });
+            const rows = [];
+            tbody.querySelectorAll('.vm-job-row').forEach(row => rows.push(row));
 
             const dir = _jobsSort.dir === 'asc' ? 1 : -1;
-            pairs.sort((a, b) => {
-                const ar = a.row;
-                const br = b.row;
+            rows.sort((a, b) => {
+                const ar = a;
+                const br = b;
                 let av;
                 let bv;
                 if (key === 'name') {
@@ -499,10 +506,7 @@
                 return 0;
             });
 
-            pairs.forEach(({ row, detail }) => {
-                tbody.appendChild(row);
-                if (detail) tbody.appendChild(detail);
-            });
+            rows.forEach(row => tbody.appendChild(row));
             updateJobsSortIndicators();
         }
 
@@ -639,16 +643,18 @@
             updateJobsBulkBar();
         }
 
-        function toggleJobDetail(vmId) {
-            const detail = document.getElementById('job-detail-' + vmId);
-            const chevron = document.getElementById('job-chevron-' + vmId);
-            if (!detail) return;
-            detail.classList.toggle('hidden');
-            if (chevron) {
-                chevron.style.transform = detail.classList.contains('hidden') ? '' : 'rotate(90deg)';
-            }
-            if (!detail.classList.contains('hidden') && typeof showDaysRow === 'function') {
-                showDaysRow(vmId);
+        function closeAllJobActionsMenus() {
+            document.querySelectorAll('.job-actions-menu').forEach(m => m.classList.add('hidden'));
+        }
+
+        function toggleJobActionsMenu(vmId) {
+            const menu = document.getElementById('job-actions-menu-' + vmId);
+            if (!menu) return;
+            const wasHidden = menu.classList.contains('hidden');
+            closeAllJobActionsMenus();
+            if (wasHidden) {
+                menu.classList.remove('hidden');
+                if (typeof showDaysRow === 'function') showDaysRow(vmId);
             }
         }
 
@@ -722,6 +728,7 @@
             document.addEventListener('click', e => {
                 const wrap = document.getElementById('themePickerWrap');
                 if (wrap && !wrap.contains(e.target)) closeThemeMenu();
+                if (!e.target.closest('.job-actions-wrap')) closeAllJobActionsMenus();
             });
             
             // Auto scroll terminal on load
@@ -930,7 +937,7 @@
                 <button type="button" onclick="clearJobSelection()" class="text-xs font-medium opacity-60 hover:opacity-100">Clear</button>
             </div>
 
-            <div id="jobsListView" class="card overflow-hidden">
+            <div id="jobsListView" class="card">
                 <div class="overflow-x-auto">
                     <table class="jobs-table">
                         <thead>
@@ -938,7 +945,6 @@
                                 <th class="w-10 text-center">
                                     <input type="checkbox" id="jobs-select-all" class="job-row-cb" title="Select all visible" onchange="toggleSelectAllJobs(this.checked)">
                                 </th>
-                                <th class="w-8"></th>
                                 <th class="jobs-sort-th" data-sort-key="name" onclick="sortJobsTable('name')">Virtual Machine<span class="jobs-sort-ind"></span></th>
                                 <th class="jobs-sort-th" data-sort-key="host" onclick="sortJobsTable('host')">Host<span class="jobs-sort-ind"></span></th>
                                 <th class="jobs-sort-th" data-sort-key="status" onclick="sortJobsTable('status')">Status<span class="jobs-sort-ind"></span></th>
@@ -963,11 +969,6 @@
                                 data-running="{{ 'true' if (vm.current_action and vm.current_action != '') else 'false' }}">
                                 <td class="text-center">
                                     <input type="checkbox" class="job-row-cb" value="{{ vm.id }}" onchange="syncJobCheckbox(this)">
-                                </td>
-                                <td>
-                                    <button type="button" onclick="toggleJobDetail({{ vm.id }})" class="p-1 rounded hover:bg-white/5" title="Schedule settings">
-                                        <svg id="job-chevron-{{ vm.id }}" class="w-4 h-4 transition-transform" style="color: var(--text-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                                    </button>
                                 </td>
                                 <td>
                                     <div class="font-semibold">{{ vm.vm_name }}</div>
@@ -1002,8 +1003,8 @@
                                 </td>
                                 <td class="text-xs font-mono whitespace-nowrap" style="color: var(--text-muted)">{{ vm.last_backup.strftime('%Y-%m-%d %H:%M') if vm.last_backup else 'Never' }}</td>
                                 <td class="text-xs whitespace-nowrap">{{ (vm.schedule_frequency or 'daily')|title }} {{ '%02d'|format(vm.schedule_hour) }}:{{ '%02d'|format(vm.schedule_minute) }} · keep {{ vm.retention_count }}</td>
-                                <td class="text-right whitespace-nowrap">
-                                    <div class="inline-flex gap-1">
+                                <td class="text-right whitespace-nowrap actions-cell">
+                                    <div class="inline-flex gap-1 items-center justify-end">
                                         <button type="button" id="list-form-stop-{{ vm.id }}" onclick="stopVmJob({{ vm.id }})" class="hidden btn-danger p-1.5 rounded" title="Abort">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                         </button>
@@ -1011,17 +1012,25 @@
                                             <input type="hidden" name="vm_id" value="{{ vm.id }}">
                                             <button type="submit" class="btn-primary p-1.5 rounded text-xs px-2 font-medium">Run</button>
                                         </form>
+                                        <div class="relative job-actions-wrap" id="job-actions-wrap-{{ vm.id }}">
+                                            <button type="button" onclick="toggleJobActionsMenu({{ vm.id }})" class="btn-secondary p-1.5 rounded" title="Schedule settings" aria-label="Schedule settings">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                                            </button>
+                                            <div id="job-actions-menu-{{ vm.id }}" class="job-actions-menu hidden">
+                                                <div class="job-actions-menu-header">Schedule</div>
+                                                {% include 'partials/job_schedule_form_popover.html' %}
+                                                <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="w-full mt-2 btn-secondary px-3 py-1.5 text-xs font-medium hover:text-red-400 hover:border-red-400/50 flex items-center justify-center gap-1.5">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                    Remove from tasks
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                </td>
-                            </tr>
-                            <tr class="job-detail-row hidden" id="job-detail-{{ vm.id }}">
-                                <td colspan="9">
-                                    {% include 'partials/job_schedule_form.html' %}
                                 </td>
                             </tr>
                             {% endif %}
                         {% else %}
-                            <tr><td colspan="9" class="py-10 text-center" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</td></tr>
+                            <tr><td colspan="8" class="py-10 text-center" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</td></tr>
                         {% endfor %}
                         </tbody>
                     </table>
@@ -1375,7 +1384,6 @@
             if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
 
             document.getElementById('row-' + vmId)?.remove();
-            document.getElementById('job-detail-' + vmId)?.remove();
             document.getElementById('card-' + vmId)?.remove();
 
             const invHidden = document.querySelector(`#tab-inventory input[type="hidden"][name="vm_id"][value="${vmId}"]`);
@@ -1384,7 +1392,7 @@
 
             const tbody = document.querySelector('#jobsListView tbody');
             if (tbody && !tbody.querySelector('.vm-job-row')) {
-                tbody.innerHTML = '<tr><td colspan="9" class="py-10 text-center" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="py-10 text-center" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</td></tr>';
             }
             const grid = document.getElementById('jobsGridView');
             if (grid && !grid.querySelector('.vm-job-card')) {
