@@ -356,12 +356,27 @@
             });
         }
 
-        function getVisibleJobRows() {
-            return [...document.querySelectorAll('.vm-job-row')].filter(row => row.style.display !== 'none');
+        function jobItemVmId(el) {
+            return el.id.replace('row-', '').replace('card-', '');
+        }
+
+        function isJobsCardView() {
+            const grid = document.getElementById('jobsGridView');
+            return grid && !grid.classList.contains('hidden');
+        }
+
+        function getVisibleJobItems() {
+            const selector = isJobsCardView() ? '.vm-job-card' : '.vm-job-row';
+            return [...document.querySelectorAll(selector)].filter(el => el.style.display !== 'none');
         }
 
         function getSelectedJobRows() {
-            return getVisibleJobRows().filter(row => row.querySelector('.job-row-cb:checked'));
+            return getVisibleJobItems().filter(el => el.querySelector('.job-row-cb:checked'));
+        }
+
+        function syncJobCheckbox(source) {
+            document.querySelectorAll(`.job-row-cb[value="${source.value}"]`).forEach(cb => { cb.checked = source.checked; });
+            updateJobsBulkBar();
         }
 
         function updateJobsBulkBar() {
@@ -369,7 +384,7 @@
             const bar = document.getElementById('jobsBulkBar');
             const countEl = document.getElementById('jobsBulkCount');
             const selectAll = document.getElementById('jobs-select-all');
-            const visible = getVisibleJobRows();
+            const visible = getVisibleJobItems();
             if (countEl) countEl.textContent = `${selected.length} selected`;
             if (bar) bar.classList.toggle('hidden', selected.length === 0);
             if (selectAll) {
@@ -379,8 +394,8 @@
         }
 
         function toggleSelectAllJobs(checked) {
-            getVisibleJobRows().forEach(row => {
-                const cb = row.querySelector('.job-row-cb');
+            getVisibleJobItems().forEach(el => {
+                const cb = el.querySelector('.job-row-cb');
                 if (cb) cb.checked = checked;
             });
             updateJobsBulkBar();
@@ -389,6 +404,28 @@
         function clearJobSelection() {
             document.querySelectorAll('.job-row-cb').forEach(cb => { cb.checked = false; });
             updateJobsBulkBar();
+        }
+
+        async function runSelectedJobs() {
+            const items = getSelectedJobRows();
+            if (!items.length) return;
+            const idle = items.filter(el => el.getAttribute('data-running') !== 'true');
+            if (!idle.length) {
+                await showAlert('All selected VMs are already running a backup.', { title: 'Run selected' });
+                return;
+            }
+            const ok = await showConfirm(`Start backup for ${idle.length} VM(s)?`, { title: 'Run selected', confirmText: 'Run' });
+            if (!ok) return;
+            let started = 0;
+            for (const el of idle) {
+                const vmId = jobItemVmId(el);
+                try {
+                    const res = await fetch(`/api/v1/vms/${vmId}/run`, { method: 'POST' });
+                    if (res.ok) started++;
+                } catch (e) { /* continue */ }
+            }
+            await showAlert(`Backup queued for ${started} VM(s).`, { title: 'Backups started', confirmText: 'OK' });
+            clearJobSelection();
         }
 
         async function abortSelectedJobs() {
@@ -401,7 +438,7 @@
             if (!ok) return;
             let stopped = 0;
             for (const row of rows) {
-                const vmId = row.id.replace('row-', '');
+                const vmId = jobItemVmId(row);
                 try {
                     const res = await fetch(`/api/v1/vms/${vmId}/stop`, { method: 'POST' });
                     if (res.ok) stopped++;
@@ -417,7 +454,7 @@
             const ok = await showConfirm(`Remove ${rows.length} VM(s) from backup tasks?`, { title: 'Remove selected', confirmText: 'Remove', danger: true });
             if (!ok) return;
             for (const row of rows) {
-                const vmId = row.id.replace('row-', '');
+                const vmId = jobItemVmId(row);
                 const vmName = row.getAttribute('data-name') || 'VM';
                 await removeVmFromTasks(parseInt(vmId, 10), vmName, true);
             }
@@ -436,6 +473,7 @@
             btnList?.classList.toggle('active', isList);
             btnCards?.classList.toggle('active', !isList);
             localStorage.setItem('jobsView', view);
+            updateJobsBulkBar();
         }
 
         function toggleJobDetail(vmId) {
@@ -470,9 +508,7 @@
                     listWrap.classList.add('hidden');
                 }
             }
-            const listRun = document.getElementById('list-form-run-' + vm_id);
             const listStop = document.getElementById('list-form-stop-' + vm_id);
-            if (listRun) listRun.classList.toggle('hidden', isActive);
             if (listStop) listStop.classList.toggle('hidden', !isActive);
 
             const cardWrap = document.getElementById('prog-wrap-' + vm_id);
@@ -489,9 +525,7 @@
                     cardWrap.classList.add('hidden');
                 }
             }
-            const cardRun = document.getElementById('form-run-' + vm_id);
             const cardStop = document.getElementById('form-stop-' + vm_id);
-            if (cardRun) cardRun.classList.toggle('hidden', isActive);
             if (cardStop) cardStop.classList.toggle('hidden', !isActive);
 
             const row = document.getElementById('row-' + vm_id);
@@ -699,6 +733,7 @@
             <!-- LIST VIEW -->
             <div id="jobsBulkBar" class="jobs-bulk-bar hidden">
                 <span id="jobsBulkCount" class="text-sm font-medium">0 selected</span>
+                <button type="button" onclick="runSelectedJobs()" class="btn-primary px-3 py-1.5 text-xs font-medium">Run selected</button>
                 <button type="button" onclick="abortSelectedJobs()" class="btn-danger px-3 py-1.5 text-xs font-medium">Abort selected</button>
                 <button type="button" onclick="removeSelectedJobs()" class="btn-secondary px-3 py-1.5 text-xs font-medium hover:text-red-400 hover:border-red-400/50">Remove selected</button>
                 <button type="button" onclick="clearJobSelection()" class="text-xs font-medium opacity-60 hover:opacity-100">Clear</button>
@@ -736,7 +771,7 @@
                                 data-scheduled="{{ 'true' if vm.is_job_active else 'false' }}"
                                 data-running="{{ 'true' if (vm.current_action and vm.current_action != '') else 'false' }}">
                                 <td class="text-center">
-                                    <input type="checkbox" class="job-row-cb" value="{{ vm.id }}" onchange="updateJobsBulkBar()">
+                                    <input type="checkbox" class="job-row-cb" value="{{ vm.id }}" onchange="syncJobCheckbox(this)">
                                 </td>
                                 <td>
                                     <button type="button" onclick="toggleJobDetail({{ vm.id }})" class="p-1 rounded hover:bg-white/5" title="Schedule settings">
@@ -777,15 +812,9 @@
                                 <td class="text-xs font-mono whitespace-nowrap" style="color: var(--text-muted)">{{ vm.last_backup.strftime('%Y-%m-%d %H:%M') if vm.last_backup else 'Never' }}</td>
                                 <td class="text-xs whitespace-nowrap">{{ (vm.schedule_frequency or 'daily')|title }} {{ '%02d'|format(vm.schedule_hour) }}:{{ '%02d'|format(vm.schedule_minute) }} · keep {{ vm.retention_count }}</td>
                                 <td class="text-right whitespace-nowrap">
-                                    <div class="inline-flex gap-1">
-                                        <button type="button" id="list-form-stop-{{ vm.id }}" onclick="stopVmJob({{ vm.id }})" class="hidden btn-danger p-1.5 rounded" title="Abort">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                        </button>
-                                        <form action="/run_now" method="POST" id="list-form-run-{{ vm.id }}" class="inline">
-                                            <input type="hidden" name="vm_id" value="{{ vm.id }}">
-                                            <button type="submit" class="btn-primary p-1.5 rounded text-xs px-2 font-medium">Run</button>
-                                        </form>
-                                    </div>
+                                    <button type="button" id="list-form-stop-{{ vm.id }}" onclick="stopVmJob({{ vm.id }})" class="hidden btn-danger p-1.5 rounded" title="Abort">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
                                 </td>
                             </tr>
                             <tr class="job-detail-row hidden" id="job-detail-{{ vm.id }}">
@@ -813,7 +842,9 @@
                          data-running="{{ 'true' if (vm.current_action and vm.current_action != '') else 'false' }}">
                         
                         <div class="flex justify-between items-start mb-4">
-                            <div>
+                            <div class="flex items-start gap-2 min-w-0">
+                                <input type="checkbox" class="job-row-cb mt-1 shrink-0" value="{{ vm.id }}" onchange="syncJobCheckbox(this)">
+                                <div class="min-w-0">
                                 <h3 class="font-bold text-lg truncate max-w-[200px]" title="{{ vm.vm_name }}">{{ vm.vm_name }}</h3>
                                 <div class="text-[10px] mt-1 font-mono font-medium opacity-80" style="color: var(--text-muted)">
                                     {{ vm.cpu_count }} vCPU • {% if vm.memory_mb %}{{ vm.memory_mb // 1024 }}{% else %}0{% endif %}GB RAM • {{ vm.storage_gb }}GB Disk
@@ -822,18 +853,12 @@
                                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
                                     {{ vm.esxi_host.name }}
                                 </div>
+                                </div>
                             </div>
                             <div class="flex items-center gap-1.5 shrink-0">
                                 <button type="button" id="form-stop-{{ vm.id }}" onclick="stopVmJob({{ vm.id }})" class="hidden btn-danger p-1.5 rounded" title="Abort">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                 </button>
-                                <form action="/run_now" method="POST" id="form-run-{{ vm.id }}">
-                                    <input type="hidden" name="vm_id" value="{{ vm.id }}">
-                                    <button type="submit" class="btn-primary p-1.5 rounded flex items-center text-xs px-2 shadow-sm font-medium">
-                                        <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
-                                        Run Now
-                                    </button>
-                                </form>
                                 <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary p-1.5 rounded hover:text-red-400 hover:border-red-400/50" title="Remove from tasks">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 </button>
