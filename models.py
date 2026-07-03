@@ -29,6 +29,18 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     email = Column(String, default="")  # Personal email for notifications
     notify_subscriptions = Column(String, default="")  # Comma-separated event keys
+    api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    name = Column(String)
+    key_hash = Column(String, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)
+    user = relationship("User", back_populates="api_keys")
 
 class ESXiHost(Base):
     __tablename__ = "esxi_hosts"
@@ -66,6 +78,11 @@ class Config(Base):
     perf_parallel_threads = Column(Integer, default=0) # 0 = default
     perf_compression_level = Column(Integer, default=0) # 0 = default
     backup_timeout_mins = Column(Integer, default=15) # Default wait for idle/consolidation
+    max_global_backups = Column(Integer, default=10)
+    max_backups_per_host = Column(Integer, default=2)
+    datastore_min_free_pct = Column(Integer, default=15)
+    datastore_headroom_gb = Column(Integer, default=10)
+    datastore_est_multiplier = Column(Float, default=2.0)
 
     # Storage Settings
     storage_type = Column(String, default="SMB") # SMB, NFS, S3
@@ -178,6 +195,11 @@ def init_db():
             ("notify_subscriptions", "ALTER TABLE users ADD COLUMN notify_subscriptions VARCHAR DEFAULT ''"),
             ("schedule_frequency", "ALTER TABLE vms ADD COLUMN schedule_frequency VARCHAR DEFAULT 'daily'"),
             ("schedule_days", "ALTER TABLE vms ADD COLUMN schedule_days VARCHAR DEFAULT '0,1,2,3,4,5,6'"),
+            ("max_global_backups", "ALTER TABLE config ADD COLUMN max_global_backups INTEGER DEFAULT 10"),
+            ("max_backups_per_host", "ALTER TABLE config ADD COLUMN max_backups_per_host INTEGER DEFAULT 2"),
+            ("datastore_min_free_pct", "ALTER TABLE config ADD COLUMN datastore_min_free_pct INTEGER DEFAULT 15"),
+            ("datastore_headroom_gb", "ALTER TABLE config ADD COLUMN datastore_headroom_gb INTEGER DEFAULT 10"),
+            ("datastore_est_multiplier", "ALTER TABLE config ADD COLUMN datastore_est_multiplier REAL DEFAULT 2.0"),
         ]
         
         from logger_util import log_info, log_warn

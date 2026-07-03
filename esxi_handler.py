@@ -72,10 +72,16 @@ def get_datastores(si):
     ds_list = []
     
     for child in children:
-        free_gb = round(child.summary.freeSpace / (1024**3), 1) if child.summary.freeSpace else 0.0
+        cap = child.summary.capacity or 0
+        free = child.summary.freeSpace or 0
+        cap_gb = round(cap / (1024**3), 1) if cap else 0.0
+        free_gb = round(free / (1024**3), 1) if free else 0.0
+        free_pct = round((free / cap) * 100, 1) if cap else 0.0
         ds_list.append({
             "name": child.summary.name,
-            "free_gb": free_gb
+            "capacity_gb": cap_gb,
+            "free_gb": free_gb,
+            "free_pct": free_pct,
         })
         
     return ds_list
