@@ -1273,9 +1273,22 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                             Active Restores
                         </h3>
-                        <div id="restoreTasksList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- JS populated -->
-                            <p class="text-sm opacity-50 italic col-span-full py-4 text-center">No active or recent restore tasks.</p>
+                        <div id="restoreTasksList" class="overflow-x-auto">
+                            <table class="jobs-table">
+                                <thead>
+                                    <tr>
+                                        <th>VM Name</th>
+                                        <th>Target Host</th>
+                                        <th>Status</th>
+                                        <th class="min-w-[180px]">Progress</th>
+                                        <th>Started</th>
+                                        <th class="text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="restoreTasksBody">
+                                    <tr><td colspan="6" class="py-8 text-center text-sm opacity-50 italic">No active or recent restore tasks.</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -1809,49 +1822,45 @@
             if(document.getElementById('tab-restore').classList.contains('hidden') === false) {
                 let restRes = await fetch('/api/restores');
                 let restores = await restRes.json();
-                const list = document.getElementById('restoreTasksList');
+                const tbody = document.getElementById('restoreTasksBody');
+                if (!tbody) return;
                 if (restores.length === 0) {
-                    list.innerHTML = '<p class="text-sm opacity-50 italic col-span-full py-4 text-center">No active or recent restore tasks.</p>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-sm opacity-50 italic">No active or recent restore tasks.</td></tr>';
                 } else {
-                    list.innerHTML = restores.map(r => `
-                        <div class="card p-4 border relative" style="border-color: var(--border-color); background: rgba(255,255,255,0.03)">
-                            <div class="flex justify-between items-start mb-2">
-                                <div>
-                                    <h4 class="font-bold text-sm truncate w-32" title="${r.target_name}">${r.target_name}</h4>
-                                    <p class="text-[10px] opacity-60">To: ${r.target_esxi}</p>
-                                </div>
-                                <div class="flex flex-col items-end gap-1">
-                                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded ${r.status === 'Success' ? 'bg-green-500/20 text-green-400' : r.status === 'Failed' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}">
-                                        ${r.status}
-                                    </span>
-                                    <div class="flex gap-1 mt-1">
-                                        ${r.status === 'In Progress' ? `
-                                            <button onclick="stopRestore(${r.id})" class="text-[9px] text-red-500 hover:text-red-400 flex items-center gap-1 bg-red-500/10 px-1 py-0.5 rounded">
-                                                <svg class="w-2 h-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"/></svg>
-                                                Stop
-                                            </button>
-                                        ` : ''}
-                                        <button onclick="deleteRestore(${r.id})" class="text-[9px] text-gray-400 hover:text-red-400 flex items-center gap-1 bg-gray-500/10 hover:bg-red-500/10 px-1 py-0.5 rounded" title="Remove Job">
-                                            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                        </button>
+                    tbody.innerHTML = restores.map(r => {
+                        const statusClass = r.status === 'Success' ? 'status-success'
+                            : r.status === 'Failed' ? 'status-error'
+                            : r.status === 'In Progress' ? 'status-running'
+                            : 'status-neutral';
+                        const actions = `
+                            <div class="inline-flex gap-1 justify-end">
+                                ${r.status === 'In Progress' ? `
+                                    <button type="button" onclick="stopRestore(${r.id})" class="btn-danger px-2 py-1 text-xs font-medium rounded">Stop</button>
+                                ` : ''}
+                                <button type="button" onclick="deleteRestore(${r.id})" class="btn-secondary p-1.5 rounded hover:text-red-400" title="Remove">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            </div>`;
+                        const errorRow = r.error ? `
+                            <tr><td colspan="6" class="px-4 py-2 text-xs text-red-400 italic" style="background:rgba(239,68,68,0.06); border-bottom:1px solid var(--border-color)">${escapeHtml(r.error)}</td></tr>` : '';
+                        return `
+                            <tr>
+                                <td>
+                                    <div class="font-semibold truncate max-w-[200px]" title="${escapeHtml(r.target_name)}">${escapeHtml(r.target_name)}</div>
+                                </td>
+                                <td class="text-xs font-mono" style="color: var(--brand)">${escapeHtml(r.target_esxi)}</td>
+                                <td><span class="status-badge ${statusClass}">${escapeHtml(r.status)}</span></td>
+                                <td>
+                                    <div class="flex justify-between text-[10px] mb-0.5">
+                                        <span class="truncate max-w-[140px]" style="color: var(--brand)">${escapeHtml(r.action || '')}</span>
+                                        <span class="font-mono">${r.progress || 0}%</span>
                                     </div>
-                                </div>
-                            </div>
-                            <div class="space-y-1.5">
-                                <div class="flex justify-between text-[10px]">
-                                    <span class="truncate w-40 opacity-80">${r.action}</span>
-                                    <span>${r.progress}%</span>
-                                </div>
-                                <div class="w-full bg-black/30 rounded-full h-1 my-1">
-                                    <div class="bg-blue-500 h-1 rounded-full transition-all duration-500" style="width: ${r.progress}%"></div>
-                                </div>
-                            </div>
-                            ${r.error ? `<p class="text-[9px] text-red-500 mt-2 italic break-words leading-tight bg-red-950/20 p-1 rounded border border-red-900/30">${r.error}</p>` : ''}
-                            <div class="flex justify-between items-center mt-3 text-[9px] opacity-40">
-                                 <span>Started: ${r.start}</span>
-                            </div>
-                        </div>
-                    `).join('');
+                                    <div class="prog-container active"><div class="prog-bar" style="width: ${r.progress || 0}%"></div></div>
+                                </td>
+                                <td class="text-xs font-mono whitespace-nowrap" style="color: var(--text-muted)">${escapeHtml(r.start || '—')}</td>
+                                <td class="text-right whitespace-nowrap">${actions}</td>
+                            </tr>${errorRow}`;
+                    }).join('');
                 }
             }
         } catch(e) { console.error(e); }
