@@ -31,6 +31,11 @@ def config_to_dict(config):
         "perf_parallel_threads": config.perf_parallel_threads,
         "perf_compression_level": config.perf_compression_level,
         "backup_timeout_mins": config.backup_timeout_mins,
+        "max_global_backups": getattr(config, "max_global_backups", None) or 10,
+        "max_backups_per_host": getattr(config, "max_backups_per_host", None) or 2,
+        "datastore_min_free_pct": getattr(config, "datastore_min_free_pct", None) or 15,
+        "datastore_headroom_gb": getattr(config, "datastore_headroom_gb", None) or 10,
+        "datastore_est_multiplier": getattr(config, "datastore_est_multiplier", None) or 2.0,
         "smtp_server": config.smtp_server,
         "smtp_port": config.smtp_port,
         "smtp_user": config.smtp_user,
@@ -82,7 +87,8 @@ def update_full_config(db, data):
     storage_fields = {
         "storage_type", "nfs_path", "smb_unc_path", "smb_user", "s3_endpoint",
         "s3_bucket", "s3_region", "perf_parallel_threads", "perf_compression_level",
-        "backup_timeout_mins",
+        "backup_timeout_mins", "max_global_backups", "max_backups_per_host",
+        "datastore_min_free_pct", "datastore_headroom_gb", "datastore_est_multiplier",
     }
     email_fields = {
         "smtp_server", "smtp_port", "smtp_user", "smtp_to_email", "smtp_use_tls",

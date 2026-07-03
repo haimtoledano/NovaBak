@@ -3,6 +3,7 @@ import threading
 import subprocess
 import datetime
 import smtplib
+import collections
 from email.message import EmailMessage
 from concurrent.futures import ThreadPoolExecutor
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -127,17 +128,111 @@ def get_backup_dest_folder(vm_name):
     return f"{vm_name}/{date_str}"
 
 active_processes = {}
-backup_queue_executor = ThreadPoolExecutor(max_workers=10) # Total concurrent workers
-restore_queue_executor = ThreadPoolExecutor(max_workers=5) # Concurrent restores
-host_locks = {}
-host_locks_lock = threading.Lock()
-last_trigger_times = {} # vm_id -> timestamp
+backup_queue_executor = ThreadPoolExecutor(max_workers=32)
+restore_queue_executor = ThreadPoolExecutor(max_workers=5)
+last_trigger_times = {}  # vm_id -> timestamp
 _cancelled_backups = set()
 _cancel_lock = threading.Lock()
+
+WAIT_HOST = "Waiting for host slot..."
+WAIT_GLOBAL = "Waiting for worker slot..."
+
+_concurrency_lock = threading.Lock()
+_global_active = 0
+_host_active = collections.defaultdict(int)
+_global_limit = 10
+_host_limit = 2
+_host_wait_queues = collections.defaultdict(collections.deque)
+_global_wait_queue = collections.deque()
+_slots_configured = False
 
 
 class BackupCancelled(Exception):
     """Raised when a backup job is aborted by the user."""
+
+
+class BackupSkipped(Exception):
+    """Raised when preflight skips backup (e.g. insufficient datastore space)."""
+
+
+def get_concurrency_limits(config):
+    global_limit = max(1, min(32, getattr(config, "max_global_backups", None) or 10))
+    host_limit = max(1, min(8, getattr(config, "max_backups_per_host", None) or 2))
+    return global_limit, host_limit
+
+
+def configure_concurrency(config):
+    global _global_limit, _host_limit, _slots_configured
+    with _concurrency_lock:
+        _global_limit, _host_limit = get_concurrency_limits(config)
+        _slots_configured = True
+    log_info(f"[CONCURRENCY] Limits: global={_global_limit}, per_host={_host_limit}")
+
+
+def _ensure_concurrency_configured():
+    if not _slots_configured:
+        db = SessionLocal()
+        try:
+            config = db.query(Config).first()
+            configure_concurrency(config or Config())
+        finally:
+            db.close()
+
+
+def _try_acquire_slots(host_id):
+    _ensure_concurrency_configured()
+    with _concurrency_lock:
+        if _global_active >= _global_limit:
+            return False, "global"
+        if _host_active[host_id] >= _host_limit:
+            return False, "host"
+        _global_active += 1
+        _host_active[host_id] += 1
+        return True, None
+
+
+def _release_slots(host_id):
+    with _concurrency_lock:
+        global _global_active
+        _global_active = max(0, _global_active - 1)
+        _host_active[host_id] = max(0, _host_active[host_id] - 1)
+
+
+def _enqueue_waiting(vm_id, host_id, reason):
+    with _concurrency_lock:
+        if reason == "host":
+            if vm_id not in _host_wait_queues[host_id]:
+                _host_wait_queues[host_id].append(vm_id)
+        elif vm_id not in _global_wait_queue:
+            _global_wait_queue.append(vm_id)
+
+
+def _remove_from_wait_queues(vm_id):
+    global _global_wait_queue
+    with _concurrency_lock:
+        for host_id in list(_host_wait_queues.keys()):
+            _host_wait_queues[host_id] = collections.deque(
+                x for x in _host_wait_queues[host_id] if x != vm_id
+            )
+        _global_wait_queue = collections.deque(x for x in _global_wait_queue if x != vm_id)
+
+
+def _release_and_drain(host_id):
+    _release_slots(host_id)
+    to_dispatch = []
+    with _concurrency_lock:
+        if _host_wait_queues.get(host_id):
+            to_dispatch.append(_host_wait_queues[host_id].popleft())
+        elif _global_wait_queue:
+            to_dispatch.append(_global_wait_queue.popleft())
+    for vid in to_dispatch:
+        queue_backup(vid)
+
+
+def _is_queueable_state(action):
+    if not action:
+        return True
+    return action in ("Queued...", WAIT_HOST, WAIT_GLOBAL)
 
 
 def request_backup_stop(vm_id: int):
@@ -154,48 +249,68 @@ def is_backup_cancelled(vm_id: int) -> bool:
     with _cancel_lock:
         return vm_id in _cancelled_backups
 
-def get_host_lock(host_id):
-    with host_locks_lock:
-        if host_id not in host_locks:
-            host_locks[host_id] = threading.Lock()
-        return host_locks[host_id]
 
 def queue_backup(vm_id: int):
-    """ Places a backup job in the queue to run. Allows up to 10 simultaneous jobs total across all hosts. """
+    """Queue a backup if concurrency slots are available; otherwise wait."""
     now = datetime.datetime.now().timestamp()
     pid = os.getpid()
-    
-    # Check cooldown
+
     if vm_id in last_trigger_times:
         diff = now - last_trigger_times[vm_id]
         if diff < 65:
             log_debug(f"[PID {pid}] Skipping queue for VM {vm_id}: Cooldown active ({int(diff)}s < 65s)")
             return
-            
+
     db = SessionLocal()
     vm = db.query(VM).filter(VM.id == vm_id).first()
-    if vm:
-        if vm.current_action != "" and vm.current_action != "Queued...":
-            log_debug(f"[PID {pid}] Skipping queue for VM {vm.vm_name}: Already active (Status: {vm.current_action})")
-            db.close()
-            return
-            
-        log_info(f"[PID {pid}] Queueing backup for VM: {vm.vm_name}")
-        last_trigger_times[vm_id] = now
-        vm.current_action = "Queued..."
+    config = db.query(Config).first()
+    if not vm or not vm.esxi_host:
+        if vm is None:
+            log_error(f"[PID {pid}] queue_backup called for non-existent VM ID: {vm_id}")
+        db.close()
+        return
+
+    if not _is_queueable_state(vm.current_action):
+        log_debug(f"[PID {pid}] Skipping queue for VM {vm.vm_name}: Already active (Status: {vm.current_action})")
+        db.close()
+        return
+
+    host_id = vm.esxi_host_id
+    acquired, reason = _try_acquire_slots(host_id)
+    if not acquired:
+        status = WAIT_HOST if reason == "host" else WAIT_GLOBAL
+        log_info(f"[PID {pid}] VM {vm.vm_name} waiting: {status}")
+        vm.current_action = status
         vm.progress = 0
         db.commit()
-        backup_queue_executor.submit(perform_backup, vm_id)
-    else:
-        log_error(f"[PID {pid}] queue_backup called for non-existent VM ID: {vm_id}")
-        
+        _enqueue_waiting(vm_id, host_id, reason)
+        db.close()
+        return
+
+    log_info(f"[PID {pid}] Queueing backup for VM: {vm.vm_name}")
+    last_trigger_times[vm_id] = now
+    vm.current_action = "Queued..."
+    vm.progress = 0
+    db.commit()
+    backup_queue_executor.submit(perform_backup, vm_id)
     db.close()
+
 
 def stop_job(vm_id: int):
     """Request termination of an active backup for a VM."""
     pid = os.getpid()
     log_info(f"[PID {pid}] Stop request received for VM ID: {vm_id}")
     request_backup_stop(vm_id)
+    _remove_from_wait_queues(vm_id)
+    db = SessionLocal()
+    try:
+        vm = db.query(VM).filter(VM.id == vm_id).first()
+        if vm and vm.current_action in (WAIT_HOST, WAIT_GLOBAL):
+            vm.current_action = ""
+            vm.progress = 0
+            db.commit()
+    finally:
+        db.close()
     if vm_id in active_processes:
         try:
             p = active_processes[vm_id]
@@ -215,10 +330,13 @@ def perform_backup(vm_id: int):
 
     if not config or not vm or not vm.esxi_host:
         log_error(f"[PID {pid}] perform_backup aborted: Missing config/vm/host for ID {vm_id}")
+        if vm and vm.esxi_host_id:
+            _release_and_drain(vm.esxi_host_id)
         db.close()
         return
 
     host = vm.esxi_host
+    host_id = host.id
     log_info(f"[PID {pid}] Starting parallel backup for {vm.vm_name} on host {host.name}")
     clear_backup_cancel(vm_id)
 
@@ -235,8 +353,10 @@ def perform_backup(vm_id: int):
         db.add(BackupLog(vm_name=vm.vm_name, status="Failed", message=msg))
         vm.current_action = ""
         vm.progress = 0
+        vm.last_status = "Failed"
         db.commit()
         db.close()
+        _release_and_drain(host_id)
         return
 
     powered_off_by_us = False  # Track if we shut down the VM so we can restore it
@@ -274,19 +394,22 @@ def perform_backup(vm_id: int):
                 log_info(f"[PID {pid}] power_off_for_backup: VM already off, skipping shutdown step.")
 
         # --- PREFLIGHT ---
+        vm.current_action = "Preflight checks..."
+        vm.progress = 0
+        db.commit()
+
+        ok, msg = backup_engine.preflight_check(si, vm.vm_name, timeout_mins=timeout_m, config=config)
+        if not ok:
+            if msg.startswith("[SKIP]"):
+                raise BackupSkipped(msg[6:].strip())
+            raise Exception(f"Preflight failed: {msg}")
+
         send_event_notification(
             "backup_start",
             f"[NovaBak] Backup Started: {vm.vm_name}",
             f"Backup job for VM '{vm.vm_name}' on host '{host.name}' has started at {backup_start_time.strftime('%Y-%m-%d %H:%M')}."
             + (f"\nVM was powered off before backup." if powered_off_by_us else "")
         )
-        vm.current_action = "Preflight checks..."
-        vm.progress = 0
-        db.commit()
-
-        ok, msg = backup_engine.preflight_check(si, vm.vm_name, timeout_mins=timeout_m)
-        if not ok:
-            raise Exception(f"Preflight failed: {msg}")
 
         # --- BACKUP ---
         vm.current_action = "Backing up VM..."
@@ -392,6 +515,14 @@ def perform_backup(vm_id: int):
         vm.speed_mbps = 0.0
         vm.last_status = "Cancelled"
         db.commit()
+    except BackupSkipped as e:
+        log_info(f"[PID {pid}] Backup skipped for {vm.vm_name}: {e}")
+        db.add(BackupLog(vm_name=vm.vm_name, status="Skipped", message=str(e)))
+        vm.progress = 0
+        vm.current_action = ""
+        vm.speed_mbps = 0.0
+        vm.last_status = "Skipped"
+        db.commit()
     except Exception as e:
         log_error(f"[PID {pid}] Error during backup of {vm.vm_name}: {e}")
         db.add(BackupLog(vm_name=vm.vm_name, status="Failed", message=str(e)))
@@ -439,6 +570,7 @@ def perform_backup(vm_id: int):
         clear_backup_cancel(vm_id)
         esxi_handler.Disconnect(si)
         db.close()
+        _release_and_drain(host_id)
 
 
 
@@ -486,6 +618,7 @@ def start_scheduler():
     
     if not scheduler.running:
         scheduler.start()
+    configure_concurrency(db.query(Config).first() or Config())
     db.close()
     return scheduler
 

@@ -52,6 +52,11 @@ class StorageConfigUpdate(BaseModel):
     perf_parallel_threads: Optional[int] = None
     perf_compression_level: Optional[int] = None
     backup_timeout_mins: Optional[int] = None
+    max_global_backups: Optional[int] = None
+    max_backups_per_host: Optional[int] = None
+    datastore_min_free_pct: Optional[int] = None
+    datastore_headroom_gb: Optional[int] = None
+    datastore_est_multiplier: Optional[float] = None
 
 
 class ConfigResponse(BaseModel):
@@ -65,6 +70,11 @@ class ConfigResponse(BaseModel):
     perf_parallel_threads: int
     perf_compression_level: int
     backup_timeout_mins: int
+    max_global_backups: int
+    max_backups_per_host: int
+    datastore_min_free_pct: int
+    datastore_headroom_gb: int
+    datastore_est_multiplier: float
     smtp_server: str
     smtp_port: int
     smtp_user: str
@@ -91,6 +101,11 @@ class ConfigUpdate(BaseModel):
     perf_parallel_threads: Optional[int] = None
     perf_compression_level: Optional[int] = None
     backup_timeout_mins: Optional[int] = None
+    max_global_backups: Optional[int] = None
+    max_backups_per_host: Optional[int] = None
+    datastore_min_free_pct: Optional[int] = None
+    datastore_headroom_gb: Optional[int] = None
+    datastore_est_multiplier: Optional[float] = None
     smtp_server: Optional[str] = None
     smtp_port: Optional[int] = None
     smtp_user: Optional[str] = None

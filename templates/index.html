@@ -102,6 +102,7 @@
         .status-neutral { background-color: rgba(107, 114, 128, 0.1); color: var(--text-muted); border: 1px solid var(--border-color); }
         .status-running { background-color: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
         .status-cancelled { background-color: rgba(234, 179, 8, 0.1); color: #fbbf24; border: 1px solid rgba(234,179,8,0.2); }
+        .status-skipped { background-color: rgba(168, 85, 247, 0.1); color: #c084fc; border: 1px solid rgba(168,85,247,0.2); }
 
         .jobs-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.875rem; }
         .jobs-table th { text-align: left; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); background: var(--bg-nav); }
@@ -598,6 +599,8 @@
                                         <span class="status-badge status-error">Failed</span>
                                     {% elif vm.last_status == 'Cancelled' %}
                                         <span class="status-badge status-cancelled">Cancelled</span>
+                                    {% elif vm.last_status == 'Skipped' %}
+                                        <span class="status-badge status-skipped">Skipped</span>
                                     {% else %}
                                         <span class="status-badge status-neutral">Idle</span>
                                     {% endif %}
@@ -683,6 +686,10 @@
                                 <span class="status-badge status-success">Success</span>
                             {% elif vm.last_status == 'Failed' %}
                                 <span class="status-badge status-error">Failed</span>
+                            {% elif vm.last_status == 'Cancelled' %}
+                                <span class="status-badge status-cancelled">Cancelled</span>
+                            {% elif vm.last_status == 'Skipped' %}
+                                <span class="status-badge status-skipped">Skipped</span>
                             {% else %}
                                 <span class="status-badge status-neutral">Idle</span>
                             {% endif %}
@@ -951,7 +958,7 @@
 
                     <div class="card p-5">
                         <h3 class="font-semibold text-lg mb-4 border-b pb-2" style="border-color: var(--border-color)">Worker Parameters</h3>
-                        <div class="grid grid-cols-3 gap-4">
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                             <div>
                                 <span class="input-label" title="HTTP Download Threads (0 = Auto)">Parallel Threads</span>
                                 <input type="number" name="perf_parallel_threads" value="{{ config.perf_parallel_threads }}" min="0" max="32" class="w-full py-2 px-3 text-center text-sm">
@@ -964,7 +971,28 @@
                                 <span class="input-label" title="Max minutes for ESXi ops">API Timeout (Min)</span>
                                 <input type="number" name="backup_timeout_mins" value="{{ config.backup_timeout_mins }}" min="5" max="1440" class="w-full py-2 px-3 text-center text-sm">
                             </div>
+                            <div>
+                                <span class="input-label" title="Max backups running at once across all hosts">Max Global Backups</span>
+                                <input type="number" name="max_global_backups" value="{{ config.max_global_backups or 10 }}" min="1" max="32" class="w-full py-2 px-3 text-center text-sm">
+                            </div>
+                            <div>
+                                <span class="input-label" title="Max concurrent backups per ESXi host">Max Per Host</span>
+                                <input type="number" name="max_backups_per_host" value="{{ config.max_backups_per_host or 2 }}" min="1" max="8" class="w-full py-2 px-3 text-center text-sm">
+                            </div>
+                            <div>
+                                <span class="input-label" title="Skip backup if source datastore free % is below this">Min Datastore Free %</span>
+                                <input type="number" name="datastore_min_free_pct" value="{{ config.datastore_min_free_pct or 15 }}" min="5" max="50" class="w-full py-2 px-3 text-center text-sm">
+                            </div>
+                            <div>
+                                <span class="input-label" title="Extra free GB required beyond estimated backup size">Datastore Headroom (GB)</span>
+                                <input type="number" name="datastore_headroom_gb" value="{{ config.datastore_headroom_gb or 10 }}" min="0" max="500" class="w-full py-2 px-3 text-center text-sm">
+                            </div>
+                            <div>
+                                <span class="input-label" title="Estimated temp space = VM disk × multiplier (1.0 if powered off)">Disk Estimate Multiplier</span>
+                                <input type="number" name="datastore_est_multiplier" value="{{ config.datastore_est_multiplier or 2.0 }}" min="1" max="3" step="0.1" class="w-full py-2 px-3 text-center text-sm">
+                            </div>
                         </div>
+                        <p class="text-[10px] opacity-50 mt-3">Per-host limits reduce snapshot storms on busy ESXi datastores. Datastore checks skip backups when the source is too full.</p>
                         
                         <div class="mt-6 flex justify-end">
                             <button type="submit" class="btn-primary px-6 py-2">Save Configuration</button>

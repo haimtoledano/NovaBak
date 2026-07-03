@@ -22,8 +22,14 @@ def run_daemon():
     pid = os.getpid()
     log_info(f"[PID {pid}] Starting Backup Engine Daemon...")
     
-    # Initial scheduler start
+    # Initial scheduler start + concurrency limits
     worker.start_scheduler()
+    db = SessionLocal()
+    try:
+        config = db.query(Config).first()
+        worker.configure_concurrency(config or Config())
+    finally:
+        db.close()
     last_hash = get_schedule_hash()
     
     log_info(f"[PID {pid}] Enter polling loop. Monitoring DB for manual triggers and schedule changes.")

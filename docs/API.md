@@ -131,6 +131,23 @@ curl -sk -X PUT https://backups-us-east-1.stackblaze.cloud/api/v1/config/storage
   -d '{"storage_type":"NFS","nfs_path":"/mnt/backups"}'
 ```
 
+### Backup guardrails (worker settings)
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `max_global_backups` | 10 | Max concurrent backups across all hosts |
+| `max_backups_per_host` | 2 | Max concurrent backups per ESXi host |
+| `datastore_min_free_pct` | 15 | Skip backup if source datastore free % is below this |
+| `datastore_headroom_gb` | 10 | Extra free GB required beyond estimated job size |
+| `datastore_est_multiplier` | 2.0 | Estimated temp space = VM disk × multiplier (1.0 when VM is powered off) |
+
+```bash
+curl -sk -X PUT https://backups-us-east-1.stackblaze.cloud/api/v1/config \
+  -H "Authorization: Bearer $NOVABAK_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"max_backups_per_host":2,"datastore_min_free_pct":15}'
+```
+
 ## Example: trigger a backup
 
 ```bash

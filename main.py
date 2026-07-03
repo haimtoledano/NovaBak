@@ -317,6 +317,11 @@ def save_config(
     perf_compression_level: int = Form(0),
     perf_parallel_threads: int = Form(0),
     backup_timeout_mins: int = Form(15),
+    max_global_backups: int = Form(10),
+    max_backups_per_host: int = Form(2),
+    datastore_min_free_pct: int = Form(15),
+    datastore_headroom_gb: int = Form(10),
+    datastore_est_multiplier: float = Form(2.0),
 
     storage_type: str = Form("SMB"),
     nfs_path: str = Form(""),
@@ -355,6 +360,11 @@ def save_config(
     config.perf_parallel_threads = perf_parallel_threads
     config.perf_compression_level = perf_compression_level
     config.backup_timeout_mins = backup_timeout_mins
+    config.max_global_backups = max(1, min(32, max_global_backups))
+    config.max_backups_per_host = max(1, min(8, max_backups_per_host))
+    config.datastore_min_free_pct = max(5, min(50, datastore_min_free_pct))
+    config.datastore_headroom_gb = max(0, min(500, datastore_headroom_gb))
+    config.datastore_est_multiplier = max(1.0, min(3.0, float(datastore_est_multiplier)))
     
     config.storage_type = storage_type
     config.nfs_path = nfs_path

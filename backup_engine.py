@@ -359,10 +359,108 @@ def _cleanup_stale_temp_dirs(si, datastore_name, hours=12):
     except Exception as e:
         log_warn(f"[CLEANUP] Error during temp folder scan on {datastore_name}: {e}")
 
+
+def _get_datastore_summary(si, ds_name):
+    """Returns capacity/free stats for a named datastore on the host."""
+    from pyVmomi import vim
+    content = si.RetrieveContent()
+    container = content.viewManager.CreateContainerView(content.rootFolder, [vim.Datastore], True)
+    try:
+        for ds in container.view:
+            if ds.summary.name == ds_name:
+                cap = ds.summary.capacity or 0
+                free = ds.summary.freeSpace or 0
+                cap_gb = cap / (1024**3)
+                free_gb = free / (1024**3)
+                free_pct = (free / cap * 100) if cap else 0
+                return {
+                    "name": ds_name,
+                    "capacity_gb": round(cap_gb, 1),
+                    "free_gb": round(free_gb, 1),
+                    "free_pct": round(free_pct, 1),
+                }
+    finally:
+        container.Destroy()
+    return None
+
+
+def _vm_disk_gb(vm):
+    if getattr(vm, "storage_gb", None) and vm.storage_gb > 0:
+        return float(vm.storage_gb)
+    total = 0.0
+    if hasattr(vm, "layoutEx") and vm.layoutEx and vm.layoutEx.file:
+        for f in vm.layoutEx.file:
+            if f.type == "diskDescriptor" and getattr(f, "size", None):
+                total += (f.size or 0) / (1024**3)
+    return max(total, 1.0)
+
+
+def _check_datastore_capacity(si, vm_name, config):
+    """
+    Verify source datastore(s) have enough free space for backup.
+    Returns (ok: bool, message: str). Prefix [SKIP] on message when backup should be skipped.
+    """
+    vm = _get_vm(si, vm_name)
+    if not vm:
+        return False, "VM not found"
+
+    min_pct = getattr(config, "datastore_min_free_pct", None)
+    if min_pct is None:
+        min_pct = 15
+    headroom = getattr(config, "datastore_headroom_gb", None)
+    if headroom is None:
+        headroom = 10
+    multiplier = getattr(config, "datastore_est_multiplier", None)
+    if multiplier is None:
+        multiplier = 2.0
+
+    power_state = getattr(vm.runtime, "powerState", "poweredOn")
+    if power_state == "poweredOff":
+        multiplier = 1.0
+
+    disk_gb = _vm_disk_gb(vm)
+    need_gb = disk_gb * float(multiplier) + float(headroom)
+
+    ds_names = set()
+    if vm.config and vm.config.files and vm.config.files.vmPathName:
+        name, _ = _parse_datastore_path(vm.config.files.vmPathName)
+        if name:
+            ds_names.add(name)
+    if hasattr(vm, "layoutEx") and vm.layoutEx and vm.layoutEx.file:
+        for f in vm.layoutEx.file:
+            if f.type == "diskDescriptor":
+                name, _ = _parse_datastore_path(f.name)
+                if name:
+                    ds_names.add(name)
+
+    if not ds_names:
+        return True, "No datastores to check"
+
+    errors = []
+    for ds_name in sorted(ds_names):
+        summary = _get_datastore_summary(si, ds_name)
+        if not summary:
+            log_warn(f"[PREFLIGHT] Datastore '{ds_name}' not found for capacity check")
+            continue
+        if summary["free_pct"] < min_pct:
+            errors.append(
+                f"Datastore '{ds_name}' {summary['free_pct']}% free "
+                f"({summary['free_gb']} GB of {summary['capacity_gb']} GB) — minimum {min_pct}% required"
+            )
+        if summary["free_gb"] < need_gb:
+            errors.append(
+                f"Datastore '{ds_name}' has {summary['free_gb']} GB free but ~{need_gb:.0f} GB "
+                f"estimated need for {disk_gb:.0f} GB VM (×{multiplier} + {headroom} GB headroom)"
+            )
+
+    if errors:
+        return False, "[SKIP] " + "; ".join(errors)
+    return True, "Datastore capacity OK"
+
 # ===========================================================================
 #  MAIN: Preflight Check
 # ===========================================================================
-def preflight_check(si, vm_name, timeout_mins=15, **kwargs):
+def preflight_check(si, vm_name, timeout_mins=15, config=None, **kwargs):
     """
     Runs a comprehensive pre-backup checklist.
     Returns (success: bool, message: str)
@@ -379,12 +477,18 @@ def preflight_check(si, vm_name, timeout_mins=15, **kwargs):
         ("Disconnect removable devices", lambda: _disconnect_removable_devices(si, vm_name)),
         ("Handle consolidation", lambda: _handle_consolidation(si, vm_name, timeout_mins)),
     ]
+    if config is not None:
+        steps.insert(0, ("Check datastore free space", lambda: _check_datastore_capacity(si, vm_name, config)))
 
     for name, func in steps:
         log_info(f"[PREFLIGHT] Step: {name}...")
         try:
             result = func()
-            if not result:
+            if isinstance(result, tuple):
+                ok, msg = result
+                if not ok:
+                    return False, msg
+            elif not result:
                 return False, f"Preflight failed at: {name}"
         except Exception as e:
             return False, f"Preflight error at {name}: {e}"
