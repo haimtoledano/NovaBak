@@ -180,6 +180,7 @@ def _ensure_concurrency_configured():
 
 
 def _try_acquire_slots(host_id):
+    global _global_active
     _ensure_concurrency_configured()
     with _concurrency_lock:
         if _global_active >= _global_limit:
