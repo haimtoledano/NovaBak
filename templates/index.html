@@ -629,6 +629,9 @@
                                             <input type="hidden" name="vm_id" value="{{ vm.id }}">
                                             <button type="submit" class="btn-primary p-1.5 rounded text-xs px-2 font-medium">Run</button>
                                         </form>
+                                        <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary p-1.5 rounded text-xs" title="Remove from tasks">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -678,6 +681,9 @@
                                         Run Now
                                     </button>
                                 </form>
+                                <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary p-1.5 rounded" title="Remove from tasks">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
                             </div>
                         </div>
 
@@ -1239,6 +1245,46 @@
             if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
         } catch (e) {
             await showAlert('Could not abort backup: ' + (e.message || 'Unknown error'), { title: 'Abort failed' });
+        }
+    }
+
+    async function removeVmFromTasks(vmId, vmName) {
+        const row = document.getElementById('row-' + vmId);
+        const card = document.getElementById('card-' + vmId);
+        const isRunning = row?.getAttribute('data-running') === 'true' || card?.getAttribute('data-running') === 'true';
+        const msg = isRunning
+            ? `${vmName} has a backup running. Remove from tasks anyway? It will no longer appear here or run on schedule.`
+            : `Remove ${vmName} from backup tasks? You can re-enable it from Inventory.`;
+        const ok = await showConfirm(msg, { title: 'Remove from tasks', confirmText: 'Remove', danger: true });
+        if (!ok) return;
+        try {
+            const res = await fetch(`/api/v1/vms/${vmId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_selected: false, is_job_active: false }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+            document.getElementById('row-' + vmId)?.remove();
+            document.getElementById('job-detail-' + vmId)?.remove();
+            document.getElementById('card-' + vmId)?.remove();
+
+            const invHidden = document.querySelector(`#tab-inventory input[type="hidden"][name="vm_id"][value="${vmId}"]`);
+            const invCheckbox = invHidden?.closest('form')?.querySelector('input[name="is_selected"]');
+            if (invCheckbox) invCheckbox.checked = false;
+
+            const tbody = document.querySelector('#jobsListView tbody');
+            if (tbody && !tbody.querySelector('.vm-job-row')) {
+                tbody.innerHTML = '<tr><td colspan="8" class="py-10 text-center" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</td></tr>';
+            }
+            const grid = document.getElementById('jobsGridView');
+            if (grid && !grid.querySelector('.vm-job-card')) {
+                grid.innerHTML = '<div class="col-span-full card p-10 text-center border-dashed font-medium" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</div>';
+            }
+            if (typeof filterJobs === 'function') filterJobs();
+        } catch (e) {
+            await showAlert('Could not remove task: ' + (e.message || 'Unknown error'), { title: 'Remove failed' });
         }
     }
 
