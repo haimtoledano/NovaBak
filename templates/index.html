@@ -108,7 +108,10 @@
         .jobs-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
         .jobs-table tbody tr.vm-job-row:hover { background: rgba(59, 130, 246, 0.04); }
         .jobs-table .prog-container { height: 4px; margin-top: 4px; }
-        .job-detail-row td { background: var(--bg-nav); padding: 1rem 1.25rem 1.25rem; }
+        .job-detail-row td { background: var(--bg-nav); padding: 0.6rem 1.25rem 0.75rem; }
+        .job-schedule-inline input[type="number"] { -moz-appearance: textfield; }
+        .job-schedule-inline input[type="number"]::-webkit-outer-spin-button,
+        .job-schedule-inline input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .jobs-view-btn { padding: 0.375rem 0.75rem; font-size: 0.75rem; font-weight: 600; border-radius: 0.375rem; border: 1px solid var(--border-color); color: var(--text-muted); background: var(--bg-card); }
         .jobs-view-btn.active { border-color: var(--brand); color: var(--brand); background: rgba(59, 130, 246, 0.08); }
 
@@ -1420,22 +1423,25 @@
         const freqEl = document.querySelector(`#job-form-${vmId} input[name="schedule_frequency"]:checked`);
         const freq = freqEl ? freqEl.value : 'daily';
         const row = document.getElementById('days-row-' + vmId);
+        const sep = document.querySelector('.days-sep-' + vmId);
         const hint = document.getElementById('days-hint-' + vmId);
         const cbs = document.querySelectorAll(`.day-cb-${vmId}`);
 
         if (freq === 'daily') {
-            // Daily = every day, day picker irrelevant
-            if (row) row.style.opacity = '0.35';
-            cbs.forEach(cb => cb.disabled = true);
-            if (hint) hint.textContent = 'runs every day';
+            if (row) row.style.display = 'none';
+            if (sep) sep.style.display = 'none';
+            cbs.forEach(cb => { cb.disabled = true; cb.checked = true; });
+            updateDaysHidden(vmId);
         } else if (freq === 'weekly') {
-            if (row) row.style.opacity = '1';
+            if (row) row.style.display = 'flex';
+            if (sep) sep.style.display = 'block';
             cbs.forEach(cb => cb.disabled = false);
-            if (hint) hint.textContent = 'pick which days';
+            if (hint) hint.textContent = '';
         } else if (freq === 'monthly') {
-            if (row) row.style.opacity = '1';
+            if (row) row.style.display = 'flex';
+            if (sep) sep.style.display = 'block';
             cbs.forEach(cb => cb.disabled = false);
-            if (hint) hint.textContent = 'first occurrence in month';
+            if (hint) hint.textContent = '';
         }
     }
 
