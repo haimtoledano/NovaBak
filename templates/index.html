@@ -84,6 +84,29 @@
         }
         input:focus, select:focus { outline: none; border-color: var(--brand) !important; box-shadow: 0 0 0 2px var(--brand); }
         .input-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.25rem; display: block; }
+        .field-label-row { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.25rem; }
+        .field-label-row .input-label { margin-bottom: 0; display: inline; }
+        .field-tip { position: relative; display: inline-flex; align-items: center; cursor: help; color: var(--text-muted); opacity: 0.55; line-height: 0; }
+        .field-tip:hover, .field-tip:focus { opacity: 1; color: var(--brand); outline: none; }
+        .field-tip svg { width: 13px; height: 13px; }
+        .field-tip-text {
+            visibility: hidden; opacity: 0;
+            position: absolute; left: 50%; bottom: calc(100% + 8px);
+            transform: translateX(-50%);
+            width: max-content; max-width: 240px;
+            padding: 0.5rem 0.65rem;
+            font-size: 0.6875rem; font-weight: 400; text-transform: none; letter-spacing: normal;
+            line-height: 1.4; text-align: left;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 0.375rem; box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+            color: var(--text-main); z-index: 30;
+            pointer-events: none; transition: opacity 0.12s ease;
+        }
+        .field-tip-text::after {
+            content: ''; position: absolute; top: 100%; left: 50%; margin-left: -5px;
+            border: 5px solid transparent; border-top-color: var(--border-color);
+        }
+        .field-tip:hover .field-tip-text, .field-tip:focus .field-tip-text { visibility: visible; opacity: 1; }
 
         .btn-primary { background-color: var(--brand); color: #fff; transition: background-color 0.2s; border-radius: 0.375rem; }
         .btn-primary:hover { background-color: var(--brand-hover); }
@@ -958,46 +981,86 @@
 
                     <div class="card p-5">
                         <h3 class="font-semibold text-lg mb-4 border-b pb-2" style="border-color: var(--border-color)">Worker Parameters</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-5">
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                             <div>
-                                <span class="input-label">Parallel Threads</span>
+                                <div class="field-label-row">
+                                    <span class="input-label">Parallel Threads</span>
+                                    <span class="field-tip" tabindex="0" role="button" aria-label="Help: Parallel Threads">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <span class="field-tip-text">How many download streams to use per backup. Set to 0 and NovaBak will choose automatically.</span>
+                                    </span>
+                                </div>
                                 <input type="number" name="perf_parallel_threads" value="{{ config.perf_parallel_threads }}" min="0" max="32" class="w-full py-2 px-3 text-center text-sm">
-                                <p class="text-[10px] opacity-60 mt-1 leading-snug">HTTP download threads per backup. Use <strong>0</strong> for automatic.</p>
                             </div>
                             <div>
-                                <span class="input-label">Compression</span>
+                                <div class="field-label-row">
+                                    <span class="input-label">Compression</span>
+                                    <span class="field-tip" tabindex="0" role="button" aria-label="Help: Compression">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <span class="field-tip-text">Reserved for a future release. The current ESXi backup engine does not compress VMDKs.</span>
+                                    </span>
+                                </div>
                                 <input type="number" name="perf_compression_level" value="{{ config.perf_compression_level }}" min="0" max="9" class="w-full py-2 px-3 text-center text-sm disabled:opacity-50" disabled>
-                                <p class="text-[10px] opacity-60 mt-1 leading-snug">Not used by the native ESXi backup engine (reserved for future use).</p>
                             </div>
                             <div>
-                                <span class="input-label">API Timeout (Min)</span>
+                                <div class="field-label-row">
+                                    <span class="input-label">API Timeout (Min)</span>
+                                    <span class="field-tip" tabindex="0" role="button" aria-label="Help: API Timeout">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <span class="field-tip-text">How long NovaBak waits for ESXi tasks like snapshots, consolidation, and cleanup before timing out.</span>
+                                    </span>
+                                </div>
                                 <input type="number" name="backup_timeout_mins" value="{{ config.backup_timeout_mins }}" min="5" max="1440" class="w-full py-2 px-3 text-center text-sm">
-                                <p class="text-[10px] opacity-60 mt-1 leading-snug">Max wait time for ESXi tasks: snapshots, consolidation, and cleanup.</p>
                             </div>
                             <div>
-                                <span class="input-label">Max Global Backups</span>
+                                <div class="field-label-row">
+                                    <span class="input-label">Max Global Backups</span>
+                                    <span class="field-tip" tabindex="0" role="button" aria-label="Help: Max Global Backups">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <span class="field-tip-text">The maximum number of backups that can run at the same time across all ESXi hosts. Extra jobs wait in queue.</span>
+                                    </span>
+                                </div>
                                 <input type="number" name="max_global_backups" value="{{ config.max_global_backups or 10 }}" min="1" max="32" class="w-full py-2 px-3 text-center text-sm">
-                                <p class="text-[10px] opacity-60 mt-1 leading-snug">Maximum backups running at once across <em>all</em> hosts. Extra jobs wait in queue.</p>
                             </div>
                             <div>
-                                <span class="input-label">Max Per Host</span>
+                                <div class="field-label-row">
+                                    <span class="input-label">Max Per Host</span>
+                                    <span class="field-tip" tabindex="0" role="button" aria-label="Help: Max Per Host">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <span class="field-tip-text">How many backups can run on a single ESXi host at once. Lower this if snapshots are filling up local datastores.</span>
+                                    </span>
+                                </div>
                                 <input type="number" name="max_backups_per_host" value="{{ config.max_backups_per_host or 2 }}" min="1" max="8" class="w-full py-2 px-3 text-center text-sm">
-                                <p class="text-[10px] opacity-60 mt-1 leading-snug">Max concurrent backups on one ESXi host. Lower this to reduce snapshot load on tight datastores.</p>
                             </div>
                             <div>
-                                <span class="input-label">Min Datastore Free %</span>
+                                <div class="field-label-row">
+                                    <span class="input-label">Min Datastore Free %</span>
+                                    <span class="field-tip" tabindex="0" role="button" aria-label="Help: Min Datastore Free">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <span class="field-tip-text">If the VM's source datastore has less free space than this, the backup is skipped to avoid making a full host worse.</span>
+                                    </span>
+                                </div>
                                 <input type="number" name="datastore_min_free_pct" value="{{ config.datastore_min_free_pct or 15 }}" min="5" max="50" class="w-full py-2 px-3 text-center text-sm">
-                                <p class="text-[10px] opacity-60 mt-1 leading-snug">Skip backup if the VM&rsquo;s source datastore has less free space than this percentage.</p>
                             </div>
                             <div>
-                                <span class="input-label">Datastore Headroom (GB)</span>
+                                <div class="field-label-row">
+                                    <span class="input-label">Datastore Headroom (GB)</span>
+                                    <span class="field-tip" tabindex="0" role="button" aria-label="Help: Datastore Headroom">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <span class="field-tip-text">Extra gigabytes of free space required on top of the estimated backup size — a safety cushion for thin disks and growth.</span>
+                                    </span>
+                                </div>
                                 <input type="number" name="datastore_headroom_gb" value="{{ config.datastore_headroom_gb or 10 }}" min="0" max="500" class="w-full py-2 px-3 text-center text-sm">
-                                <p class="text-[10px] opacity-60 mt-1 leading-snug">Extra free GB required on top of the estimated backup size (safety buffer).</p>
                             </div>
                             <div>
-                                <span class="input-label">Disk Estimate Multiplier</span>
+                                <div class="field-label-row">
+                                    <span class="input-label">Disk Estimate Multiplier</span>
+                                    <span class="field-tip" tabindex="0" role="button" aria-label="Help: Disk Estimate Multiplier">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <span class="field-tip-text">Estimated temporary disk use during backup = VM disk size × this value. Powered-off VMs always use 1.0 (no snapshot copy).</span>
+                                    </span>
+                                </div>
                                 <input type="number" name="datastore_est_multiplier" value="{{ config.datastore_est_multiplier or 2.0 }}" min="1" max="3" step="0.1" class="w-full py-2 px-3 text-center text-sm">
-                                <p class="text-[10px] opacity-60 mt-1 leading-snug">Estimated temp space = VM disk &times; this value. Powered-off VMs use <strong>1.0</strong> (no snapshot copy).</p>
                             </div>
                         </div>
                         
