@@ -121,15 +121,27 @@
         .jobs-bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; margin-bottom: 0.75rem; border: 1px solid var(--border-color); border-radius: 0.375rem; background: var(--bg-nav); }
         .jobs-bulk-bar.hidden { display: none; }
         .job-row-cb { width: 1rem; height: 1rem; cursor: pointer; accent-color: var(--brand); }
-        .theme-menu { position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 50; min-width: 8.5rem; padding: 0.25rem 0; border-radius: 0.375rem; border: 1px solid var(--border-color); background: var(--bg-card); box-shadow: 0 8px 24px rgba(0,0,0,0.18); }
+        .theme-menu { position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 50; min-width: 9.5rem; padding: 0.35rem; border-radius: 0.5rem; border: 1px solid var(--border-color); background: var(--bg-card); box-shadow: 0 10px 28px rgba(0,0,0,0.16); }
         .theme-menu.hidden { display: none; }
-        .theme-menu-item { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.5rem 0.75rem; font-size: 0.8125rem; text-align: left; color: var(--text-main); transition: background 0.15s; }
-        .theme-menu-item:hover { background: var(--bg-nav); }
-        .theme-menu-item.active { color: var(--brand); font-weight: 600; }
-        .theme-menu-check { width: 0.875rem; opacity: 0; }
+        .theme-menu-item {
+            display: flex; align-items: center; gap: 0.5rem; width: 100%;
+            padding: 0.5rem 0.625rem; font-size: 0.8125rem; text-align: left;
+            background: transparent; border: none; cursor: pointer;
+            color: var(--btn-sec-text); border-radius: 0.375rem;
+            transition: background 0.15s, color 0.15s;
+        }
+        .theme-menu-item:hover { background: var(--btn-sec-hover); color: var(--text-main); }
+        .theme-menu-item.active { color: var(--brand); font-weight: 600; background: rgba(59, 130, 246, 0.1); }
+        .theme-menu-check { width: 0.875rem; flex-shrink: 0; opacity: 0; color: var(--brand); }
         .theme-menu-item.active .theme-menu-check { opacity: 1; }
-        .theme-picker-btn { padding: 0.5rem; border-radius: 0.375rem; color: var(--text-muted); transition: color 0.15s, background 0.15s; }
-        .theme-picker-btn:hover { color: var(--text-main); background: rgba(255,255,255,0.06); }
+        .theme-menu-icon { width: 1rem; height: 1rem; flex-shrink: 0; opacity: 0.85; }
+        .theme-menu-item.active .theme-menu-icon { opacity: 1; color: var(--brand); }
+        .theme-picker-btn { padding: 0.5rem; border-radius: 0.375rem; color: var(--text-muted); background: transparent; border: none; cursor: pointer; transition: color 0.15s, background 0.15s; }
+        .theme-picker-btn:hover { color: var(--text-main); background: var(--btn-sec-hover); }
+        html:not([data-theme="dark"]):not([data-theme="cyberpunk"]) .theme-menu-item:not(.active),
+        [data-theme="light"] .theme-menu-item:not(.active) { color: #374151; }
+        html:not([data-theme="dark"]):not([data-theme="cyberpunk"]) .theme-menu-item:hover,
+        [data-theme="light"] .theme-menu-item:hover { color: #111827; background: #f3f4f6; }
 
         .modal-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
         .modal-overlay.hidden { display: none; }
@@ -626,15 +638,18 @@
                         </button>
                         <div id="themeMenu" class="theme-menu hidden">
                             <button type="button" class="theme-menu-item" data-theme="light" onclick="applyTheme('light')">
-                                <svg class="theme-menu-check w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <svg class="theme-menu-check" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <svg class="theme-menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                                 Light
                             </button>
                             <button type="button" class="theme-menu-item" data-theme="dark" onclick="applyTheme('dark')">
-                                <svg class="theme-menu-check w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <svg class="theme-menu-check" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <svg class="theme-menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
                                 Dark
                             </button>
                             <button type="button" class="theme-menu-item" data-theme="cyberpunk" onclick="applyTheme('cyberpunk')">
-                                <svg class="theme-menu-check w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <svg class="theme-menu-check" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <svg class="theme-menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                                 Cyberpunk
                             </button>
                         </div>
