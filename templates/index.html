@@ -667,7 +667,7 @@
                                     {{ vm.esxi_host.name }}
                                 </div>
                             </div>
-                            <div class="flex space-x-2 shrink-0">
+                            <div class="flex items-center gap-1.5 shrink-0">
                                 <button type="button" id="form-stop-{{ vm.id }}" onclick="stopVmJob({{ vm.id }})" class="hidden btn-danger p-1.5 rounded" title="Abort">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                 </button>
@@ -678,6 +678,9 @@
                                         Run Now
                                     </button>
                                 </form>
+                                <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary p-1.5 rounded hover:text-red-400 hover:border-red-400/50" title="Remove from tasks">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
                             </div>
                         </div>
 
