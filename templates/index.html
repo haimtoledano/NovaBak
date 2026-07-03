@@ -508,7 +508,9 @@
                     listWrap.classList.add('hidden');
                 }
             }
+            const listRun = document.getElementById('list-form-run-' + vm_id);
             const listStop = document.getElementById('list-form-stop-' + vm_id);
+            if (listRun) listRun.classList.toggle('hidden', isActive);
             if (listStop) listStop.classList.toggle('hidden', !isActive);
 
             const cardWrap = document.getElementById('prog-wrap-' + vm_id);
@@ -525,7 +527,9 @@
                     cardWrap.classList.add('hidden');
                 }
             }
+            const cardRun = document.getElementById('form-run-' + vm_id);
             const cardStop = document.getElementById('form-stop-' + vm_id);
+            if (cardRun) cardRun.classList.toggle('hidden', isActive);
             if (cardStop) cardStop.classList.toggle('hidden', !isActive);
 
             const row = document.getElementById('row-' + vm_id);
@@ -812,9 +816,15 @@
                                 <td class="text-xs font-mono whitespace-nowrap" style="color: var(--text-muted)">{{ vm.last_backup.strftime('%Y-%m-%d %H:%M') if vm.last_backup else 'Never' }}</td>
                                 <td class="text-xs whitespace-nowrap">{{ (vm.schedule_frequency or 'daily')|title }} {{ '%02d'|format(vm.schedule_hour) }}:{{ '%02d'|format(vm.schedule_minute) }} · keep {{ vm.retention_count }}</td>
                                 <td class="text-right whitespace-nowrap">
-                                    <button type="button" id="list-form-stop-{{ vm.id }}" onclick="stopVmJob({{ vm.id }})" class="hidden btn-danger p-1.5 rounded" title="Abort">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                    </button>
+                                    <div class="inline-flex gap-1">
+                                        <button type="button" id="list-form-stop-{{ vm.id }}" onclick="stopVmJob({{ vm.id }})" class="hidden btn-danger p-1.5 rounded" title="Abort">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                        <form action="/run_now" method="POST" id="list-form-run-{{ vm.id }}" class="inline">
+                                            <input type="hidden" name="vm_id" value="{{ vm.id }}">
+                                            <button type="submit" class="btn-primary p-1.5 rounded text-xs px-2 font-medium">Run</button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             <tr class="job-detail-row hidden" id="job-detail-{{ vm.id }}">
@@ -859,6 +869,13 @@
                                 <button type="button" id="form-stop-{{ vm.id }}" onclick="stopVmJob({{ vm.id }})" class="hidden btn-danger p-1.5 rounded" title="Abort">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                 </button>
+                                <form action="/run_now" method="POST" id="form-run-{{ vm.id }}">
+                                    <input type="hidden" name="vm_id" value="{{ vm.id }}">
+                                    <button type="submit" class="btn-primary p-1.5 rounded flex items-center text-xs px-2 shadow-sm font-medium">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                                        Run Now
+                                    </button>
+                                </form>
                                 <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary p-1.5 rounded hover:text-red-400 hover:border-red-400/50" title="Remove from tasks">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 </button>
