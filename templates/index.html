@@ -705,17 +705,8 @@
                             </div>
                         </div>
 
-                        <div class="mt-auto pt-4 text-xs" style="border-top: 1px solid var(--border-color); color: var(--text-muted)">
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <div>
-                                    {{ (vm.schedule_frequency or 'daily')|title }} at {{ '%02d'|format(vm.schedule_hour) }}:{{ '%02d'|format(vm.schedule_minute) }} · keep {{ vm.retention_count }}
-                                    {% if vm.is_job_active %} · <span style="color: var(--brand)">Active</span>{% else %} · Paused{% endif %}
-                                    <div class="mt-2 opacity-70">Switch to List view and expand the row to edit schedule.</div>
-                                </div>
-                                <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary px-3 py-1.5 rounded text-xs font-medium hover:text-red-400 hover:border-red-400/50 shrink-0" title="Remove from tasks">
-                                    Remove
-                                </button>
-                            </div>
+                        <div class="mt-auto pt-4" style="border-top: 1px solid var(--border-color)">
+                            {% include 'partials/job_schedule_form_card.html' %}
                         </div>
 
                     </div>
@@ -1432,83 +1423,149 @@
     // ─── Task Card Auto-Save ─────────────────────────────────────────────────
     const _jobSaveTimers = {};
 
-    async function autoSaveJob(vmId) {
-        const form = document.getElementById('job-form-' + vmId);
+    function getJobForms(vmId) {
+        return [
+            document.getElementById('job-form-' + vmId),
+            document.getElementById('job-form-card-' + vmId),
+        ].filter(Boolean);
+    }
+
+    function getActiveJobForm(vmId) {
+        for (const form of getJobForms(vmId)) {
+            if (form.offsetParent !== null) return form;
+        }
+        return getJobForms(vmId)[0];
+    }
+
+    function syncJobFormFields(sourceForm, targetForm) {
+        if (!sourceForm || !targetForm || sourceForm === targetForm) return;
+        sourceForm.querySelectorAll('input[name]').forEach(src => {
+            const name = src.name;
+            const tgt = targetForm.querySelector(`[name="${name}"]`);
+            if (!tgt) return;
+            if (src.type === 'checkbox' || src.type === 'radio') {
+                if (src.type === 'radio') {
+                    if (src.checked) {
+                        const match = targetForm.querySelector(`[name="${name}"][value="${src.value}"]`);
+                        if (match) match.checked = true;
+                    }
+                } else {
+                    tgt.checked = src.checked;
+                }
+            } else {
+                tgt.value = src.value;
+            }
+        });
+    }
+
+    function flashJobSaved(vmId) {
+        getJobForms(vmId).forEach(form => {
+            const flash = form.querySelector('.job-save-flash');
+            if (!flash) return;
+            flash.style.opacity = '1';
+            clearTimeout(flash._fadeTimer);
+            flash._fadeTimer = setTimeout(() => { flash.style.opacity = '0'; }, 1800);
+        });
+    }
+
+    async function autoSaveJob(vmId, sourceForm) {
+        const form = sourceForm || getActiveJobForm(vmId);
         if (!form) return;
         const data = new FormData(form);
-        // Ensure is_job_active is included even when unchecked
         if (!data.get('is_job_active')) data.set('is_job_active', '');
+        if (!data.get('power_off_for_backup')) data.set('power_off_for_backup', '');
 
         try {
             const resp = await fetch('/update_job', { method: 'POST', body: data });
             if (resp.ok || resp.redirected) {
-                // Flash the '✓ Saved' badge
-                const flash = document.getElementById('save-flash-' + vmId);
-                if (flash) {
-                    flash.style.opacity = '1';
-                    clearTimeout(flash._fadeTimer);
-                    flash._fadeTimer = setTimeout(() => { flash.style.opacity = '0'; }, 1800);
-                }
+                getJobForms(vmId).forEach(peer => syncJobFormFields(form, peer));
+                showDaysRow(vmId);
+                updatePowerModeLabel(vmId);
+                flashJobSaved(vmId);
             }
         } catch (e) {
             console.warn('autoSaveJob failed for vm', vmId, e);
         }
     }
 
-    function debounceJobSave(vmId) {
-        clearTimeout(_jobSaveTimers[vmId]);
-        _jobSaveTimers[vmId] = setTimeout(() => autoSaveJob(vmId), 900);
+    function debounceJobSave(vmId, sourceForm) {
+        const key = vmId + ':' + (sourceForm?.id || 'default');
+        clearTimeout(_jobSaveTimers[key]);
+        _jobSaveTimers[key] = setTimeout(() => autoSaveJob(vmId, sourceForm), 900);
     }
 
-    function updateDaysHidden(vmId) {
-        const checked = [...document.querySelectorAll(`.day-cb-${vmId}:checked`)].map(el => el.dataset.day);
-        const hidden = document.getElementById('days-hidden-' + vmId);
+    function updateDaysHiddenForForm(form) {
+        const checked = [...form.querySelectorAll('.job-day-cb:checked')].map(el => el.dataset.day);
+        const hidden = form.querySelector('.job-days-hidden');
         if (hidden) hidden.value = checked.length ? checked.join(',') : '0,1,2,3,4,5,6';
     }
 
-    function updatePowerModeLabel(vmId) {
-        const cb = document.querySelector(`#job-form-${vmId} input[name="power_off_for_backup"]`);
-        const el = document.getElementById('power-mode-label-' + vmId);
+    function updateDaysHidden(vmId) {
+        const active = getActiveJobForm(vmId);
+        if (!active) return;
+        updateDaysHiddenForForm(active);
+        getJobForms(vmId).forEach(form => {
+            if (form !== active) syncJobFormFields(active, form);
+        });
+    }
+
+    function updatePowerModeLabelForForm(form) {
+        const cb = form.querySelector('input[name="power_off_for_backup"]');
+        const el = form.querySelector('.job-power-mode-label');
         if (!cb || !el) return;
         if (cb.checked) {
             el.textContent = 'Power off — faster backup';
-            el.className = 'text-xs font-medium whitespace-nowrap text-orange-500';
+            el.className = 'job-power-mode-label text-[10px] font-medium leading-tight text-orange-500';
+            if (form.classList.contains('job-schedule-inline')) {
+                el.className = 'job-power-mode-label text-xs font-medium whitespace-nowrap text-orange-500';
+            }
         } else {
             el.textContent = 'Live — VM stays on';
-            el.className = 'text-xs font-medium whitespace-nowrap text-emerald-600';
+            el.className = 'job-power-mode-label text-[10px] font-medium leading-tight text-emerald-600';
+            if (form.classList.contains('job-schedule-inline')) {
+                el.className = 'job-power-mode-label text-xs font-medium whitespace-nowrap text-emerald-600';
+            }
+        }
+    }
+
+    function updatePowerModeLabel(vmId) {
+        getJobForms(vmId).forEach(updatePowerModeLabelForForm);
+    }
+
+    function applyDaysRowVisibility(form) {
+        if (!form) return;
+        const freq = form.querySelector('input[name="schedule_frequency"]:checked')?.value || 'daily';
+        const row = form.querySelector('.job-days-row');
+        const seps = form.querySelectorAll('.job-days-sep');
+        const hint = form.querySelector('.job-days-hint');
+        const cbs = form.querySelectorAll('.job-day-cb');
+        const isInline = form.classList.contains('job-schedule-inline');
+        const rowDisplay = isInline ? 'flex' : 'block';
+
+        if (freq === 'daily') {
+            if (row) row.style.display = 'none';
+            seps.forEach(sep => { sep.style.display = 'none'; });
+            cbs.forEach(cb => { cb.disabled = true; cb.checked = true; });
+            updateDaysHiddenForForm(form);
+        } else {
+            if (row) row.style.display = rowDisplay;
+            seps.forEach(sep => { sep.style.display = isInline ? 'block' : 'none'; });
+            cbs.forEach(cb => { cb.disabled = false; });
+            if (hint) hint.textContent = '';
         }
     }
 
     function showDaysRow(vmId) {
-        const freqEl = document.querySelector(`#job-form-${vmId} input[name="schedule_frequency"]:checked`);
-        const freq = freqEl ? freqEl.value : 'daily';
-        const row = document.getElementById('days-row-' + vmId);
-        const sep = document.querySelector('.days-sep-' + vmId);
-        const hint = document.getElementById('days-hint-' + vmId);
-        const cbs = document.querySelectorAll(`.day-cb-${vmId}`);
-
-        if (freq === 'daily') {
-            if (row) row.style.display = 'none';
-            if (sep) sep.style.display = 'none';
-            cbs.forEach(cb => { cb.disabled = true; cb.checked = true; });
-            updateDaysHidden(vmId);
-        } else if (freq === 'weekly') {
-            if (row) row.style.display = 'flex';
-            if (sep) sep.style.display = 'block';
-            cbs.forEach(cb => cb.disabled = false);
-            if (hint) hint.textContent = '';
-        } else if (freq === 'monthly') {
-            if (row) row.style.display = 'flex';
-            if (sep) sep.style.display = 'block';
-            cbs.forEach(cb => cb.disabled = false);
-            if (hint) hint.textContent = '';
-        }
+        getJobForms(vmId).forEach(applyDaysRowVisibility);
     }
 
     // On page load: init visibility for all job forms
     document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('[id^="job-form-"]').forEach(form => {
-            const vmId = form.id.replace('job-form-', '');
+        const seen = new Set();
+        document.querySelectorAll('[id^="job-form"]').forEach(form => {
+            const vmId = form.querySelector('input[name="vm_id"]')?.value;
+            if (!vmId || seen.has(vmId)) return;
+            seen.add(vmId);
             showDaysRow(vmId);
             updatePowerModeLabel(vmId);
         });
