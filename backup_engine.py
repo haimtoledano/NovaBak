@@ -93,7 +93,7 @@ def _get_host_ip(si):
 #  Download VMDK via Datastore HTTP
 # ---------------------------------------------------------------------------
 def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, progress_callback=None,
-                         progress_base=0, progress_total=100, speed_callback=None):
+                         progress_base=0, progress_total=100, speed_callback=None, is_cancelled_func=None):
     """
     Downloads a file from ESXi's built-in HTTP file server via StorageProvider.
     """
@@ -132,6 +132,8 @@ def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, p
         zero_chunk = b'\x00' * CHUNK_SIZE if is_local else None
 
         for chunk in resp.iter_content(chunk_size=CHUNK_SIZE):
+            if is_cancelled_func and is_cancelled_func():
+                raise Exception("Backup cancelled by user")
             if chunk:
                 # Thin provisioning stream optimization (only for local files with seek support)
                 if is_local and len(chunk) == CHUNK_SIZE and chunk == zero_chunk:
@@ -620,7 +622,7 @@ def import_vm_native(si, storage, source_rel_dir, target_ds, target_name, progre
 # ===========================================================================
 #  MAIN: Export VM - Power-State Aware Backup
 # ===========================================================================
-def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None, speed_callback=None, max_retries=3, **kwargs):
+def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None, speed_callback=None, max_retries=3, is_cancelled_func=None, **kwargs):
     """
     Power-state-aware backup:
 
@@ -642,6 +644,8 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
 
     for attempt in range(1, max_retries + 1):
         log_info(f"[BACKUP] Attempt {attempt}/{max_retries} for {vm_name}")
+        if is_cancelled_func and is_cancelled_func():
+            return False, "Backup cancelled by user"
 
         try:
             # --- Step 1: Collect disk info + detect power state ---
@@ -699,7 +703,7 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
                     _download_file_http(
                         si, disk['ds_name'], disk['rel_path'], storage, f"{dest_rel_dir}/{disk_basename}",
                         progress_callback=progress_callback, progress_base=desc_base, progress_total=2,
-                        speed_callback=speed_callback
+                        speed_callback=speed_callback, is_cancelled_func=is_cancelled_func
                     )
                     files_downloaded.append(disk_basename)
 
@@ -707,7 +711,8 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
                     _download_file_http(
                         si, disk['ds_name'], flat_rel_path, storage, f"{dest_rel_dir}/{flat_basename}",
                         progress_callback=progress_callback, progress_base=flat_base,
-                        progress_total=flat_end - flat_base, speed_callback=speed_callback
+                        progress_total=flat_end - flat_base, speed_callback=speed_callback,
+                        is_cancelled_func=is_cancelled_func
                     )
                     files_downloaded.append(flat_basename)
 
@@ -752,6 +757,8 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
                     )
                     t0 = time.time()
                     while task.info.state not in [vim.TaskInfo.State.success, vim.TaskInfo.State.error]:
+                        if is_cancelled_func and is_cancelled_func():
+                            raise Exception("Backup cancelled by user")
                         if time.time() - t0 > 7200:
                             raise Exception(f"Disk copy timeout for {disk_basename}")
                         if task.info.progress and progress_callback:
@@ -779,13 +786,14 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
                     _download_file_http(
                         si, ds_name, temp_rel_path, storage, f"{dest_rel_dir}/{disk_basename}",
                         progress_callback=progress_callback, progress_base=dl_start, progress_total=2,
-                        speed_callback=speed_callback
+                        speed_callback=speed_callback, is_cancelled_func=is_cancelled_func
                     )
                     files_downloaded.append(disk_basename)
                     _download_file_http(
                         si, ds_name, flat_rel_path, storage, f"{dest_rel_dir}/{flat_basename}",
                         progress_callback=progress_callback, progress_base=dl_mid,
-                        progress_total=dl_end - dl_mid, speed_callback=speed_callback
+                        progress_total=dl_end - dl_mid, speed_callback=speed_callback,
+                        is_cancelled_func=is_cancelled_func
                     )
                     files_downloaded.append(flat_basename)
 
@@ -822,6 +830,8 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
 
 
         except Exception as e:
+            if (is_cancelled_func and is_cancelled_func()) or "cancelled" in str(e).lower():
+                return False, "Backup cancelled by user"
             last_error = str(e)
             log_error(f"[BACKUP] Attempt {attempt} failed: {last_error}")
 

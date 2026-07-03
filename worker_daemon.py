@@ -52,8 +52,7 @@ def run_daemon():
             for vm in pending_stops:
                 log_info(f"[PID {pid}] Found manual stop request for VM: {vm.vm_name}")
                 worker.stop_job(vm.id)
-                vm.current_action = ""
-                vm.progress = 0
+                vm.current_action = "Stopping..."
                 db.commit()
                 
             db.close()

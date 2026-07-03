@@ -132,6 +132,27 @@ restore_queue_executor = ThreadPoolExecutor(max_workers=5) # Concurrent restores
 host_locks = {}
 host_locks_lock = threading.Lock()
 last_trigger_times = {} # vm_id -> timestamp
+_cancelled_backups = set()
+_cancel_lock = threading.Lock()
+
+
+class BackupCancelled(Exception):
+    """Raised when a backup job is aborted by the user."""
+
+
+def request_backup_stop(vm_id: int):
+    with _cancel_lock:
+        _cancelled_backups.add(vm_id)
+
+
+def clear_backup_cancel(vm_id: int):
+    with _cancel_lock:
+        _cancelled_backups.discard(vm_id)
+
+
+def is_backup_cancelled(vm_id: int) -> bool:
+    with _cancel_lock:
+        return vm_id in _cancelled_backups
 
 def get_host_lock(host_id):
     with host_locks_lock:
@@ -171,9 +192,10 @@ def queue_backup(vm_id: int):
     db.close()
 
 def stop_job(vm_id: int):
-    """ Terminate an active backup process for a VM. """
+    """Request termination of an active backup for a VM."""
     pid = os.getpid()
     log_info(f"[PID {pid}] Stop request received for VM ID: {vm_id}")
+    request_backup_stop(vm_id)
     if vm_id in active_processes:
         try:
             p = active_processes[vm_id]
@@ -182,9 +204,7 @@ def stop_job(vm_id: int):
             return True
         except Exception as e:
             log_error(f"[PID {pid}] Failed to terminate process for VM {vm_id}: {e}")
-    else:
-        log_warn(f"[PID {pid}] Stop requested for VM {vm_id} but no active process found in this instance.")
-    return False
+    return True
 
 def perform_backup(vm_id: int):
     """ Backs up a specific VM using the native pyVmomi engine. Runs in parallel with other VMs. """
@@ -200,7 +220,8 @@ def perform_backup(vm_id: int):
 
     host = vm.esxi_host
     log_info(f"[PID {pid}] Starting parallel backup for {vm.vm_name} on host {host.name}")
-    
+    clear_backup_cancel(vm_id)
+
     storage = storage_util.get_storage(config)
 
     # SMB Authentication (only relevant for SMB storage type)
@@ -273,6 +294,8 @@ def perform_backup(vm_id: int):
         db.commit()
 
         def progress_cb(pct):
+            if is_backup_cancelled(vm_id):
+                raise BackupCancelled("Backup cancelled by user")
             try:
                 vm.progress = pct
                 db.commit()
@@ -280,12 +303,17 @@ def perform_backup(vm_id: int):
                 pass
 
         def speed_cb(mbps):
+            if is_backup_cancelled(vm_id):
+                raise BackupCancelled("Backup cancelled by user")
             try:
                 vm.speed_mbps = mbps
                 vm.current_action = f"Backing up... {mbps:.1f} MB/s"
                 db.commit()
             except Exception:
                 pass
+
+        def cancel_check():
+            return is_backup_cancelled(vm_id)
 
         success, result_msg = backup_engine.export_vm_native(
             si=si,
@@ -294,8 +322,12 @@ def perform_backup(vm_id: int):
             dest_rel_dir=dest_rel_dir,
             progress_callback=progress_cb,
             speed_callback=speed_cb,
+            is_cancelled_func=cancel_check,
             max_retries=3
         )
+
+        if not success and "cancelled" in (result_msg or "").lower():
+            raise BackupCancelled(result_msg)
 
         vm.progress = 100 if success else 0
         vm.current_action = ""
@@ -352,6 +384,14 @@ def perform_backup(vm_id: int):
 
         db.commit()
 
+    except BackupCancelled:
+        log_info(f"[PID {pid}] Backup cancelled for {vm.vm_name}")
+        db.add(BackupLog(vm_name=vm.vm_name, status="Cancelled", message="Backup cancelled by user"))
+        vm.progress = 0
+        vm.current_action = ""
+        vm.speed_mbps = 0.0
+        vm.last_status = "Cancelled"
+        db.commit()
     except Exception as e:
         log_error(f"[PID {pid}] Error during backup of {vm.vm_name}: {e}")
         db.add(BackupLog(vm_name=vm.vm_name, status="Failed", message=str(e)))
@@ -395,7 +435,8 @@ def perform_backup(vm_id: int):
                 db.commit()
             except Exception as e:
                 log_error(f"[PID {pid}] Power-on step failed for {vm.vm_name}: {e}")
-            
+        
+        clear_backup_cancel(vm_id)
         esxi_handler.Disconnect(si)
         db.close()
 

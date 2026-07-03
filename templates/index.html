@@ -354,6 +354,7 @@
                         <option value="error">Failed Backups</option>
                         <option value="success">Successful Backups</option>
                     </select>
+                    <button type="button" onclick="stopAllBackups()" class="btn-danger px-3 py-2 text-sm font-medium whitespace-nowrap">Abort All</button>
                 </div>
             </div>
 
@@ -379,12 +380,9 @@
                                 </div>
                             </div>
                             <div class="flex space-x-2 shrink-0">
-                                <form action="/stop_job" method="POST" id="form-stop-{{ vm.id }}" class="hidden">
-                                    <input type="hidden" name="vm_id" value="{{ vm.id }}">
-                                    <button type="submit" class="btn-danger p-1.5 rounded" title="Abort">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                    </button>
-                                </form>
+                                <button type="button" id="form-stop-{{ vm.id }}" onclick="stopVmJob({{ vm.id }})" class="hidden btn-danger p-1.5 rounded" title="Abort">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
                                 <form action="/run_now" method="POST" id="form-run-{{ vm.id }}">
                                     <input type="hidden" name="vm_id" value="{{ vm.id }}">
                                     <button type="submit" class="btn-primary p-1.5 rounded flex items-center text-xs px-2 shadow-sm font-medium">
@@ -400,6 +398,8 @@
                                 <span class="status-badge status-success">Success</span>
                             {% elif vm.last_status == 'Failed' %}
                                 <span class="status-badge status-error">Failed</span>
+                            {% elif vm.last_status == 'Cancelled' %}
+                                <span class="status-badge status-neutral">Cancelled</span>
                             {% else %}
                                 <span class="status-badge status-neutral">Idle</span>
                             {% endif %}
@@ -1030,6 +1030,30 @@
             alert(data.message || (data.ok ? "Test email sent successfully!" : "SMTP test failed.")); 
         } catch(e) { alert("Error: could not reach the server."); }
     }
+
+    async function stopVmJob(vmId) {
+        if (!confirm('Abort this backup?')) return;
+        try {
+            const res = await fetch(`/api/v1/vms/${vmId}/stop`, {method: 'POST'});
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        } catch (e) {
+            alert('Could not abort backup: ' + (e.message || 'Unknown error'));
+        }
+    }
+
+    async function stopAllBackups() {
+        if (!confirm('Abort all running backups?')) return;
+        try {
+            const res = await fetch('/api/v1/jobs/stop-all', {method: 'POST'});
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+            alert(`Stop requested for ${data.count || 0} backup(s).`);
+        } catch (e) {
+            alert('Could not abort backups: ' + (e.message || 'Unknown error'));
+        }
+    }
+
     function toggleStorageFields() {
         const type = document.querySelector('input[name="storage_type"]:checked').value;
         document.querySelectorAll('.storage-fields').forEach(el => el.classList.add('hidden'));
