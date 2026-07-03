@@ -100,6 +100,23 @@
         .status-success { background-color: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
         .status-error { background-color: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
         .status-neutral { background-color: rgba(107, 114, 128, 0.1); color: var(--text-muted); border: 1px solid var(--border-color); }
+        .status-running { background-color: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
+        .status-cancelled { background-color: rgba(234, 179, 8, 0.1); color: #fbbf24; border: 1px solid rgba(234,179,8,0.2); }
+
+        .jobs-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.875rem; }
+        .jobs-table th { text-align: left; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); background: var(--bg-nav); }
+        .jobs-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+        .jobs-table tbody tr.vm-job-row:hover { background: rgba(59, 130, 246, 0.04); }
+        .jobs-table .prog-container { height: 4px; margin-top: 4px; }
+        .job-detail-row td { background: var(--bg-nav); padding: 1rem 1.25rem 1.25rem; }
+        .jobs-view-btn { padding: 0.375rem 0.75rem; font-size: 0.75rem; font-weight: 600; border-radius: 0.375rem; border: 1px solid var(--border-color); color: var(--text-muted); background: var(--bg-card); }
+        .jobs-view-btn.active { border-color: var(--brand); color: var(--brand); background: rgba(59, 130, 246, 0.08); }
+
+        .modal-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .modal-overlay.hidden { display: none; }
+        .modal-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(2px); }
+        .modal-panel { position: relative; width: 100%; max-width: 28rem; padding: 1.5rem; border-radius: 0.75rem; animation: modalIn 0.15s ease-out; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.96) translateY(4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
         /* Minimal scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -118,6 +135,80 @@
         }
     </style>
     <script>
+        // ─── App Modal (confirm / alert) ─────────────────────────────────────
+        let _modalResolve = null;
+
+        function closeAppModal(result) {
+            const overlay = document.getElementById('appModal');
+            if (overlay) overlay.classList.add('hidden');
+            document.body.style.overflow = '';
+            if (_modalResolve) {
+                _modalResolve(result);
+                _modalResolve = null;
+            }
+        }
+
+        function showAppModal({ title, message, confirmText = 'OK', cancelText = null, danger = false }) {
+            return new Promise(resolve => {
+                _modalResolve = resolve;
+                document.getElementById('appModalTitle').textContent = title || 'Confirm';
+                document.getElementById('appModalMessage').textContent = message;
+                const cancelBtn = document.getElementById('appModalCancel');
+                const confirmBtn = document.getElementById('appModalConfirm');
+                confirmBtn.textContent = confirmText;
+                confirmBtn.className = (danger ? 'btn-danger' : 'btn-primary') + ' px-4 py-2 text-sm font-semibold min-w-[5rem]';
+                if (cancelText) {
+                    cancelBtn.textContent = cancelText;
+                    cancelBtn.classList.remove('hidden');
+                } else {
+                    cancelBtn.classList.add('hidden');
+                }
+                document.getElementById('appModal').classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                confirmBtn.focus();
+            });
+        }
+
+        function showConfirm(message, opts = {}) {
+            return showAppModal({
+                title: opts.title || 'Confirm',
+                message,
+                confirmText: opts.confirmText || 'Confirm',
+                cancelText: opts.cancelText || 'Cancel',
+                danger: opts.danger !== false,
+            });
+        }
+
+        function showAlert(message, opts = {}) {
+            return showAppModal({
+                title: opts.title || 'Notice',
+                message,
+                confirmText: opts.confirmText || 'OK',
+                cancelText: null,
+                danger: false,
+            });
+        }
+
+        function initConfirmForms() {
+            document.querySelectorAll('form[data-confirm]').forEach(form => {
+                form.addEventListener('submit', async e => {
+                    if (form.dataset.confirmed === '1') {
+                        form.dataset.confirmed = '';
+                        return;
+                    }
+                    e.preventDefault();
+                    const msg = form.getAttribute('data-confirm');
+                    const danger = form.getAttribute('data-confirm-danger') !== 'false';
+                    const title = form.getAttribute('data-confirm-title') || 'Confirm';
+                    const ok = await showConfirm(msg, { title, danger });
+                    if (ok) {
+                        form.dataset.confirmed = '1';
+                        form.requestSubmit();
+                    }
+                });
+            });
+        }
+
         // Theme Management
         function applyTheme(themeName) {
             document.documentElement.setAttribute('data-theme', themeName);
@@ -150,13 +241,15 @@
         function filterJobs() {
             const searchQ = document.getElementById('jobSearch').value.toLowerCase();
             const filterStat = document.getElementById('jobFilter').value;
-            const cards = document.querySelectorAll('.vm-job-card');
+            const rows = document.querySelectorAll('.vm-job-row');
 
-            cards.forEach(card => {
-                const name = card.getAttribute('data-name').toLowerCase();
-                const status = card.getAttribute('data-status');
-                const isScheduled = card.getAttribute('data-scheduled') === 'true';
-                const isRunning = card.getAttribute('data-running') === 'true';
+            rows.forEach(row => {
+                const name = row.getAttribute('data-name').toLowerCase();
+                const status = row.getAttribute('data-status');
+                const isScheduled = row.getAttribute('data-scheduled') === 'true';
+                const isRunning = row.getAttribute('data-running') === 'true';
+                const vmId = row.id.replace('row-', '');
+                const detail = document.getElementById('job-detail-' + vmId);
 
                 let matchesSearch = name.includes(searchQ);
                 let matchesStatus = true;
@@ -166,12 +259,103 @@
                 else if (filterStat === 'error') matchesStatus = (status === 'Failed');
                 else if (filterStat === 'success') matchesStatus = (status === 'Success');
 
-                if (matchesSearch && matchesStatus) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
+                const show = matchesSearch && matchesStatus;
+                row.style.display = show ? '' : 'none';
+                if (detail && detail.classList.contains('hidden') === false && !show) {
+                    detail.classList.add('hidden');
                 }
+                if (detail) detail.style.display = show ? '' : 'none';
             });
+
+            document.querySelectorAll('.vm-job-card').forEach(card => {
+                const name = card.getAttribute('data-name').toLowerCase();
+                const status = card.getAttribute('data-status');
+                const isScheduled = card.getAttribute('data-scheduled') === 'true';
+                const isRunning = card.getAttribute('data-running') === 'true';
+                let matchesSearch = name.includes(searchQ);
+                let matchesStatus = true;
+                if (filterStat === 'active') matchesStatus = isRunning;
+                else if (filterStat === 'scheduled') matchesStatus = isScheduled;
+                else if (filterStat === 'error') matchesStatus = (status === 'Failed');
+                else if (filterStat === 'success') matchesStatus = (status === 'Success');
+                card.style.display = (matchesSearch && matchesStatus) ? 'block' : 'none';
+            });
+        }
+
+        function setJobsView(view) {
+            const list = document.getElementById('jobsListView');
+            const grid = document.getElementById('jobsGridView');
+            const btnList = document.getElementById('jobsViewList');
+            const btnCards = document.getElementById('jobsViewCards');
+            if (!list || !grid) return;
+            const isList = view === 'list';
+            list.classList.toggle('hidden', !isList);
+            grid.classList.toggle('hidden', isList);
+            btnList?.classList.toggle('active', isList);
+            btnCards?.classList.toggle('active', !isList);
+            localStorage.setItem('jobsView', view);
+        }
+
+        function toggleJobDetail(vmId) {
+            const detail = document.getElementById('job-detail-' + vmId);
+            const chevron = document.getElementById('job-chevron-' + vmId);
+            if (!detail) return;
+            detail.classList.toggle('hidden');
+            if (chevron) {
+                chevron.style.transform = detail.classList.contains('hidden') ? '' : 'rotate(90deg)';
+            }
+            if (!detail.classList.contains('hidden') && typeof showDaysRow === 'function') {
+                showDaysRow(vmId);
+            }
+        }
+
+        function updateJobProgressUI(vm_id, info) {
+            const isActive = info && (info.current_action !== "" || (info.progress > 0 && info.progress < 100));
+            const speedBadge = info && info.speed_mbps > 0 ? ` · ${info.speed_mbps} MB/s` : '';
+            const actionText = (info && info.current_action) ? info.current_action + speedBadge : 'Processing...';
+
+            const listWrap = document.getElementById('list-prog-wrap-' + vm_id);
+            if (listWrap) {
+                if (isActive) {
+                    listWrap.classList.remove('hidden');
+                    const pct = document.getElementById('list-prog-pct-' + vm_id);
+                    const bar = document.getElementById('list-prog-bar-' + vm_id);
+                    const text = document.getElementById('list-prog-text-' + vm_id);
+                    if (pct) pct.innerText = info.progress + '%';
+                    if (bar) bar.style.width = info.progress + '%';
+                    if (text) text.innerHTML = actionText;
+                } else {
+                    listWrap.classList.add('hidden');
+                }
+            }
+            const listRun = document.getElementById('list-form-run-' + vm_id);
+            const listStop = document.getElementById('list-form-stop-' + vm_id);
+            if (listRun) listRun.classList.toggle('hidden', isActive);
+            if (listStop) listStop.classList.toggle('hidden', !isActive);
+
+            const cardWrap = document.getElementById('prog-wrap-' + vm_id);
+            if (cardWrap) {
+                if (isActive) {
+                    cardWrap.classList.remove('hidden');
+                    const pct = document.getElementById('prog-pct-' + vm_id);
+                    const bar = document.getElementById('prog-bar-' + vm_id);
+                    const text = document.getElementById('prog-text-' + vm_id);
+                    if (pct) pct.innerText = info.progress + '%';
+                    if (bar) bar.style.width = info.progress + '%';
+                    if (text) text.innerHTML = actionText;
+                } else {
+                    cardWrap.classList.add('hidden');
+                }
+            }
+            const cardRun = document.getElementById('form-run-' + vm_id);
+            const cardStop = document.getElementById('form-stop-' + vm_id);
+            if (cardRun) cardRun.classList.toggle('hidden', isActive);
+            if (cardStop) cardStop.classList.toggle('hidden', !isActive);
+
+            const row = document.getElementById('row-' + vm_id);
+            const card = document.getElementById('card-' + vm_id);
+            if (row) row.setAttribute('data-running', isActive ? 'true' : 'false');
+            if (card) card.setAttribute('data-running', isActive ? 'true' : 'false');
         }
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -182,6 +366,14 @@
             applyTheme(savedTheme);
             
             filterJobs();
+            setJobsView(localStorage.getItem('jobsView') || 'list');
+            initConfirmForms();
+
+            document.getElementById('appModalCancel')?.addEventListener('click', () => closeAppModal(false));
+            document.getElementById('appModalConfirm')?.addEventListener('click', () => closeAppModal(true));
+            document.getElementById('appModal')?.addEventListener('keydown', e => {
+                if (e.key === 'Escape') closeAppModal(false);
+            });
             
             // Auto scroll terminal on load
             const termPans = document.querySelectorAll('.terminal-window');
@@ -281,14 +473,14 @@
                                 <td class="px-5 py-3">
                                     <div class="flex gap-2 justify-end">
                                         <!-- Reset Password (available for all users including self) -->
-                                        <form action="/admin/reset_password" method="POST" onsubmit="return confirm('Reset password for {{ u.username }}?')">
+                                        <form action="/admin/reset_password" method="POST" data-confirm="Reset password for {{ u.username }}?" data-confirm-title="Reset password">
                                             <input type="hidden" name="user_id" value="{{ u.id }}">
                                             <button type="submit" class="text-xs px-2 py-1 rounded border hover:bg-blue-500/10 hover:border-blue-500 transition-colors" style="border-color: var(--border-color)" title="Reset Password">
                                                 Reset PW
                                             </button>
                                         </form>
                                         <!-- Reset MFA (available for all users including self) -->
-                                        <form action="/admin/reset_mfa" method="POST" onsubmit="return confirm('Reset MFA for {{ u.username }}?')">
+                                        <form action="/admin/reset_mfa" method="POST" data-confirm="Reset MFA for {{ u.username }}? They will be prompted to set it up again on next login." data-confirm-title="Reset MFA">
                                             <input type="hidden" name="user_id" value="{{ u.id }}">
                                             <button type="submit" class="text-xs px-2 py-1 rounded border hover:bg-yellow-500/10 hover:border-yellow-500 transition-colors" style="border-color: var(--border-color)" title="Reset MFA">
                                                 Reset MFA
@@ -296,7 +488,7 @@
                                         </form>
                                         {% if u.username != current_user.username %}
                                         <!-- Delete (not available for self) -->
-                                        <form action="/admin/delete_user" method="POST" onsubmit="return confirm('Delete user {{ u.username }}? This cannot be undone.')">
+                                        <form action="/admin/delete_user" method="POST" data-confirm="Delete user {{ u.username }}? This cannot be undone." data-confirm-title="Delete user">
                                             <input type="hidden" name="user_id" value="{{ u.id }}">
                                             <button type="submit" class="text-xs px-2 py-1 rounded border text-red-400 hover:bg-red-500/10 hover:border-red-500 transition-colors" style="border-color: var(--border-color)" title="Delete">
                                                 Delete
@@ -355,10 +547,103 @@
                         <option value="success">Successful Backups</option>
                     </select>
                     <button type="button" onclick="stopAllBackups()" class="btn-danger px-3 py-2 text-sm font-medium whitespace-nowrap">Abort All</button>
+                    <div class="flex rounded-md overflow-hidden border" style="border-color: var(--border-color)">
+                        <button type="button" id="jobsViewList" onclick="setJobsView('list')" class="jobs-view-btn active rounded-none">List</button>
+                        <button type="button" id="jobsViewCards" onclick="setJobsView('cards')" class="jobs-view-btn rounded-none border-l" style="border-color: var(--border-color)">Cards</button>
+                    </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="jobsGrid">
+            <!-- LIST VIEW -->
+            <div id="jobsListView" class="card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="jobs-table">
+                        <thead>
+                            <tr>
+                                <th class="w-8"></th>
+                                <th>Virtual Machine</th>
+                                <th>Host</th>
+                                <th>Status</th>
+                                <th>Progress</th>
+                                <th>Last Backup</th>
+                                <th>Schedule</th>
+                                <th class="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for vm in vms %}
+                            {% if vm.is_selected %}
+                            <tr class="vm-job-row"
+                                id="row-{{ vm.id }}"
+                                data-name="{{ vm.vm_name }}"
+                                data-status="{{ vm.last_status or 'None' }}"
+                                data-scheduled="{{ 'true' if vm.is_job_active else 'false' }}"
+                                data-running="{{ 'true' if (vm.current_action and vm.current_action != '') else 'false' }}">
+                                <td>
+                                    <button type="button" onclick="toggleJobDetail({{ vm.id }})" class="p-1 rounded hover:bg-white/5" title="Schedule settings">
+                                        <svg id="job-chevron-{{ vm.id }}" class="w-4 h-4 transition-transform" style="color: var(--text-muted)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                    </button>
+                                </td>
+                                <td>
+                                    <div class="font-semibold">{{ vm.vm_name }}</div>
+                                    <div class="text-[10px] font-mono mt-0.5" style="color: var(--text-muted)">{{ vm.cpu_count }} vCPU · {% if vm.memory_mb %}{{ vm.memory_mb // 1024 }}{% else %}0{% endif %}GB · {{ vm.storage_gb }}GB</div>
+                                </td>
+                                <td class="text-xs font-mono" style="color: var(--brand)">{{ vm.esxi_host.name }}</td>
+                                <td>
+                                    {% if vm.current_action and vm.current_action != '' %}
+                                        <span class="status-badge status-running">Running</span>
+                                    {% elif vm.last_status == 'Success' %}
+                                        <span class="status-badge status-success">Success</span>
+                                    {% elif vm.last_status == 'Failed' %}
+                                        <span class="status-badge status-error">Failed</span>
+                                    {% elif vm.last_status == 'Cancelled' %}
+                                        <span class="status-badge status-cancelled">Cancelled</span>
+                                    {% else %}
+                                        <span class="status-badge status-neutral">Idle</span>
+                                    {% endif %}
+                                    {% if vm.is_job_active %}
+                                        <span class="ml-1 text-[10px] opacity-60">scheduled</span>
+                                    {% endif %}
+                                </td>
+                                <td class="min-w-[140px]">
+                                    <div id="list-prog-wrap-{{ vm.id }}" class="{% if vm.current_action %}block{% else %}hidden{% endif %}">
+                                        <div class="flex justify-between text-[10px] mb-0.5">
+                                            <span id="list-prog-text-{{ vm.id }}" class="truncate max-w-[120px]" style="color: var(--brand)">{{ vm.current_action or '' }}</span>
+                                            <span id="list-prog-pct-{{ vm.id }}" class="font-mono">{{ vm.progress or 0 }}%</span>
+                                        </div>
+                                        <div class="prog-container active"><div id="list-prog-bar-{{ vm.id }}" class="prog-bar" style="width: {{ vm.progress or 0 }}%"></div></div>
+                                    </div>
+                                    <span id="list-prog-idle-{{ vm.id }}" class="text-xs" style="color: var(--text-muted)">{% if not vm.current_action %}—{% endif %}</span>
+                                </td>
+                                <td class="text-xs font-mono whitespace-nowrap" style="color: var(--text-muted)">{{ vm.last_backup.strftime('%Y-%m-%d %H:%M') if vm.last_backup else 'Never' }}</td>
+                                <td class="text-xs whitespace-nowrap">{{ (vm.schedule_frequency or 'daily')|title }} {{ '%02d'|format(vm.schedule_hour) }}:{{ '%02d'|format(vm.schedule_minute) }} · keep {{ vm.retention_count }}</td>
+                                <td class="text-right whitespace-nowrap">
+                                    <div class="inline-flex gap-1">
+                                        <button type="button" id="list-form-stop-{{ vm.id }}" onclick="stopVmJob({{ vm.id }})" class="hidden btn-danger p-1.5 rounded" title="Abort">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                        <form action="/run_now" method="POST" id="list-form-run-{{ vm.id }}" class="inline">
+                                            <input type="hidden" name="vm_id" value="{{ vm.id }}">
+                                            <button type="submit" class="btn-primary p-1.5 rounded text-xs px-2 font-medium">Run</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr class="job-detail-row hidden" id="job-detail-{{ vm.id }}">
+                                <td colspan="8">
+                                    {% include 'partials/job_schedule_form.html' %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                        {% else %}
+                            <tr><td colspan="8" class="py-10 text-center" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden" id="jobsGridView">
                 {% for vm in vms %}
                     {% if vm.is_selected %}
                     <div class="card p-5 vm-job-card flex flex-col" 
@@ -398,8 +683,6 @@
                                 <span class="status-badge status-success">Success</span>
                             {% elif vm.last_status == 'Failed' %}
                                 <span class="status-badge status-error">Failed</span>
-                            {% elif vm.last_status == 'Cancelled' %}
-                                <span class="status-badge status-neutral">Cancelled</span>
                             {% else %}
                                 <span class="status-badge status-neutral">Idle</span>
                             {% endif %}
@@ -419,110 +702,10 @@
                             </div>
                         </div>
 
-                        <div class="mt-auto pt-4" style="border-top: 1px solid var(--border-color)">
-                            <!-- Single unified form — all fields auto-save via fetch, no page reload -->
-                            <form id="job-form-{{ vm.id }}" action="/update_job" method="POST">
-                                <input type="hidden" name="vm_id" value="{{ vm.id }}">
-
-                                <!-- Frequency selector -->
-                                <div class="mb-2">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="input-label text-[10px]">Frequency</span>
-                                        <span id="save-flash-{{ vm.id }}" class="text-[10px] font-semibold text-green-400 opacity-0 transition-opacity duration-500">✓ Saved</span>
-                                    </div>
-                                    <div class="grid grid-cols-3 gap-1">
-                                        {% for freq_val, freq_label in [('daily','Daily'),('weekly','Weekly'),('monthly','Monthly')] %}
-                                        <label class="relative cursor-pointer">
-                                            <input type="radio" name="schedule_frequency" value="{{ freq_val }}"
-                                                   {% if (vm.schedule_frequency or 'daily') == freq_val %}checked{% endif %}
-                                                   class="sr-only peer"
-                                                   onchange="showDaysRow({{ vm.id }}); autoSaveJob({{ vm.id }})">
-                                            <div class="text-center text-[10px] font-semibold py-1 rounded border transition-all
-                                                        peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)] peer-checked:bg-blue-500/10
-                                                        border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--brand)]/50">
-                                                {{ freq_label }}
-                                            </div>
-                                        </label>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-
-                                <!-- Days of week (hidden for Daily, shown for Weekly & Monthly) -->
-                                <div class="mb-2" id="days-row-{{ vm.id }}">
-                                    <div class="flex items-center justify-between">
-                                        <span class="input-label text-[10px]" id="days-label-{{ vm.id }}">Days</span>
-                                        <span class="text-[9px] opacity-50" id="days-hint-{{ vm.id }}"></span>
-                                    </div>
-                                    <input type="hidden" name="schedule_days" id="days-hidden-{{ vm.id }}" value="{{ vm.schedule_days or '0,1,2,3,4,5,6' }}">
-                                    <div class="grid grid-cols-7 gap-0.5 mt-1">
-                                        {% set cur_days = (vm.schedule_days or '0,1,2,3,4,5,6').split(',') %}
-                                        {% for day_num, day_lbl in [(0,'Mo'),(1,'Tu'),(2,'We'),(3,'Th'),(4,'Fr'),(5,'Sa'),(6,'Su')] %}
-                                        <label class="relative cursor-pointer">
-                                            <input type="checkbox"
-                                                   class="day-cb-{{ vm.id }} sr-only peer"
-                                                   data-day="{{ day_num }}"
-                                                   {% if day_num|string in cur_days %}checked{% endif %}
-                                                   onchange="updateDaysHidden({{ vm.id }}); autoSaveJob({{ vm.id }})">
-                                            <div class="text-center text-[9px] font-bold py-1 rounded border transition-all
-                                                        peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)] peer-checked:bg-blue-500/10
-                                                        border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--brand)]/50">
-                                                {{ day_lbl }}
-                                            </div>
-                                        </label>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-
-                                <!-- Hour / Min / Keep / Active -->
-                                <div class="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end mb-2">
-                                    <div>
-                                        <span class="input-label text-[10px]">Hour</span>
-                                        <input type="number" name="schedule_hour" value="{{ vm.schedule_hour }}" min="0" max="23"
-                                               class="w-full px-2 py-1 text-center font-mono text-sm"
-                                               oninput="debounceJobSave({{ vm.id }})">
-                                    </div>
-                                    <div>
-                                        <span class="input-label text-[10px]">Min</span>
-                                        <input type="number" name="schedule_minute" value="{{ vm.schedule_minute }}" min="0" max="59"
-                                               class="w-full px-2 py-1 text-center font-mono text-sm"
-                                               oninput="debounceJobSave({{ vm.id }})">
-                                    </div>
-                                    <div>
-                                        <span class="input-label text-[10px]">Keep</span>
-                                        <input type="number" name="retention_count" value="{{ vm.retention_count }}" min="1" max="60"
-                                               class="w-full px-2 py-1 text-center font-mono text-sm"
-                                               oninput="debounceJobSave({{ vm.id }})">
-                                    </div>
-                                    <div class="flex flex-col items-center gap-1 pb-0.5">
-                                        <span class="input-label text-[10px]">Active</span>
-                                        <label class="relative w-9 h-5 cursor-pointer">
-                                            <input type="checkbox" name="is_job_active" value="True"
-                                                   {% if vm.is_job_active %}checked{% endif %}
-                                                   class="sr-only peer"
-                                                   onchange="autoSaveJob({{ vm.id }})">
-                                            <div class="absolute inset-0 rounded-full bg-gray-600 peer-checked:bg-[var(--brand)] transition-colors"></div>
-                                            <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <!-- Power Off toggle -->
-                                <div class="pt-2" style="border-top: 1px dashed var(--border-color)">
-                                    <label class="flex items-center gap-2 cursor-pointer" title="Shuts down the VM before backup for ~2x faster transfer, then powers it back on automatically.">
-                                        <div class="relative flex-shrink-0 w-8 h-4">
-                                            <input type="checkbox" name="power_off_for_backup" value="True"
-                                                   {% if vm.power_off_for_backup %}checked{% endif %}
-                                                   class="sr-only peer"
-                                                   onchange="autoSaveJob({{ vm.id }})">
-                                            <div class="absolute inset-0 rounded-full {% if vm.power_off_for_backup %}bg-orange-500{% else %}bg-gray-600{% endif %} peer-checked:bg-orange-500 transition-colors"></div>
-                                            <div class="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
-                                        </div>
-                                        <span class="text-[10px] font-semibold leading-tight {% if vm.power_off_for_backup %}text-orange-400{% else %}text-gray-500{% endif %} peer-checked:text-orange-400">
-                                            ⚡ {% if vm.power_off_for_backup %}Power Off (Fast){% else %}Live Backup (Safe){% endif %}
-                                        </span>
-                                    </label>
-                                </div>
-                            </form>
+                        <div class="mt-auto pt-4 text-xs" style="border-top: 1px solid var(--border-color); color: var(--text-muted)">
+                            {{ (vm.schedule_frequency or 'daily')|title }} at {{ '%02d'|format(vm.schedule_hour) }}:{{ '%02d'|format(vm.schedule_minute) }} · keep {{ vm.retention_count }}
+                            {% if vm.is_job_active %} · <span style="color: var(--brand)">Active</span>{% else %} · Paused{% endif %}
+                            <div class="mt-2 opacity-70">Switch to List view and expand the row to edit schedule.</div>
                         </div>
 
                     </div>
@@ -657,7 +840,7 @@
                         </h3>
                         <p class="text-sm" style="color: var(--text-muted)">Forcefully remove orphaned snapshots across all selected hosts. May cause I/O stun.</p>
                     </div>
-                    <form action="/cleanup_all_snapshots" method="POST" onsubmit="return confirm('Initiate global snapshot consolidation on all clusters?');">
+                    <form action="/cleanup_all_snapshots" method="POST" data-confirm="Initiate global snapshot consolidation on all clusters? This may cause I/O stun." data-confirm-title="Purge snapshots">
                         <button type="submit" class="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap text-yellow-600">Purge Snapshots</button>
                     </form>
                 </div>
@@ -672,7 +855,7 @@
                                 <span class="font-medium block">{{ host.name }}</span>
                                 <span class="text-xs" style="color: var(--brand)">{{ host.host_ip }} ({{ host.username }})</span>
                             </div>
-                            <form action="/delete_esxi_host" method="POST" onsubmit="return confirm('Remove Host Setup?');">
+                            <form action="/delete_esxi_host" method="POST" data-confirm="Remove this host from NovaBak?" data-confirm-title="Remove host">
                                 <input type="hidden" name="host_id" value="{{ host.id }}">
                                 <button type="submit" class="text-gray-500 hover:text-red-400 transition-colors" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                             </form>
@@ -851,7 +1034,7 @@
                     <div class="flex gap-2 items-end shrink-0">
                         <div>
                             <span class="input-label">Token name</span>
-                            <input type="text" id="api-key-name" placeholder="e.g. automation-ci" class="w-56 py-2 px-3 text-sm mt-1">
+                            <input type="text" id="api-key-name" placeholder="e.g. stackblaze-automation" class="w-56 py-2 px-3 text-sm mt-1">
                         </div>
                         <button type="button" onclick="createApiKey()" class="btn-primary px-4 py-2 text-sm font-semibold whitespace-nowrap">Create Token</button>
                     </div>
@@ -934,7 +1117,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Restore Form -->
                 <div class="lg:col-span-1">
-                    <form action="/restore" method="POST" id="restoreForm" class="card p-6" onsubmit="return confirm('Launch restore operation to the target host? Existing VMs with the same name may cause conflicts if running.');">
+                    <form action="/restore" method="POST" id="restoreForm" class="card p-6" data-confirm="Launch restore to the target host? Existing VMs with the same name may conflict if running." data-confirm-title="Launch restore">
                         <div class="flex flex-col gap-5">
 
                             <!-- Step 1: Choose VM -->
@@ -1017,73 +1200,78 @@
         </div>
     </footer>
 
+    <!-- App modal (confirm / alert) -->
+    <div id="appModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
+        <div class="modal-backdrop" onclick="closeAppModal(false)"></div>
+        <div class="modal-panel card shadow-2xl">
+            <h3 id="appModalTitle" class="text-lg font-semibold mb-2">Confirm</h3>
+            <p id="appModalMessage" class="text-sm leading-relaxed mb-6" style="color: var(--text-muted)"></p>
+            <div class="flex justify-end gap-3">
+                <button type="button" id="appModalCancel" class="btn-secondary px-4 py-2 text-sm font-medium min-w-[5rem]">Cancel</button>
+                <button type="button" id="appModalConfirm" class="btn-primary px-4 py-2 text-sm font-semibold min-w-[5rem]">OK</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Polling Logic -->
     <script>
     async function testStorage() {
-        try { let res = await fetch('/test_storage', {method: 'POST'}); let data = await res.json(); alert(data.message); } 
-        catch(e) { alert("Error testing storage connection."); }
+        try { let res = await fetch('/test_storage', {method: 'POST'}); let data = await res.json(); await showAlert(data.message, { title: 'Storage test' }); }
+        catch(e) { await showAlert('Error testing storage connection.', { title: 'Storage test' }); }
     }
     async function testSmtp() {
         try { 
             let res = await fetch('/api/test_smtp', {method: 'POST'}); 
             let data = await res.json(); 
-            alert(data.message || (data.ok ? "Test email sent successfully!" : "SMTP test failed.")); 
-        } catch(e) { alert("Error: could not reach the server."); }
+            await showAlert(data.message || (data.ok ? 'Test email sent successfully!' : 'SMTP test failed.'), { title: 'SMTP test' }); 
+        } catch(e) { await showAlert('Could not reach the server.', { title: 'SMTP test' }); }
     }
 
     async function stopVmJob(vmId) {
-        if (!confirm('Abort this backup?')) return;
+        const ok = await showConfirm('Abort this backup?', { title: 'Abort backup', confirmText: 'Abort', danger: true });
+        if (!ok) return;
         try {
             const res = await fetch(`/api/v1/vms/${vmId}/stop`, {method: 'POST'});
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
         } catch (e) {
-            alert('Could not abort backup: ' + (e.message || 'Unknown error'));
+            await showAlert('Could not abort backup: ' + (e.message || 'Unknown error'), { title: 'Abort failed' });
         }
     }
 
     async function stopAllBackups() {
-        if (!confirm('Abort all running backups?')) return;
+        const ok = await showConfirm('Abort all running backups?', { title: 'Abort all backups', confirmText: 'Abort all', danger: true });
+        if (!ok) return;
         try {
             const res = await fetch('/api/v1/jobs/stop-all', {method: 'POST'});
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
-            alert(`Stop requested for ${data.count || 0} backup(s).`);
+            await showAlert(`Stop requested for ${data.count || 0} backup(s).`, { title: 'Backups stopping', confirmText: 'OK' });
         } catch (e) {
-            alert('Could not abort backups: ' + (e.message || 'Unknown error'));
+            await showAlert('Could not abort backups: ' + (e.message || 'Unknown error'), { title: 'Abort failed' });
         }
-    }
-
-    function toggleStorageFields() {
-        const type = document.querySelector('input[name="storage_type"]:checked').value;
-        document.querySelectorAll('.storage-fields').forEach(el => el.classList.add('hidden'));
-        const target = document.getElementById('fields-' + type);
-        if (target) target.classList.remove('hidden');
-    }
-    function buildSubsList() {
-        // Collect checked event keys into the hidden comma-separated input
-        const checked = [...document.querySelectorAll('.notify-event-checkbox:checked')].map(el => el.dataset.key);
-        const inp = document.getElementById('profile-subs-input');
-        if (inp) inp.value = checked.join(',');
     }
 
     // ─── API Access Tokens (Settings) ─────────────────────────────────────────
     function formatApiKeyDate(iso) {
         if (!iso) return '—';
-        try { return new Date(iso).toLocaleString(); } catch (e) { return iso; }
+        try {
+            const d = new Date(iso);
+            return d.toLocaleString();
+        } catch (e) { return iso; }
     }
 
     function dismissApiKeyBanner() {
-        document.getElementById('api-key-created-banner')?.classList.add('hidden');
-        const el = document.getElementById('api-key-new-value');
-        if (el) el.textContent = '';
+        document.getElementById('api-key-created-banner').classList.add('hidden');
+        document.getElementById('api-key-new-value').textContent = '';
     }
 
     function copyNewApiKey() {
-        const text = document.getElementById('api-key-new-value')?.textContent || '';
+        const el = document.getElementById('api-key-new-value');
+        const text = el.textContent;
         if (!text) return;
-        navigator.clipboard.writeText(text).then(() => alert('Token copied to clipboard.')).catch(() => {
-            alert('Copy this token:\n' + text);
+        navigator.clipboard.writeText(text).then(() => showAlert('Token copied to clipboard.', { title: 'Copied' })).catch(() => {
+            showAlert('Copy this token:\n' + text, { title: 'API token' });
         });
     }
 
@@ -1095,11 +1283,8 @@
     }
 
     function clearApiKeysError() {
-        document.getElementById('api-keys-error')?.classList.add('hidden');
-    }
-
-    function escapeHtml(str) {
-        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const box = document.getElementById('api-keys-error');
+        if (box) box.classList.add('hidden');
     }
 
     async function loadApiKeys() {
@@ -1137,7 +1322,7 @@
         const nameInput = document.getElementById('api-key-name');
         const name = (nameInput?.value || '').trim();
         if (!name) {
-            alert('Enter a name for the token.');
+            await showAlert('Enter a name for the token.', { title: 'Create token' });
             nameInput?.focus();
             return;
         }
@@ -1156,12 +1341,13 @@
             await loadApiKeys();
         } catch (e) {
             showApiKeysError(e.message || 'Failed to create token.');
-            alert('Could not create token: ' + (e.message || 'Unknown error'));
+            await showAlert('Could not create token: ' + (e.message || 'Unknown error'), { title: 'Create token' });
         }
     }
 
     async function revokeApiKey(id, name) {
-        if (!confirm(`Revoke API token "${name}"? Scripts using it will stop working.`)) return;
+        const ok = await showConfirm(`Revoke API token "${name}"? Scripts using it will stop working.`, { title: 'Revoke token', confirmText: 'Revoke', danger: true });
+        if (!ok) return;
         clearApiKeysError();
         try {
             const res = await fetch(`/api/v1/auth/api-keys/${id}`, {method: 'DELETE'});
@@ -1172,8 +1358,25 @@
             await loadApiKeys();
         } catch (e) {
             showApiKeysError(e.message || 'Failed to revoke token.');
-            alert('Could not revoke token: ' + (e.message || 'Unknown error'));
+            await showAlert('Could not revoke token: ' + (e.message || 'Unknown error'), { title: 'Revoke token' });
         }
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function toggleStorageFields() {
+        const type = document.querySelector('input[name="storage_type"]:checked').value;
+        document.querySelectorAll('.storage-fields').forEach(el => el.classList.add('hidden'));
+        const target = document.getElementById('fields-' + type);
+        if (target) target.classList.remove('hidden');
+    }
+    function buildSubsList() {
+        // Collect checked event keys into the hidden comma-separated input
+        const checked = [...document.querySelectorAll('.notify-event-checkbox:checked')].map(el => el.dataset.key);
+        const inp = document.getElementById('profile-subs-input');
+        if (inp) inp.value = checked.join(',');
     }
 
     // ─── Task Card Auto-Save ─────────────────────────────────────────────────
@@ -1358,27 +1561,7 @@
             // Main Job Progress
             let res = await fetch('/job_progress');
             let data = await res.json();
-            document.querySelectorAll('.vm-job-card').forEach(card => {
-                const vm_id = card.id.split('-').pop(); const info = data[vm_id];
-                let runBtn = document.getElementById('form-run-' + vm_id);
-                let stopBtn = document.getElementById('form-stop-' + vm_id);
-                let progWrap = document.getElementById('prog-wrap-' + vm_id);
-                if (info && (info.current_action !== "" || (info.progress > 0 && info.progress < 100))) {
-                    progWrap.classList.remove('hidden'); progWrap.classList.add('block');
-                    document.getElementById('prog-pct-' + vm_id).innerText = info.progress + '%';
-                    document.getElementById('prog-bar-' + vm_id).style.width = info.progress + '%';
-                    const speedBadge = info.speed_mbps > 0 ? ` <span style="color:var(--brand);font-size:9px;font-weight:600;">${info.speed_mbps} MB/s</span>` : '';
-                    document.getElementById('prog-text-' + vm_id).innerHTML = (info.current_action || 'Processing...') + speedBadge;
-                    if (runBtn) runBtn.classList.add('hidden');
-                    if (stopBtn) stopBtn.classList.remove('hidden');
-                    card.setAttribute('data-running', 'true');
-                } else {
-                    progWrap.classList.remove('block'); progWrap.classList.add('hidden');
-                    if (runBtn) runBtn.classList.remove('hidden');
-                    if (stopBtn) stopBtn.classList.add('hidden');
-                    card.setAttribute('data-running', 'false');
-                }
-            });
+            Object.keys(data).forEach(vm_id => updateJobProgressUI(vm_id, data[vm_id]));
             if(document.getElementById('tab-jobs').classList.contains('hidden') === false) filterJobs();
 
             // System Logs Polling
@@ -1457,14 +1640,16 @@
     }, 2000);
 
     async function stopRestore(id) {
-        if (!confirm('Stop this restore process?')) return;
+        const ok = await showConfirm('Stop this restore process?', { title: 'Stop restore', confirmText: 'Stop', danger: true });
+        if (!ok) return;
         try {
             await fetch(`/api/stop_restore/${id}`, {method: 'POST'});
         } catch(e) { console.error("Stop error:", e); }
     }
 
     async function deleteRestore(id) {
-        if (!confirm('Remove this restore task from the dashboard?')) return;
+        const ok = await showConfirm('Remove this restore task from the dashboard?', { title: 'Remove restore', confirmText: 'Remove', danger: true });
+        if (!ok) return;
         try {
             await fetch(`/api/delete_restore/${id}`, {method: 'POST'});
         } catch(e) { console.error("Delete error:", e); }
