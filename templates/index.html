@@ -374,6 +374,33 @@
             return getVisibleJobItems().filter(el => el.querySelector('.job-row-cb:checked'));
         }
 
+        function isJobItemSelected(vmId) {
+            return [...document.querySelectorAll(`.job-row-cb[value="${vmId}"]`)].some(cb => cb.checked);
+        }
+
+        function updateJobRowActionVisibility(vmId) {
+            const selected = isJobItemSelected(String(vmId));
+            const row = document.getElementById('row-' + vmId);
+            const card = document.getElementById('card-' + vmId);
+            const running = row?.getAttribute('data-running') === 'true' || card?.getAttribute('data-running') === 'true';
+
+            const listRun = document.getElementById('list-form-run-' + vmId);
+            if (listRun) listRun.classList.toggle('hidden', selected || running);
+
+            const cardRun = document.getElementById('form-run-' + vmId);
+            if (cardRun) cardRun.classList.toggle('hidden', selected || running);
+
+            document.querySelectorAll(`.job-row-remove-btn[data-vm-id="${vmId}"]`).forEach(btn => {
+                btn.classList.toggle('hidden', selected);
+            });
+        }
+
+        function updateAllJobRowActionVisibility() {
+            const ids = new Set();
+            document.querySelectorAll('.job-row-cb[value]').forEach(cb => ids.add(cb.value));
+            ids.forEach(id => updateJobRowActionVisibility(id));
+        }
+
         function syncJobCheckbox(source) {
             document.querySelectorAll(`.job-row-cb[value="${source.value}"]`).forEach(cb => { cb.checked = source.checked; });
             updateJobsBulkBar();
@@ -391,6 +418,7 @@
                 selectAll.indeterminate = selected.length > 0 && selected.length < visible.length;
                 selectAll.checked = visible.length > 0 && selected.length === visible.length;
             }
+            updateAllJobRowActionVisibility();
         }
 
         function toggleSelectAllJobs(checked) {
@@ -508,9 +536,9 @@
                     listWrap.classList.add('hidden');
                 }
             }
-            const listRun = document.getElementById('list-form-run-' + vm_id);
+            updateJobRowActionVisibility(vm_id);
+
             const listStop = document.getElementById('list-form-stop-' + vm_id);
-            if (listRun) listRun.classList.toggle('hidden', isActive);
             if (listStop) listStop.classList.toggle('hidden', !isActive);
 
             const cardWrap = document.getElementById('prog-wrap-' + vm_id);
@@ -527,9 +555,7 @@
                     cardWrap.classList.add('hidden');
                 }
             }
-            const cardRun = document.getElementById('form-run-' + vm_id);
             const cardStop = document.getElementById('form-stop-' + vm_id);
-            if (cardRun) cardRun.classList.toggle('hidden', isActive);
             if (cardStop) cardStop.classList.toggle('hidden', !isActive);
 
             const row = document.getElementById('row-' + vm_id);
@@ -876,7 +902,7 @@
                                         Run Now
                                     </button>
                                 </form>
-                                <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary p-1.5 rounded hover:text-red-400 hover:border-red-400/50" title="Remove from tasks">
+                                <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" data-vm-id="{{ vm.id }}" class="job-row-remove-btn btn-secondary p-1.5 rounded hover:text-red-400 hover:border-red-400/50" title="Remove from tasks">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 </button>
                             </div>
