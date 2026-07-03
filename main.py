@@ -808,7 +808,7 @@ def cleanup_all_snapshots(request: Request, db: Session = Depends(get_db)):
         "[NovaBak] Snapshot Purge Triggered",
         f"A global snapshot consolidation was initiated by a user at {time.strftime('%Y-%m-%d %H:%M')}."
     )
-    return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url="/?purge_started=1", status_code=303)
 
 
 @app.get("/api/syslogs")
