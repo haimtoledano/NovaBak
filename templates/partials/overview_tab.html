@@ -1,0 +1,167 @@
+<div id="tab-overview" class="tab-content hidden">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+            <h2 class="text-2xl font-bold">Overview</h2>
+            <p class="text-sm mt-1" style="color: var(--text-muted)">Backup health, storage, and activity at a glance</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs" style="color: var(--text-muted)">
+            <span id="overview-updated">Loading…</span>
+            <button type="button" onclick="refreshOverview(true)" class="btn-secondary px-2 py-1 rounded text-xs font-medium">Refresh</button>
+        </div>
+    </div>
+
+    <div id="overview-setup-banner" class="hidden mb-5 px-4 py-3 rounded-lg border text-sm flex flex-wrap items-center justify-between gap-3" style="border-color: rgba(234,179,8,0.35); background: rgba(234,179,8,0.08); color: var(--text-main)">
+        <span>Setup incomplete — configure storage, hosts, and select VMs to protect.</span>
+        <button type="button" onclick="requestSetupWizard()" class="btn-primary px-3 py-1.5 text-xs font-semibold rounded">Open setup wizard</button>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <div class="overview-stat-card">
+            <div class="overview-stat-label">Protected</div>
+            <div id="ov-protected" class="overview-stat-value">—</div>
+            <div id="ov-scheduled-sub" class="overview-stat-sub">— scheduled</div>
+        </div>
+        <div class="overview-stat-card">
+            <div class="overview-stat-label">Running</div>
+            <div id="ov-running" class="overview-stat-value text-blue-400">—</div>
+            <div class="overview-stat-sub">active backups</div>
+        </div>
+        <div class="overview-stat-card">
+            <div class="overview-stat-label">Success</div>
+            <div id="ov-success" class="overview-stat-value text-emerald-500">—</div>
+            <div class="overview-stat-sub">last run OK</div>
+        </div>
+        <div class="overview-stat-card">
+            <div class="overview-stat-label">Failed</div>
+            <div id="ov-failed" class="overview-stat-value text-red-400">—</div>
+            <div class="overview-stat-sub">need attention</div>
+        </div>
+        <div class="overview-stat-card">
+            <div class="overview-stat-label">7d success</div>
+            <div id="ov-rate" class="overview-stat-value">—</div>
+            <div id="ov-rate-sub" class="overview-stat-sub">— events</div>
+        </div>
+        <div class="overview-stat-card">
+            <div class="overview-stat-label">Engine</div>
+            <div id="ov-worker" class="overview-stat-value">—</div>
+            <div id="ov-worker-sub" class="overview-stat-sub">worker status</div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+        <!-- Storage -->
+        <div class="card overview-panel lg:col-span-1">
+            <div class="overview-panel-header">
+                <span>Storage</span>
+                <span id="ov-storage-type" class="overview-chip">—</span>
+            </div>
+            <div class="overview-panel-body">
+                <div id="ov-storage-path" class="text-xs font-mono mb-4 truncate" style="color: var(--text-muted)" title="">—</div>
+
+                <div class="mb-4">
+                    <div class="flex justify-between text-xs mb-1.5">
+                        <span style="color: var(--text-muted)">Backup repository</span>
+                        <span id="ov-storage-used-label" class="font-semibold">—</span>
+                    </div>
+                    <div id="ov-storage-bar-wrap" class="overview-bar-track hidden">
+                        <div id="ov-storage-bar" class="overview-bar-fill" style="width: 0%"></div>
+                    </div>
+                    <div id="ov-storage-meta" class="text-[11px] mt-1.5" style="color: var(--text-muted)">—</div>
+                </div>
+
+                <div id="ov-disk-section" class="hidden pt-3 border-t" style="border-color: var(--border-color)">
+                    <div class="flex justify-between text-xs mb-1.5">
+                        <span style="color: var(--text-muted)">Target disk free</span>
+                        <span id="ov-disk-free-label" class="font-semibold">—</span>
+                    </div>
+                    <div class="overview-bar-track">
+                        <div id="ov-disk-bar" class="overview-bar-fill overview-bar-disk" style="width: 0%"></div>
+                    </div>
+                    <div id="ov-disk-meta" class="text-[11px] mt-1.5" style="color: var(--text-muted)">—</div>
+                </div>
+
+                <div id="ov-storage-error" class="hidden mt-3 text-xs text-red-400"></div>
+            </div>
+        </div>
+
+        <!-- Backup status breakdown -->
+        <div class="card overview-panel lg:col-span-1">
+            <div class="overview-panel-header">
+                <span>Backup status</span>
+                <span class="text-[10px] font-normal opacity-60">protected VMs · last run</span>
+            </div>
+            <div class="overview-panel-body">
+                <div id="ov-status-bars" class="space-y-2.5"></div>
+                <div class="mt-4 pt-3 border-t grid grid-cols-2 gap-2 text-center" style="border-color: var(--border-color)">
+                    <div>
+                        <div id="ov-hosts" class="text-lg font-bold">—</div>
+                        <div class="text-[10px] uppercase tracking-wide" style="color: var(--text-muted)">ESXi hosts</div>
+                    </div>
+                    <div>
+                        <div id="ov-inventory" class="text-lg font-bold">—</div>
+                        <div class="text-[10px] uppercase tracking-wide" style="color: var(--text-muted)">Inventory VMs</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7-day activity stats -->
+        <div class="card overview-panel lg:col-span-1">
+            <div class="overview-panel-header">
+                <span>Last 7 days</span>
+                <span class="text-[10px] font-normal opacity-60">backup events</span>
+            </div>
+            <div class="overview-panel-body">
+                <div id="ov-log-stats" class="space-y-2.5"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+        <!-- Live backups -->
+        <div class="card overview-panel">
+            <div class="overview-panel-header">
+                <span>Live backups</span>
+                <button type="button" onclick="switchTab('tab-jobs')" class="text-xs font-medium" style="color: var(--brand)">View tasks →</button>
+            </div>
+            <div id="ov-live-jobs" class="overview-panel-body overview-scroll-list">
+                <div class="text-sm py-6 text-center opacity-50 italic">No backups running</div>
+            </div>
+        </div>
+
+        <!-- Active restores -->
+        <div class="card overview-panel">
+            <div class="overview-panel-header">
+                <span>Active restores</span>
+                <button type="button" onclick="switchTab('tab-restore')" class="text-xs font-medium" style="color: var(--brand)">Recovery →</button>
+            </div>
+            <div id="ov-restores" class="overview-panel-body overview-scroll-list">
+                <div class="text-sm py-6 text-center opacity-50 italic">No active restores</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- Recent activity -->
+        <div class="card overview-panel">
+            <div class="overview-panel-header">
+                <span>Recent activity</span>
+            </div>
+            <div id="ov-activity" class="overview-panel-body overview-scroll-list max-h-80 overflow-y-auto">
+                <div class="text-sm py-6 text-center opacity-50 italic">Loading…</div>
+            </div>
+        </div>
+
+        <!-- Needs attention -->
+        <div class="card overview-panel">
+            <div class="overview-panel-header">
+                <span>Needs attention</span>
+                <span id="ov-attention-count" class="overview-chip overview-chip-warn hidden">0</span>
+            </div>
+            <div id="ov-attention" class="overview-panel-body overview-scroll-list max-h-80 overflow-y-auto">
+                <div class="text-sm py-6 text-center opacity-50 italic">All clear</div>
+            </div>
+        </div>
+    </div>
+</div>

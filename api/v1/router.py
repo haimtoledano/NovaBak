@@ -11,7 +11,7 @@ from api.schemas import (
     ESXiHostCreate, ESXiHostResponse, VmUpdate, VmResponse, SyncResult,
     UserResponse, UserCreateRequest, UserCreateResponse, UserRoleUpdate,
     PasswordResetResponse, ProfileUpdate, BackupLogEntry, SystemLogsResponse,
-    RestoreCreateRequest, RestoreResponse,
+    RestoreCreateRequest, RestoreResponse, OverviewResponse,
 )
 from models import User, ApiKey
 from services import backup_ops
@@ -332,7 +332,8 @@ def run_vm_backup(
     try:
         backup_ops.trigger_backup(db, vm_id)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        code = 409 if "paused" in str(e).lower() else 404
+        raise HTTPException(status_code=code, detail=str(e))
     return {"ok": True, "message": "Backup queued"}
 
 
@@ -356,6 +357,32 @@ def stop_all_backups(
 ):
     stopped = backup_ops.stop_all_backups(db)
     return {"ok": True, "count": len(stopped), "vms": stopped}
+
+
+@router.get("/jobs/scheduler")
+def get_scheduler_status(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_api_user),
+):
+    return {"paused": backup_ops.is_scheduler_paused(db)}
+
+
+@router.post("/jobs/pause")
+def pause_scheduler(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin", "operator")),
+):
+    backup_ops.set_scheduler_paused(db, True)
+    return {"ok": True, "paused": True}
+
+
+@router.post("/jobs/resume")
+def resume_scheduler(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin", "operator")),
+):
+    backup_ops.set_scheduler_paused(db, False)
+    return {"ok": True, "paused": False}
 
 
 # ─── Backups & Restores ───────────────────────────────────────────────────────
@@ -442,3 +469,8 @@ def system_logs(
 @router.get("/jobs/progress")
 def jobs_progress(db: Session = Depends(get_db), user: User = Depends(get_api_user)):
     return backup_ops.job_progress(db)
+
+
+@router.get("/overview", response_model=OverviewResponse)
+def overview(db: Session = Depends(get_db), user: User = Depends(get_api_user)):
+    return OverviewResponse(**backup_ops.get_overview(db))

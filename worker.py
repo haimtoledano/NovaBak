@@ -265,6 +265,10 @@ def queue_backup(vm_id: int):
     db = SessionLocal()
     vm = db.query(VM).filter(VM.id == vm_id).first()
     config = db.query(Config).first()
+    if config and getattr(config, "scheduler_paused", False):
+        log_info(f"[PID {pid}] Scheduler paused — skipping backup queue for VM ID {vm_id}")
+        db.close()
+        return
     if not vm or not vm.esxi_host:
         if vm is None:
             log_error(f"[PID {pid}] queue_backup called for non-existent VM ID: {vm_id}")
@@ -582,12 +586,22 @@ scheduler = BackgroundScheduler()
 def start_scheduler():
     """ Initialize APScheduler and load all active jobs from DB. """
     db = SessionLocal()
-    vms = db.query(VM).filter(VM.is_selected == True, VM.is_job_active == True).all()
+    config = db.query(Config).first()
 
     # Clear existing jobs to avoid duplicates on restart/config change
     for job in scheduler.get_jobs():
         job.remove()
-    
+
+    if config and getattr(config, "scheduler_paused", False):
+        log_info("Scheduler paused — no cron jobs registered")
+        if not scheduler.running:
+            scheduler.start()
+        configure_concurrency(config or Config())
+        db.close()
+        return scheduler
+
+    vms = db.query(VM).filter(VM.is_selected == True, VM.is_job_active == True).all()
+
     for vm in vms:
         job_id = f"backup_{vm.id}"
         freq = getattr(vm, 'schedule_frequency', 'daily') or 'daily'
@@ -619,7 +633,7 @@ def start_scheduler():
     
     if not scheduler.running:
         scheduler.start()
-    configure_concurrency(db.query(Config).first() or Config())
+    configure_concurrency(config or Config())
     db.close()
     return scheduler
 

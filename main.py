@@ -16,6 +16,7 @@ import pyotp
 import threading
 import time
 from logger_util import log_info, log_warn, log_error, log_critical
+from services import backup_ops
 
 app = FastAPI(title="NovaBak")
 
@@ -497,10 +498,10 @@ def update_job(
 @app.post("/run_now")
 def run_now(request: Request, vm_id: int = Form(...), db: Session = Depends(get_db)):
     require_auth(request)
-    vm = db.query(VM).filter(VM.id == vm_id).first()
-    if vm:
-        vm.current_action = "PENDING_RUN"
-        db.commit()
+    try:
+        backup_ops.trigger_backup(db, vm_id)
+    except ValueError:
+        pass
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/test_storage")
@@ -768,6 +769,16 @@ def get_job_progress(request: Request, db: Session = Depends(get_db)):
             "speed_mbps": round(getattr(vm, 'speed_mbps', 0) or 0, 1)
         }
     return out
+
+
+@app.get("/overview")
+def get_overview(request: Request, db: Session = Depends(get_db)):
+    try:
+        require_auth(request)
+    except HTTPException:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    from services import backup_ops
+    return backup_ops.get_overview(db)
 
 @app.post("/cleanup_all_snapshots")
 def cleanup_all_snapshots(request: Request, db: Session = Depends(get_db)):

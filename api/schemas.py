@@ -245,3 +245,56 @@ class RestoreResponse(BaseModel):
     start_time: Optional[str]
     end_time: Optional[str]
     error_message: Optional[str]
+
+
+class OverviewStorage(BaseModel):
+    type: str
+    path: str
+    total_bytes: Optional[int] = None
+    total_human: str = "—"
+    version_count: int = 0
+    vm_count: int = 0
+    disk_total_gb: Optional[float] = None
+    disk_used_gb: Optional[float] = None
+    disk_free_gb: Optional[float] = None
+    disk_free_pct: Optional[float] = None
+    scan_error: Optional[str] = None
+
+
+class OverviewLiveJob(BaseModel):
+    vm_id: int
+    vm_name: str
+    host_name: str
+    progress: int
+    current_action: str
+    speed_mbps: float
+
+
+class OverviewAttentionItem(BaseModel):
+    vm_id: int
+    vm_name: str
+    host_name: str
+    reason: str
+    severity: str  # error | warning | info
+    last_status: str
+    last_backup: Optional[str] = None
+
+
+class OverviewResponse(BaseModel):
+    protected_count: int
+    scheduled_count: int
+    running_count: int
+    host_count: int
+    inventory_count: int
+    status_counts: dict
+    log_stats_7d: dict
+    success_rate_7d: Optional[float] = None
+    storage: OverviewStorage
+    worker_online: bool
+    worker_last_seen_seconds: Optional[int] = None
+    max_global_backups: int
+    live_jobs: List[OverviewLiveJob]
+    recent_activity: List[BackupLogEntry]
+    active_restores: List[RestoreResponse]
+    attention: List[OverviewAttentionItem]
+    setup_incomplete: bool
