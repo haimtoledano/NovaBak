@@ -74,6 +74,99 @@
         }
 
         .nav-bar { background-color: var(--bg-nav); border-bottom: 1px solid var(--border-color); }
+        .nav-inner {
+            display: grid; grid-template-columns: 1fr auto 1fr;
+            align-items: center; height: 4rem; gap: 0.75rem;
+        }
+        .nav-brand { display: flex; align-items: center; gap: 0.5rem; justify-self: start; min-width: 0; }
+        .nav-primary {
+            display: flex; align-items: center; justify-content: center;
+            gap: 0.15rem; height: 100%; justify-self: center;
+        }
+        .nav-utilities { display: flex; align-items: center; gap: 0.75rem; justify-self: end; flex-shrink: 0; }
+        .tab-nav {
+            display: inline-flex; align-items: center; height: 4rem;
+            padding: 0 0.65rem; border-bottom: 2px solid transparent;
+            font-size: 0.875rem; font-weight: 500; background: transparent; border-top: none;
+            border-left: none; border-right: none; cursor: pointer; white-space: nowrap;
+            transition: color 0.15s, border-color 0.15s, background 0.15s;
+        }
+        .tab-nav:hover { color: var(--text-main) !important; }
+        .nav-user-wrap { position: relative; }
+        .nav-user-btn {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.35rem 0.55rem 0.35rem 0.35rem; border-radius: 0.5rem;
+            border: 1px solid var(--border-color); background: var(--bg-card);
+            color: var(--text-main); font-size: 0.8125rem; font-weight: 600;
+            cursor: pointer; transition: background 0.15s, border-color 0.15s;
+        }
+        .nav-user-btn:hover { background: var(--btn-sec-hover); }
+        .nav-user-btn.nav-user-active { border-color: var(--brand); color: var(--brand); }
+        .nav-user-avatar {
+            width: 1.75rem; height: 1.75rem; border-radius: 9999px;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+            background: rgba(59, 130, 246, 0.15); color: var(--brand); flex-shrink: 0;
+        }
+        .nav-user-menu {
+            position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 55;
+            min-width: 11rem; padding: 0.35rem; border-radius: 0.5rem;
+            border: 1px solid var(--border-color); background: var(--bg-card);
+            box-shadow: 0 10px 28px rgba(0,0,0,0.16);
+        }
+        .nav-user-menu.hidden { display: none; }
+        .nav-user-menu-header {
+            padding: 0.45rem 0.625rem 0.35rem; font-size: 0.6875rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);
+        }
+        .nav-user-item {
+            display: flex; align-items: center; width: 100%;
+            padding: 0.5rem 0.625rem; font-size: 0.8125rem; text-align: left;
+            background: transparent; border: none; cursor: pointer;
+            color: var(--btn-sec-text); border-radius: 0.375rem;
+            transition: background 0.15s, color 0.15s;
+        }
+        .nav-user-item:hover { background: var(--btn-sec-hover); color: var(--text-main); }
+        .nav-user-item.active { color: var(--brand); font-weight: 600; background: rgba(59, 130, 246, 0.1); }
+        .nav-user-menu-divider { height: 1px; margin: 0.35rem 0.25rem; background: var(--border-color); }
+        .nav-user-signout {
+            display: block; width: 100%; padding: 0.5rem 0.625rem;
+            font-size: 0.8125rem; font-weight: 600; text-align: left;
+            color: #ef4444; border-radius: 0.375rem; text-decoration: none;
+            transition: background 0.15s;
+        }
+        .nav-user-signout:hover { background: rgba(239, 68, 68, 0.08); }
+        .nav-mobile-signout {
+            display: block; width: 100%; margin-top: 0.35rem; padding: 0.625rem 0.5rem;
+            font-size: 0.875rem; font-weight: 600; text-align: left; color: #ef4444;
+            border-top: 1px solid var(--border-color); text-decoration: none;
+        }
+        .nav-mobile-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color);
+            background: var(--bg-card); color: var(--text-muted); cursor: pointer;
+        }
+        .nav-mobile-btn:hover { color: var(--text-main); background: var(--btn-sec-hover); }
+        .nav-mobile-menu {
+            border-top: 1px solid var(--border-color); background: var(--bg-nav);
+            padding: 0.5rem 1rem 0.75rem;
+        }
+        .nav-mobile-menu.hidden { display: none; }
+        .nav-mobile-item {
+            display: block; width: 100%; text-align: left; padding: 0.625rem 0.5rem;
+            font-size: 0.875rem; font-weight: 500; color: var(--text-muted);
+            background: transparent; border: none; border-radius: 0.375rem; cursor: pointer;
+        }
+        .nav-mobile-item:hover { background: var(--btn-sec-hover); color: var(--text-main); }
+        .nav-mobile-item.active { color: var(--brand); background: rgba(59, 130, 246, 0.08); }
+        .nav-mobile-section {
+            font-size: 0.625rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.06em; color: var(--text-muted); opacity: 0.7;
+            padding: 0.5rem 0.5rem 0.25rem; margin-top: 0.25rem;
+        }
+        @media (min-width: 768px) {
+            .nav-mobile-btn, .nav-mobile-menu { display: none !important; }
+        }
         .card { 
             background-color: var(--bg-card); 
             border: 1px solid var(--border-color); 
@@ -148,6 +241,50 @@
         }
         .jobs-table td.actions-cell { overflow: visible; position: relative; }
         #jobsListView.card { overflow: visible; }
+        .overview-stat-card {
+            padding: 1rem 1.1rem; border-radius: 0.5rem; border: 1px solid var(--border-color);
+            background: var(--bg-card);
+        }
+        .overview-stat-label {
+            font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+            color: var(--text-muted); margin-bottom: 0.35rem;
+        }
+        .overview-stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+        .overview-stat-sub { font-size: 0.6875rem; margin-top: 0.25rem; color: var(--text-muted); }
+        .overview-panel { overflow: hidden; }
+        .overview-panel-header {
+            display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+            padding: 0.75rem 1rem; font-size: 0.8125rem; font-weight: 700;
+            border-bottom: 1px solid var(--border-color); background: var(--bg-nav);
+        }
+        .overview-panel-body { padding: 1rem; }
+        .overview-chip {
+            font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+            padding: 0.15rem 0.45rem; border-radius: 9999px;
+            background: rgba(59, 130, 246, 0.12); color: var(--brand);
+        }
+        .overview-chip-warn { background: rgba(239, 68, 68, 0.12); color: #f87171; }
+        .overview-bar-track {
+            height: 8px; border-radius: 4px; overflow: hidden; background: var(--border-color);
+        }
+        .overview-bar-fill {
+            height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--brand), #60a5fa);
+            transition: width 0.4s ease;
+        }
+        .overview-bar-fill.overview-bar-warn { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .overview-bar-fill.overview-bar-danger { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .overview-bar-disk { background: linear-gradient(90deg, #10b981, #34d399); }
+        .overview-status-row { display: flex; align-items: center; gap: 0.5rem; }
+        .overview-status-row-label { width: 4.5rem; font-size: 0.6875rem; font-weight: 600; color: var(--text-muted); flex-shrink: 0; }
+        .overview-status-row-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--border-color); overflow: hidden; }
+        .overview-status-row-fill { height: 100%; border-radius: 3px; transition: width 0.35s ease; }
+        .overview-status-row-count { width: 1.5rem; text-align: right; font-size: 0.75rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .overview-scroll-list { min-height: 4rem; }
+        .overview-live-item, .overview-attention-item, .overview-activity-item {
+            padding: 0.65rem 0; border-bottom: 1px solid var(--border-color);
+        }
+        .overview-live-item:last-child, .overview-attention-item:last-child, .overview-activity-item:last-child { border-bottom: none; }
+        .overview-live-item .prog-container { display: block; height: 4px; margin-top: 0.35rem; }
         .job-schedule-inline input[type="number"] { -moz-appearance: textfield; }
         .job-schedule-inline input[type="number"]::-webkit-outer-spin-button,
         .job-schedule-inline input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -159,6 +296,9 @@
         .jobs-sort-ind { display: inline-block; width: 0.75rem; margin-left: 0.15rem; opacity: 0.85; }
         .jobs-bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; margin-bottom: 0.75rem; border: 1px solid var(--border-color); border-radius: 0.375rem; background: var(--bg-nav); }
         .jobs-bulk-bar.hidden { display: none; }
+        .jobs-paused-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.625rem 1rem; margin-bottom: 0.75rem; border: 1px solid rgba(245,158,11,0.35); border-radius: 0.375rem; background: rgba(245,158,11,0.1); color: #d97706; }
+        .jobs-paused-banner.hidden { display: none; }
+        [data-theme="dark"] .jobs-paused-banner, [data-theme="cyberpunk"] .jobs-paused-banner { color: #fbbf24; }
         .job-row-cb { width: 1rem; height: 1rem; cursor: pointer; accent-color: var(--brand); }
         .theme-menu { position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 50; min-width: 9.5rem; padding: 0.35rem; border-radius: 0.5rem; border: 1px solid var(--border-color); background: var(--bg-card); box-shadow: 0 10px 28px rgba(0,0,0,0.16); }
         .theme-menu.hidden { display: none; }
@@ -182,7 +322,7 @@
         html:not([data-theme="dark"]):not([data-theme="cyberpunk"]) .theme-menu-item:hover,
         [data-theme="light"] .theme-menu-item:hover { color: #111827; background: #f3f4f6; }
 
-        .wizard-overlay { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 0.75rem; }
+        .wizard-overlay { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 0.75rem; }
         .wizard-overlay.hidden { display: none; }
         .wizard-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); }
         .wizard-panel {
@@ -240,9 +380,9 @@
 
         .settings-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
         .settings-sidebar { width: 13.5rem; flex-shrink: 0; position: sticky; top: 1rem; }
-        .settings-sidebar-nav { overflow: hidden; display: flex; flex-direction: column; }
+        .settings-sidebar-nav { overflow: hidden; display: flex; flex-direction: column; max-height: calc(100vh - 7rem); }
         .settings-sidebar-header { padding: 0.875rem 1rem; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); border-bottom: 1px solid var(--border-color); background: var(--bg-nav); }
-        .settings-nav { display: flex; flex-direction: column; padding: 0.375rem; gap: 0.125rem; }
+        .settings-nav { display: flex; flex-direction: column; padding: 0.375rem; gap: 0.125rem; flex: 1; min-height: 0; overflow-y: auto; }
         .settings-nav-item {
             display: flex; align-items: center; gap: 0.625rem; width: 100%;
             padding: 0.5625rem 0.75rem; font-size: 0.8125rem; font-weight: 500; text-align: left;
@@ -253,7 +393,7 @@
         .settings-nav-item.active { color: var(--brand); background: rgba(59, 130, 246, 0.1); font-weight: 600; }
         .settings-nav-icon { width: 1rem; height: 1rem; flex-shrink: 0; opacity: 0.85; }
         .settings-nav-item.active .settings-nav-icon { opacity: 1; }
-        .settings-sidebar-footer { padding: 0.625rem; border-top: 1px solid var(--border-color); background: var(--bg-nav); }
+        .settings-sidebar-footer { padding: 0.625rem; border-top: 1px solid var(--border-color); background: var(--bg-nav); flex-shrink: 0; }
         .settings-wizard-btn { width: 100%; padding: 0.5rem 0.75rem; font-size: 0.8125rem; font-weight: 500; border-radius: 0.375rem; border: 1px dashed var(--border-color); color: var(--text-muted); background: transparent; cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s; }
         .settings-wizard-btn:hover { color: var(--brand); border-color: var(--brand); background: rgba(59, 130, 246, 0.06); }
         .settings-content { flex: 1; min-width: 0; }
@@ -380,6 +520,8 @@
         }
 
         function toggleThemeMenu() {
+            closeUserMenu();
+            closeNavMobileMenu();
             const menu = document.getElementById('themeMenu');
             if (menu) menu.classList.toggle('hidden');
         }
@@ -389,26 +531,343 @@
             if (menu) menu.classList.add('hidden');
         }
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        function goHome() {
+            switchTab('tab-overview');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function getInitialTabId() {
+            const params = new URLSearchParams(window.location.search);
+            const tabParam = params.get('tab');
+            if (tabParam && document.getElementById('tab-' + tabParam)) {
+                return 'tab-' + tabParam;
+            }
+            return 'tab-overview';
+        }
+
+        const NAV_USER_TABS = ['tab-syslogs', 'tab-settings', 'tab-users'];
+
+        function closeUserMenu() {
+            document.getElementById('nav-user-menu')?.classList.add('hidden');
+            document.getElementById('nav-user-btn')?.setAttribute('aria-expanded', 'false');
+        }
+
+        function toggleUserMenu() {
+            const menu = document.getElementById('nav-user-menu');
+            const btn = document.getElementById('nav-user-btn');
+            if (!menu) return;
+            const open = menu.classList.contains('hidden');
+            closeThemeMenu();
+            closeNavMobileMenu();
+            menu.classList.toggle('hidden', !open);
+            btn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function closeNavMobileMenu() {
+            document.getElementById('nav-mobile-menu')?.classList.add('hidden');
+        }
+
+        function toggleNavMobileMenu() {
+            const menu = document.getElementById('nav-mobile-menu');
+            if (!menu) return;
+            const open = menu.classList.contains('hidden');
+            closeThemeMenu();
+            closeUserMenu();
+            menu.classList.toggle('hidden', !open);
+        }
+
+        function syncNavActiveState(tabId) {
             document.querySelectorAll('.tab-nav').forEach(el => {
                 el.classList.remove('border-[var(--brand)]', 'text-[var(--brand)]');
                 el.classList.add('border-transparent', 'text-[var(--text-muted)]');
             });
-            
-            document.getElementById(tabId).classList.remove('hidden');
-            const navBtn = document.getElementById('nav-' + tabId);
-            navBtn.classList.remove('border-transparent', 'text-[var(--text-muted)]');
-            navBtn.classList.add('border-[var(--brand)]', 'text-[var(--brand)]');
+            document.querySelectorAll('.nav-user-item, .nav-mobile-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.tab === tabId);
+            });
+
+            const userBtn = document.getElementById('nav-user-btn');
+            if (NAV_USER_TABS.includes(tabId)) {
+                userBtn?.classList.add('nav-user-active');
+            } else {
+                userBtn?.classList.remove('nav-user-active');
+                const navBtn = document.getElementById('nav-' + tabId);
+                if (navBtn) {
+                    navBtn.classList.remove('border-transparent', 'text-[var(--text-muted)]');
+                    navBtn.classList.add('border-[var(--brand)]', 'text-[var(--brand)]');
+                }
+            }
+            closeUserMenu();
+            closeNavMobileMenu();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            const panel = document.getElementById(tabId);
+            if (!panel) return;
+            panel.classList.remove('hidden');
+            syncNavActiveState(tabId);
             localStorage.setItem('activeTab', tabId);
 
-            // Auto-scan repository when switching to Recovery tab
             if (tabId === 'tab-restore' && typeof loadGroupedBackups === 'function') {
                 loadGroupedBackups();
             }
             if (tabId === 'tab-settings' && typeof showSettingsPanel === 'function') {
                 showSettingsPanel(localStorage.getItem('settingsPanel') || 'profile');
+                if (sessionStorage.getItem('novabak_open_wizard') === '1') {
+                    sessionStorage.removeItem('novabak_open_wizard');
+                    setTimeout(() => { if (typeof window.openSetupWizard === 'function') window.openSetupWizard(); }, 50);
+                }
             }
+            if (tabId === 'tab-overview' && typeof refreshOverview === 'function') {
+                refreshOverview(false);
+            }
+        }
+
+        let _overviewLoading = false;
+        let _overviewLastFetch = 0;
+
+        function overviewStatusClass(status) {
+            const s = (status || '').toLowerCase();
+            if (s === 'success') return 'status-success';
+            if (s === 'failed') return 'status-error';
+            if (s === 'cancelled') return 'status-cancelled';
+            if (s === 'skipped' || s === 'warning') return 'status-neutral';
+            if (s === 'in progress' || s.includes('running') || s.includes('backing')) return 'status-running';
+            return 'status-neutral';
+        }
+
+        function overviewFormatTs(iso) {
+            if (!iso) return '—';
+            try {
+                const d = new Date(iso);
+                if (Number.isNaN(d.getTime())) return iso;
+                return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch (e) { return iso; }
+        }
+
+        function overviewRenderStatusBars(containerId, counts, colors) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+            const order = Object.keys(counts);
+            el.innerHTML = order.map(key => {
+                const n = counts[key] || 0;
+                if (n === 0 && key === 'Other') return '';
+                const pct = Math.max(n ? (n / total) * 100 : 0, n ? 4 : 0);
+                const color = colors[key] || '#6b7280';
+                return `<div class="overview-status-row">
+                    <span class="overview-status-row-label">${key}</span>
+                    <div class="overview-status-row-bar"><div class="overview-status-row-fill" style="width:${pct}%;background:${color}"></div></div>
+                    <span class="overview-status-row-count">${n}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function overviewRenderOverview(data) {
+            const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+
+            set('ov-protected', data.protected_count ?? '0');
+            set('ov-scheduled-sub', `${data.scheduled_count ?? 0} scheduled`);
+            set('ov-running', data.running_count ?? '0');
+            set('ov-success', data.status_counts?.Success ?? '0');
+            set('ov-failed', data.status_counts?.Failed ?? '0');
+
+            const rate = data.success_rate_7d;
+            set('ov-rate', rate != null ? `${rate}%` : '—');
+            const logTotal = Object.values(data.log_stats_7d || {}).reduce((a, b) => a + b, 0);
+            set('ov-rate-sub', `${logTotal} events`);
+
+            const workerEl = document.getElementById('ov-worker');
+            if (workerEl) {
+                workerEl.textContent = data.worker_online ? 'Online' : 'Offline';
+                workerEl.className = 'overview-stat-value ' + (data.worker_online ? 'text-emerald-500' : 'text-red-400');
+            }
+            const age = data.worker_last_seen_seconds;
+            set('ov-worker-sub', data.worker_online ? 'worker active' : (age != null ? `last seen ${age}s ago` : 'no worker log'));
+
+            const banner = document.getElementById('overview-setup-banner');
+            if (banner) banner.classList.toggle('hidden', !data.setup_incomplete);
+
+            const st = data.storage || {};
+            set('ov-storage-type', st.type || '—');
+            const pathEl = document.getElementById('ov-storage-path');
+            if (pathEl) {
+                pathEl.textContent = st.path || '—';
+                pathEl.title = st.path || '';
+            }
+            set('ov-storage-used-label', st.total_human || '—');
+            set('ov-storage-meta', `${st.version_count ?? 0} versions · ${st.vm_count ?? 0} VMs in repo`);
+
+            const diskSection = document.getElementById('ov-disk-section');
+            const barWrap = document.getElementById('ov-storage-bar-wrap');
+            if (st.disk_total_gb != null && st.disk_free_gb != null) {
+                diskSection?.classList.remove('hidden');
+                const usedPct = Math.min(100, Math.round(100 * (st.disk_used_gb / st.disk_total_gb)));
+                const freePct = st.disk_free_pct ?? 0;
+                set('ov-disk-free-label', `${st.disk_free_gb} GB free (${freePct}%)`);
+                set('ov-disk-meta', `${st.disk_used_gb} GB used of ${st.disk_total_gb} GB total`);
+                const diskBar = document.getElementById('ov-disk-bar');
+                if (diskBar) {
+                    diskBar.style.width = `${freePct}%`;
+                    diskBar.classList.toggle('overview-bar-danger', freePct < 15);
+                    diskBar.classList.toggle('overview-bar-warn', freePct >= 15 && freePct < 25);
+                }
+                if (barWrap && st.total_bytes) {
+                    barWrap.classList.remove('hidden');
+                    const repoPct = Math.min(100, Math.round(100 * (st.total_bytes / (1024 ** 3)) / st.disk_total_gb));
+                    const repoBar = document.getElementById('ov-storage-bar');
+                    if (repoBar) repoBar.style.width = `${Math.max(repoPct, 2)}%`;
+                }
+            } else {
+                diskSection?.classList.add('hidden');
+                barWrap?.classList.add('hidden');
+            }
+
+            const errEl = document.getElementById('ov-storage-error');
+            if (errEl) {
+                if (st.scan_error) {
+                    errEl.textContent = `Scan: ${st.scan_error}`;
+                    errEl.classList.remove('hidden');
+                } else {
+                    errEl.classList.add('hidden');
+                }
+            }
+
+            overviewRenderStatusBars('ov-status-bars', data.status_counts || {}, {
+                Success: '#10b981', Failed: '#ef4444', Cancelled: '#eab308', Skipped: '#6b7280', Never: '#94a3b8', Other: '#64748b'
+            });
+            overviewRenderStatusBars('ov-log-stats', data.log_stats_7d || {}, {
+                Success: '#10b981', Failed: '#ef4444', Cancelled: '#eab308', Skipped: '#6b7280', Warning: '#f59e0b', Other: '#64748b'
+            });
+
+            set('ov-hosts', data.host_count ?? '0');
+            set('ov-inventory', data.inventory_count ?? '0');
+
+            const liveEl = document.getElementById('ov-live-jobs');
+            if (liveEl) {
+                const jobs = data.live_jobs || [];
+                liveEl.innerHTML = jobs.length ? jobs.map(j => {
+                    const speed = j.speed_mbps > 0 ? ` · ${j.speed_mbps} MB/s` : '';
+                    return `<div class="overview-live-item">
+                        <div class="flex justify-between gap-2 text-sm">
+                            <span class="font-semibold truncate">${j.vm_name}</span>
+                            <span class="text-xs font-mono shrink-0" style="color: var(--brand)">${j.progress}%</span>
+                        </div>
+                        <div class="text-[11px] truncate mt-0.5" style="color: var(--text-muted)">${j.host_name} · ${j.current_action || 'Processing'}${speed}</div>
+                        <div class="prog-container active"><div class="prog-bar" style="width:${j.progress}%"></div></div>
+                    </div>`;
+                }).join('') : '<div class="text-sm py-6 text-center opacity-50 italic">No backups running</div>';
+            }
+
+            const restEl = document.getElementById('ov-restores');
+            if (restEl) {
+                const restores = data.active_restores || [];
+                restEl.innerHTML = restores.length ? restores.map(r => `
+                    <div class="overview-live-item">
+                        <div class="flex justify-between gap-2 text-sm">
+                            <span class="font-semibold truncate">${r.target_name}</span>
+                            <span class="text-xs font-mono shrink-0" style="color: var(--brand)">${r.progress}%</span>
+                        </div>
+                        <div class="text-[11px] truncate mt-0.5" style="color: var(--text-muted)">${r.target_esxi_host} · ${r.current_action || r.status}</div>
+                        <div class="prog-container active"><div class="prog-bar" style="width:${r.progress}%"></div></div>
+                    </div>`).join('') : '<div class="text-sm py-6 text-center opacity-50 italic">No active restores</div>';
+            }
+
+            const actEl = document.getElementById('ov-activity');
+            if (actEl) {
+                const logs = data.recent_activity || [];
+                actEl.innerHTML = logs.length ? logs.map(l => `
+                    <div class="overview-activity-item flex gap-2 items-start">
+                        <span class="status-badge ${overviewStatusClass(l.status)} shrink-0 mt-0.5">${l.status}</span>
+                        <div class="min-w-0 flex-1">
+                            <div class="text-sm font-medium truncate">${l.vm_name}</div>
+                            <div class="text-[11px] truncate" style="color: var(--text-muted)">${l.message || ''}</div>
+                            <div class="text-[10px] font-mono mt-0.5 opacity-50">${overviewFormatTs(l.timestamp)}</div>
+                        </div>
+                    </div>`).join('') : '<div class="text-sm py-6 text-center opacity-50 italic">No recent activity</div>';
+            }
+
+            const attEl = document.getElementById('ov-attention');
+            const attBadge = document.getElementById('ov-attention-count');
+            const attention = data.attention || [];
+            if (attBadge) {
+                attBadge.textContent = String(attention.length);
+                attBadge.classList.toggle('hidden', attention.length === 0);
+            }
+            if (attEl) {
+                attEl.innerHTML = attention.length ? attention.map(a => {
+                    const sevClass = a.severity === 'error' ? 'text-red-400' : a.severity === 'warning' ? 'text-amber-400' : '';
+                    return `<div class="overview-attention-item flex justify-between gap-2 items-start">
+                        <div class="min-w-0">
+                            <div class="text-sm font-semibold truncate">${a.vm_name}</div>
+                            <div class="text-[11px] ${sevClass}">${a.reason}</div>
+                            <div class="text-[10px] font-mono mt-0.5 opacity-50">${a.host_name} · ${a.last_status}${a.last_backup ? ' · ' + overviewFormatTs(a.last_backup) : ''}</div>
+                        </div>
+                        <button type="button" onclick="switchTab('tab-jobs')" class="btn-secondary px-2 py-1 text-[10px] font-medium rounded shrink-0">Tasks</button>
+                    </div>`;
+                }).join('') : '<div class="text-sm py-6 text-center opacity-50 italic">All clear ✓</div>';
+            }
+
+            set('overview-updated', `Updated ${new Date().toLocaleTimeString()}`);
+        }
+
+        async function refreshOverview(force) {
+            const tab = document.getElementById('tab-overview');
+            if (!tab || tab.classList.contains('hidden')) return;
+            if (_overviewLoading) return;
+            if (!force && Date.now() - _overviewLastFetch < 8000) return;
+            _overviewLoading = true;
+            try {
+                const res = await fetch('/overview');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                overviewRenderOverview(data);
+                _overviewLastFetch = Date.now();
+            } catch (e) {
+                const el = document.getElementById('overview-updated');
+                if (el) el.textContent = 'Refresh failed';
+                console.warn('overview refresh failed', e);
+            } finally {
+                _overviewLoading = false;
+            }
+        }
+
+        async function refreshOverviewLiveOnly() {
+            const tab = document.getElementById('tab-overview');
+            if (!tab || tab.classList.contains('hidden')) return;
+            try {
+                const res = await fetch('/job_progress');
+                const progress = await res.json();
+                const liveEl = document.getElementById('ov-live-jobs');
+                if (!liveEl) return;
+                const items = [];
+                Object.keys(progress).forEach(vmId => {
+                    const info = progress[vmId];
+                    const action = info.current_action || '';
+                    const prog = info.progress || 0;
+                    const active = action !== '' || (prog > 0 && prog < 100);
+                    if (!active) return;
+                    const row = document.getElementById('row-' + vmId);
+                    const name = row?.getAttribute('data-name') || ('VM ' + vmId);
+                    const host = row?.getAttribute('data-host') || '—';
+                    items.push({ vm_id: vmId, vm_name: name, host_name: host, progress: prog, current_action: action, speed_mbps: info.speed_mbps || 0 });
+                });
+                const runningEl = document.getElementById('ov-running');
+                if (runningEl) runningEl.textContent = String(items.length);
+                if (items.length) {
+                    liveEl.innerHTML = items.map(j => {
+                        const speed = j.speed_mbps > 0 ? ` · ${j.speed_mbps} MB/s` : '';
+                        return `<div class="overview-live-item">
+                            <div class="flex justify-between gap-2 text-sm">
+                                <span class="font-semibold truncate">${j.vm_name}</span>
+                                <span class="text-xs font-mono shrink-0" style="color: var(--brand)">${j.progress}%</span>
+                            </div>
+                            <div class="text-[11px] truncate mt-0.5" style="color: var(--text-muted)">${j.host_name} · ${j.current_action || 'Processing'}${speed}</div>
+                            <div class="prog-container active"><div class="prog-bar" style="width:${j.progress}%"></div></div>
+                        </div>`;
+                    }).join('');
+                }
+            } catch (e) { /* ignore */ }
         }
 
         function showSettingsPanel(panelId) {
@@ -420,6 +879,45 @@
             });
             localStorage.setItem('settingsPanel', panelId);
             if (panelId === 'api' && typeof loadApiKeys === 'function') loadApiKeys();
+        }
+
+        function initSetupWizardTriggers() {
+            document.querySelectorAll('.settings-wizard-btn, [data-open-setup-wizard]').forEach(btn => {
+                if (btn.dataset.wizardBound === '1') return;
+                btn.dataset.wizardBound = '1';
+                btn.addEventListener('click', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    switchTab('tab-settings');
+                    if (typeof closeUserMenu === 'function') closeUserMenu();
+                    if (typeof closeNavMobileMenu === 'function') closeNavMobileMenu();
+                    if (typeof window.openSetupWizard === 'function') {
+                        window.openSetupWizard();
+                    } else {
+                        sessionStorage.setItem('novabak_open_wizard', '1');
+                    }
+                });
+            });
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('wizard') === '1' && document.body.dataset.admin === '1') {
+                switchTab('tab-settings');
+                setTimeout(() => { if (typeof window.openSetupWizard === 'function') window.openSetupWizard(); }, 100);
+            } else if (
+                document.body.dataset.admin === '1'
+                && document.body.dataset.setupSuggested === '1'
+                && !localStorage.getItem('setup_wizard_done')
+            ) {
+                setTimeout(() => { if (typeof window.openSetupWizard === 'function') window.openSetupWizard(); }, 300);
+            }
+        }
+
+        function requestSetupWizard() {
+            sessionStorage.setItem('novabak_open_wizard', '1');
+            if (typeof window.openSetupWizard === 'function') {
+                window.openSetupWizard();
+                return;
+            }
+            switchTab('tab-settings');
         }
 
         function filterJobs() {
@@ -627,6 +1125,81 @@
             clearJobSelection();
         }
 
+        let _schedulerPaused = {{ 'true' if config and config.scheduler_paused else 'false' }};
+
+        function updateSchedulerPauseUi() {
+            const btn = document.getElementById('jobsPauseToggle');
+            const banner = document.getElementById('jobsPausedBanner');
+            if (btn) {
+                btn.textContent = _schedulerPaused ? 'Resume all' : 'Pause all';
+                btn.classList.toggle('btn-danger', !_schedulerPaused);
+                btn.classList.toggle('btn-secondary', _schedulerPaused);
+            }
+            if (banner) banner.classList.toggle('hidden', !_schedulerPaused);
+        }
+
+        async function refreshSchedulerPauseState() {
+            try {
+                const res = await fetch('/api/v1/jobs/scheduler');
+                if (res.ok) {
+                    const data = await res.json();
+                    _schedulerPaused = !!data.paused;
+                    updateSchedulerPauseUi();
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        async function toggleJobsPause() {
+            const pausing = !_schedulerPaused;
+            const ok = await showConfirm(
+                pausing
+                    ? 'Pause all backups? Scheduled runs and manual Run will be blocked until you resume.'
+                    : 'Resume all backups? Scheduled jobs will run again on their normal schedule.',
+                { title: pausing ? 'Pause all' : 'Resume all', confirmText: pausing ? 'Pause all' : 'Resume all', danger: pausing }
+            );
+            if (!ok) return;
+            try {
+                const res = await fetch(`/api/v1/jobs/${pausing ? 'pause' : 'resume'}`, { method: 'POST' });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+                _schedulerPaused = pausing;
+                updateSchedulerPauseUi();
+            } catch (e) {
+                await showAlert('Could not update pause state: ' + (e.message || 'Unknown error'), { title: 'Pause all' });
+            }
+        }
+
+        async function pauseSelectedJobs() {
+            const rows = getSelectedJobRows();
+            if (!rows.length) return;
+            const ok = await showConfirm(
+                `Pause scheduled backups for ${rows.length} VM(s)? They will stay in the task list but won't run on schedule.`,
+                { title: 'Pause selected', confirmText: 'Pause' }
+            );
+            if (!ok) return;
+            let paused = 0;
+            for (const row of rows) {
+                const vmId = jobItemVmId(row);
+                try {
+                    const res = await fetch(`/api/v1/vms/${vmId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ is_job_active: false }),
+                    });
+                    if (res.ok) {
+                        paused++;
+                        row.setAttribute('data-scheduled', 'false');
+                        row.querySelectorAll('span').forEach(span => {
+                            if (span.textContent.trim() === 'scheduled') span.textContent = 'paused';
+                        });
+                    }
+                } catch (e) { /* continue */ }
+            }
+            await showAlert(`Paused schedules for ${paused} VM(s).`, { title: 'Pause selected', confirmText: 'OK' });
+            clearJobSelection();
+            filterJobs();
+        }
+
         function setJobsView(view) {
             const list = document.getElementById('jobsListView');
             const grid = document.getElementById('jobsGridView');
@@ -708,7 +1281,7 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            const activeTab = localStorage.getItem('activeTab') || 'tab-jobs';
+            const activeTab = getInitialTabId();
             if (document.getElementById(activeTab)) { switchTab(activeTab); }
             
             const savedTheme = localStorage.getItem('userTheme') || 'light';
@@ -718,6 +1291,8 @@
             updateJobsSortIndicators();
             setJobsView(localStorage.getItem('jobsView') || 'list');
             initConfirmForms();
+            initSetupWizardTriggers();
+            updateSchedulerPauseUi();
 
             document.getElementById('appModalCancel')?.addEventListener('click', () => closeAppModal(false));
             document.getElementById('appModalConfirm')?.addEventListener('click', () => closeAppModal(true));
@@ -729,6 +1304,7 @@
                 const wrap = document.getElementById('themePickerWrap');
                 if (wrap && !wrap.contains(e.target)) closeThemeMenu();
                 if (!e.target.closest('.job-actions-wrap')) closeAllJobActionsMenus();
+                if (!e.target.closest('.nav-user-wrap')) closeUserMenu();
             });
             
             // Auto scroll terminal on load
@@ -737,29 +1313,31 @@
         });
     </script>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col"{% if current_user and current_user.role == 'admin' %} data-admin="1"{% endif %} data-setup-suggested="{{ '1' if setup_wizard_suggested else '0' }}">
     
     <!-- Top Navigation -->
     <nav class="nav-bar sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center space-x-3">
-                    <img src="/static/novabak_logo.png" class="w-8 h-8 rounded" alt="NovaBak Logo">
-                    <span class="font-bold text-xl tracking-wide uppercase">NovaBak</span>
+            <div class="nav-inner">
+                <div class="nav-brand">
+                    <button type="button" onclick="goHome()" class="flex items-center space-x-2.5 rounded-md hover:opacity-85 transition-opacity cursor-pointer" aria-label="NovaBak home — Overview">
+                        <img src="/static/novabak_logo.png" class="w-8 h-8 rounded pointer-events-none" alt="">
+                        <span class="font-bold text-xl tracking-wide uppercase pointer-events-none hidden sm:inline">NovaBak</span>
+                    </button>
+                    <button type="button" id="navMobileBtn" class="nav-mobile-btn md:hidden" onclick="toggleNavMobileMenu()" aria-label="Open menu">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
                 </div>
-                <div class="flex items-center">
-                    <div class="hidden md:flex space-x-6 mr-6 h-full">
-                        <button id="nav-tab-jobs" onclick="switchTab('tab-jobs')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Tasks</button>
-                        <button id="nav-tab-inventory" onclick="switchTab('tab-inventory')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Inventory</button>
-                        <button id="nav-tab-restore" onclick="switchTab('tab-restore')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Recovery</button>
-                        <button id="nav-tab-syslogs" onclick="switchTab('tab-syslogs')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">System Logs</button>
-                        {% if current_user and current_user.role == 'admin' %}
-                        <button id="nav-tab-users" onclick="switchTab('tab-users')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Users</button>
-                        {% endif %}
-                        <button id="nav-tab-settings" onclick="switchTab('tab-settings')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Settings</button>
-                    </div>
-                    
-                    <div class="relative mr-4" id="themePickerWrap">
+
+                <div class="nav-primary hidden md:flex">
+                    <button id="nav-tab-overview" onclick="switchTab('tab-overview')" class="tab-nav border-transparent" style="color: var(--text-muted)">Overview</button>
+                    <button id="nav-tab-jobs" onclick="switchTab('tab-jobs')" class="tab-nav border-transparent" style="color: var(--text-muted)">Tasks</button>
+                    <button id="nav-tab-inventory" onclick="switchTab('tab-inventory')" class="tab-nav border-transparent" style="color: var(--text-muted)">Inventory</button>
+                    <button id="nav-tab-restore" onclick="switchTab('tab-restore')" class="tab-nav border-transparent" style="color: var(--text-muted)">Recovery</button>
+                </div>
+
+                <div class="nav-utilities">
+                    <div class="relative" id="themePickerWrap">
                         <button type="button" id="themePickerBtn" onclick="toggleThemeMenu()" class="theme-picker-btn" title="Change theme" aria-label="Change theme">
                             <svg id="theme-icon-light" class="theme-icon w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                             <svg id="theme-icon-dark" class="theme-icon w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
@@ -783,14 +1361,50 @@
                             </button>
                         </div>
                     </div>
-
-                    <a href="/logout" class="text-sm font-medium" style="color: #ef4444;">Sign Out</a>
+                    <div class="relative nav-user-wrap" id="navUserWrap">
+                        <button type="button" id="nav-user-btn" onclick="toggleUserMenu()" class="nav-user-btn" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">
+                            <span class="nav-user-avatar">{% if current_user %}{{ current_user.username[0] }}{% else %}?{% endif %}</span>
+                            <span class="hidden sm:inline max-w-[8rem] truncate">{% if current_user %}{{ current_user.username }}{% else %}Account{% endif %}</span>
+                            <svg class="w-3.5 h-3.5 opacity-60 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div id="nav-user-menu" class="nav-user-menu hidden">
+                            {% if current_user %}
+                            <div class="nav-user-menu-header">{{ current_user.username }}</div>
+                            {% endif %}
+                            <button type="button" class="nav-user-item" data-tab="tab-syslogs" onclick="switchTab('tab-syslogs')">System Logs</button>
+                            <button type="button" class="nav-user-item" data-tab="tab-settings" onclick="switchTab('tab-settings')">Settings</button>
+                            {% if current_user and current_user.role == 'admin' %}
+                            <button type="button" class="nav-user-item" data-tab="tab-users" onclick="switchTab('tab-users')">Users</button>
+                            <button type="button" class="nav-user-item" data-open-setup-wizard>Setup wizard</button>
+                            {% endif %}
+                            <div class="nav-user-menu-divider"></div>
+                            <a href="/logout" class="nav-user-signout">Sign out</a>
+                        </div>
+                    </div>
                 </div>
+            </div>
+
+            <div id="nav-mobile-menu" class="nav-mobile-menu hidden md:hidden">
+                <div class="nav-mobile-section">Operations</div>
+                <button type="button" class="nav-mobile-item" data-tab="tab-overview" onclick="switchTab('tab-overview')">Overview</button>
+                <button type="button" class="nav-mobile-item" data-tab="tab-jobs" onclick="switchTab('tab-jobs')">Tasks</button>
+                <button type="button" class="nav-mobile-item" data-tab="tab-inventory" onclick="switchTab('tab-inventory')">Inventory</button>
+                <button type="button" class="nav-mobile-item" data-tab="tab-restore" onclick="switchTab('tab-restore')">Recovery</button>
+                <div class="nav-mobile-section">Account</div>
+                <button type="button" class="nav-mobile-item" data-tab="tab-syslogs" onclick="switchTab('tab-syslogs')">System Logs</button>
+                <button type="button" class="nav-mobile-item" data-tab="tab-settings" onclick="switchTab('tab-settings')">Settings</button>
+                {% if current_user and current_user.role == 'admin' %}
+                <button type="button" class="nav-mobile-item" data-tab="tab-users" onclick="switchTab('tab-users')">Users</button>
+                <button type="button" class="nav-mobile-item" data-open-setup-wizard>Setup wizard</button>
+                {% endif %}
+                <a href="/logout" class="nav-mobile-signout">Sign out</a>
             </div>
         </div>
     </nav>
 
     <div class="max-w-7xl w-full mx-auto py-8 px-4 sm:px-6 lg:px-8 flex-1">
+
+        {% include 'partials/overview_tab.html' %}
 
         <!-- USERS TAB (admin only) -->
         {% if current_user and current_user.role == 'admin' %}
@@ -903,7 +1517,7 @@
         {% endif %}
 
         <!-- JOBS TAB -->
-        <div id="tab-jobs" class="tab-content">
+        <div id="tab-jobs" class="tab-content hidden">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 space-y-4 md:space-y-0">
                 <h2 class="text-2xl font-bold">Backup Tasks</h2>
                 
@@ -925,7 +1539,13 @@
                         <button type="button" id="jobsViewList" onclick="setJobsView('list')" class="jobs-view-btn active rounded-none">List</button>
                         <button type="button" id="jobsViewCards" onclick="setJobsView('cards')" class="jobs-view-btn rounded-none border-l" style="border-color: var(--border-color)">Cards</button>
                     </div>
+                    <button type="button" id="jobsPauseToggle" onclick="toggleJobsPause()" class="btn-secondary px-3 py-2 text-xs font-semibold whitespace-nowrap">Pause all</button>
                 </div>
+            </div>
+
+            <div id="jobsPausedBanner" class="jobs-paused-banner{% if not config or not config.scheduler_paused %} hidden{% endif %}">
+                <span class="text-sm font-medium">All backups are paused — scheduled and manual runs are blocked.</span>
+                <button type="button" onclick="toggleJobsPause()" class="btn-secondary px-3 py-1.5 text-xs font-medium">Resume all</button>
             </div>
 
             <!-- LIST VIEW -->
@@ -933,6 +1553,7 @@
                 <span id="jobsBulkCount" class="text-sm font-medium">0 selected</span>
                 <button type="button" onclick="runSelectedJobs()" class="btn-primary px-3 py-1.5 text-xs font-medium">Run selected</button>
                 <button type="button" onclick="abortSelectedJobs()" class="btn-danger px-3 py-1.5 text-xs font-medium">Abort selected</button>
+                <button type="button" onclick="pauseSelectedJobs()" class="btn-secondary px-3 py-1.5 text-xs font-medium">Pause selected</button>
                 <button type="button" onclick="removeSelectedJobs()" class="btn-secondary px-3 py-1.5 text-xs font-medium hover:text-red-400 hover:border-red-400/50">Remove selected</button>
                 <button type="button" onclick="clearJobSelection()" class="text-xs font-medium opacity-60 hover:opacity-100">Clear</button>
             </div>
@@ -1339,6 +1960,11 @@
 
     <!-- Polling Logic -->
     <script>
+    // Setup wizard state must exist before any hoisted wizard function can run.
+    const wizardState = { step: 1, hosts: [], vms: [], applying: false };
+    const WIZARD_STEP_NAMES = ['Backup storage', 'ESXi hosts', 'Select VMs', 'Schedule', 'Complete'];
+    const WIZARD_TOTAL_STEPS = 5;
+
     async function testStorage() {
         try { let res = await fetch('/test_storage', {method: 'POST'}); let data = await res.json(); await showAlert(data.message, { title: 'Storage test' }); }
         catch(e) { await showAlert('Error testing storage connection.', { title: 'Storage test' }); }
@@ -1812,6 +2438,14 @@
             let data = await res.json();
             Object.keys(data).forEach(vm_id => updateJobProgressUI(vm_id, data[vm_id]));
             if(document.getElementById('tab-jobs').classList.contains('hidden') === false) filterJobs();
+            if (typeof refreshOverviewLiveOnly === 'function') refreshOverviewLiveOnly();
+
+            // Overview full refresh (every ~30s when tab visible)
+            if (document.getElementById('tab-overview') && !document.getElementById('tab-overview').classList.contains('hidden')) {
+                if (!window._overviewPollTick) window._overviewPollTick = 0;
+                window._overviewPollTick++;
+                if (window._overviewPollTick % 15 === 0 && typeof refreshOverview === 'function') refreshOverview(false);
+            }
 
             // System Logs Polling
             if(document.getElementById('tab-syslogs').classList.contains('hidden') === false) {
@@ -1900,16 +2534,9 @@
         } catch(e) { console.error("Delete error:", e); }
     }
 
-    // ─── Handle query param redirects (tab switching + password feedback) ─────
+    // ─── Handle query param redirects (password feedback, etc.) ─────
     (function() {
         const params = new URLSearchParams(window.location.search);
-        const tab = params.get('tab');
-        if (tab) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById('tab-' + tab)?.classList.remove('hidden');
-        }
-
-        // Password change feedback
         const pwOk = params.get('pw_ok');
         const pwErr = params.get('pw_error');
         const msgEl = document.getElementById('pw-msg');
@@ -1962,7 +2589,7 @@
             }
         }
 
-        if (tab || pwOk || pwErr || params.get('new_user') || params.get('reset_user') || params.get('user_ok') || params.get('user_error')) {
+        if (params.get('tab') || pwOk || pwErr || params.get('new_user') || params.get('reset_user') || params.get('user_ok') || params.get('user_error')) {
             window.history.replaceState({}, '', window.location.pathname);
         }
 
@@ -1985,10 +2612,6 @@
     })();
 
     // ─── Setup wizard ─────────────────────────────────────────────────────────
-    const wizardState = { step: 1, hosts: [], vms: [], applying: false };
-    const WIZARD_STEP_NAMES = ['Backup storage', 'ESXi hosts', 'Select VMs', 'Schedule', 'Complete'];
-    const WIZARD_TOTAL_STEPS = 5;
-
     async function wizardApi(method, path, body) {
         const opts = { method, headers: {} };
         if (body !== undefined) {
@@ -2059,7 +2682,12 @@
 
     async function openSetupWizard() {
         const el = document.getElementById('setupWizard');
-        if (!el) return;
+        if (!el) {
+            if (typeof showAlert === 'function') {
+                await showAlert('Setup wizard could not be loaded. Please refresh the page and try again.', { title: 'Setup wizard' });
+            }
+            return;
+        }
         wizardState.step = 1;
         wizardState.hosts = [];
         wizardState.vms = [];
@@ -2076,6 +2704,7 @@
         wizardShowDaysRow();
         wizardUpdateStepUi();
     }
+    window.openSetupWizard = openSetupWizard;
 
     function wizardInitStorageSelection() {
         if (!document.querySelector('input[name="wizard_storage_type"]:checked')) {
@@ -2151,6 +2780,7 @@
             window.location.reload();
         }
     }
+    window.closeSetupWizard = closeSetupWizard;
 
     function wizardBack() {
         if (wizardState.step > 1 && wizardState.step < WIZARD_TOTAL_STEPS) wizardGoToStep(wizardState.step - 1);
@@ -2378,11 +3008,7 @@
         if (e.key === 'Escape') closeSetupWizard(true);
     });
 
-    {% if setup_wizard_suggested and current_user and current_user.role == 'admin' %}
-    if (!localStorage.getItem('setup_wizard_done')) {
-        openSetupWizard();
-    }
-    {% endif %}
+    if (typeof initSetupWizardTriggers === 'function') initSetupWizardTriggers();
 
     </script>
 

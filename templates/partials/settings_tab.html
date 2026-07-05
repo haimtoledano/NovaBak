@@ -37,7 +37,7 @@
                         </nav>
                         {% if current_user and current_user.role == 'admin' %}
                         <div class="settings-sidebar-footer">
-                            <button type="button" onclick="openSetupWizard()" class="settings-wizard-btn">Setup wizard</button>
+                            <button type="button" class="settings-wizard-btn" data-open-setup-wizard>Setup wizard</button>
                         </div>
                         {% endif %}
                     </div>

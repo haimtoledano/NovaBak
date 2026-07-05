@@ -1,12 +1,18 @@
 """Shared backup configuration and job operations for UI and API."""
 
+import datetime
 import os
+import shutil
+import time
 
 import esxi_handler
 import worker
 import storage_util
 from config_env import DATA_DIR
 from models import Config, VM, ESXiHost, BackupLog, RestoreJob
+
+_overview_storage_cache = {"ts": 0, "data": None}
+_OVERVIEW_STORAGE_TTL = 300
 
 
 def get_or_create_config(db):
@@ -31,6 +37,11 @@ def config_to_dict(config):
         "perf_parallel_threads": config.perf_parallel_threads,
         "perf_compression_level": config.perf_compression_level,
         "backup_timeout_mins": config.backup_timeout_mins,
+        "max_global_backups": config.max_global_backups,
+        "max_backups_per_host": config.max_backups_per_host,
+        "datastore_min_free_pct": config.datastore_min_free_pct,
+        "datastore_headroom_gb": config.datastore_headroom_gb,
+        "datastore_est_multiplier": config.datastore_est_multiplier,
         "smtp_server": config.smtp_server,
         "smtp_port": config.smtp_port,
         "smtp_user": config.smtp_user,
@@ -72,6 +83,16 @@ def update_storage_config(db, data):
         config.perf_compression_level = data["perf_compression_level"]
     if "backup_timeout_mins" in data and data["backup_timeout_mins"] is not None:
         config.backup_timeout_mins = data["backup_timeout_mins"]
+    if "max_global_backups" in data and data["max_global_backups"] is not None:
+        config.max_global_backups = data["max_global_backups"]
+    if "max_backups_per_host" in data and data["max_backups_per_host"] is not None:
+        config.max_backups_per_host = data["max_backups_per_host"]
+    if "datastore_min_free_pct" in data and data["datastore_min_free_pct"] is not None:
+        config.datastore_min_free_pct = data["datastore_min_free_pct"]
+    if "datastore_headroom_gb" in data and data["datastore_headroom_gb"] is not None:
+        config.datastore_headroom_gb = data["datastore_headroom_gb"]
+    if "datastore_est_multiplier" in data and data["datastore_est_multiplier"] is not None:
+        config.datastore_est_multiplier = data["datastore_est_multiplier"]
     db.commit()
     db.refresh(config)
     return config
@@ -259,7 +280,22 @@ def update_vm_job(db, vm_id, data):
     return vm
 
 
+def is_scheduler_paused(db):
+    config = get_or_create_config(db)
+    return bool(getattr(config, "scheduler_paused", False))
+
+
+def set_scheduler_paused(db, paused):
+    config = get_or_create_config(db)
+    config.scheduler_paused = bool(paused)
+    db.commit()
+    db.refresh(config)
+    return config
+
+
 def trigger_backup(db, vm_id):
+    if is_scheduler_paused(db):
+        raise ValueError("All backups are paused. Click Resume all on the Tasks page to run backups.")
     vm = db.query(VM).filter(VM.id == vm_id).first()
     if not vm:
         raise ValueError("VM not found")
@@ -436,3 +472,237 @@ def delete_restore(db, job_id):
     db.delete(job)
     db.commit()
     return True
+
+
+def _parse_backup_size_bytes(size_str):
+    try:
+        parts = (size_str or "").split()
+        if len(parts) != 2:
+            return 0
+        val = float(parts[0])
+        unit = parts[1].upper()
+        if unit == "GB":
+            return int(val * (1024 ** 3))
+        if unit == "MB":
+            return int(val * (1024 ** 2))
+        if unit == "TB":
+            return int(val * (1024 ** 4))
+        return int(val)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _format_bytes(num_bytes):
+    if num_bytes is None or num_bytes <= 0:
+        return "—"
+    if num_bytes >= 1024 ** 4:
+        return f"{num_bytes / (1024 ** 4):.2f} TB"
+    if num_bytes >= 1024 ** 3:
+        return f"{num_bytes / (1024 ** 3):.2f} GB"
+    if num_bytes >= 1024 ** 2:
+        return f"{num_bytes / (1024 ** 2):.1f} MB"
+    return f"{num_bytes / 1024:.0f} KB"
+
+
+def _vm_is_running(vm):
+    action = (vm.current_action or "").strip()
+    if action in ("PENDING_RUN", "PENDING_STOP"):
+        return True
+    if action:
+        return True
+    progress = vm.progress or 0
+    return 0 < progress < 100
+
+
+def _storage_path_label(config):
+    if not config:
+        return "SMB", ""
+    stype = config.storage_type or "SMB"
+    if stype == "S3":
+        bucket = config.s3_bucket or "—"
+        region = config.s3_region or ""
+        path = f"s3://{bucket}" + (f" ({region})" if region else "")
+    elif stype == "NFS":
+        path = config.nfs_path or "—"
+    else:
+        path = config.smb_unc_path or "—"
+    return stype, path
+
+
+def _disk_usage_for_path(path):
+    if not path or path == "—":
+        return None
+    try:
+        if os.path.exists(path):
+            usage = shutil.disk_usage(path)
+            total = usage.total
+            free = usage.free
+            used = usage.used
+            return {
+                "disk_total_gb": round(total / (1024 ** 3), 1),
+                "disk_used_gb": round(used / (1024 ** 3), 1),
+                "disk_free_gb": round(free / (1024 ** 3), 1),
+                "disk_free_pct": round(100 * free / total, 1) if total else None,
+            }
+    except OSError:
+        pass
+    return None
+
+
+def _cached_storage_scan(config):
+    global _overview_storage_cache
+    now = time.time()
+    if _overview_storage_cache["data"] and (now - _overview_storage_cache["ts"]) < _OVERVIEW_STORAGE_TTL:
+        return _overview_storage_cache["data"]
+
+    stype, path = _storage_path_label(config)
+    result = {
+        "type": stype,
+        "path": path,
+        "total_bytes": 0,
+        "total_human": "—",
+        "version_count": 0,
+        "vm_count": 0,
+        "scan_error": None,
+    }
+    disk = _disk_usage_for_path(path) if stype != "S3" else None
+    if disk:
+        result.update(disk)
+
+    try:
+        if config.storage_type == "SMB":
+            worker.authenticate_smb(config)
+        backups = worker.get_available_backups(config)
+        total_bytes = sum(_parse_backup_size_bytes(b.get("size")) for b in backups)
+        vm_names = {b["vm_name"] for b in backups}
+        result["total_bytes"] = total_bytes
+        result["total_human"] = _format_bytes(total_bytes)
+        result["version_count"] = len(backups)
+        result["vm_count"] = len(vm_names)
+    except Exception as e:
+        result["scan_error"] = str(e)
+
+    _overview_storage_cache = {"ts": now, "data": result}
+    return result
+
+
+def _worker_health():
+    heartbeat = os.path.join(DATA_DIR, "worker.heartbeat")
+    if os.path.exists(heartbeat):
+        age = int(time.time() - os.path.getmtime(heartbeat))
+        # Worker polls every 5s; allow generous margin for slow disks / load
+        return age < 45, age
+
+    worker_log = os.path.join(DATA_DIR, "worker.log")
+    if os.path.exists(worker_log):
+        age = int(time.time() - os.path.getmtime(worker_log))
+        return age < 120, age
+    return False, None
+
+
+def get_overview(db):
+    config = get_or_create_config(db)
+    vms = db.query(VM).all()
+    esxi_hosts = db.query(ESXiHost).all()
+    selected = [v for v in vms if v.is_selected]
+
+    status_counts = {"Success": 0, "Failed": 0, "Cancelled": 0, "Skipped": 0, "Never": 0, "Other": 0}
+    for vm in selected:
+        st = vm.last_status or "Never"
+        if st in status_counts:
+            status_counts[st] += 1
+        else:
+            status_counts["Other"] += 1
+
+    cutoff_7d = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+    logs_7d = db.query(BackupLog).filter(BackupLog.timestamp >= cutoff_7d).all()
+    log_stats_7d = {"Success": 0, "Failed": 0, "Cancelled": 0, "Skipped": 0, "Warning": 0, "Other": 0}
+    for log in logs_7d:
+        st = log.status or "Other"
+        if st in log_stats_7d:
+            log_stats_7d[st] += 1
+        else:
+            log_stats_7d["Other"] += 1
+
+    finished_7d = log_stats_7d["Success"] + log_stats_7d["Failed"] + log_stats_7d["Cancelled"] + log_stats_7d["Skipped"]
+    success_rate_7d = round(100 * log_stats_7d["Success"] / finished_7d, 1) if finished_7d else None
+
+    stale_cutoff = datetime.datetime.utcnow() - datetime.timedelta(hours=48)
+    attention = []
+    for vm in selected:
+        host_name = vm.esxi_host.name if vm.esxi_host else "—"
+        last_backup_iso = vm.last_backup.isoformat() if vm.last_backup else None
+        if vm.last_status == "Failed":
+            attention.append({
+                "vm_id": vm.id,
+                "vm_name": vm.vm_name,
+                "host_name": host_name,
+                "reason": "Last backup failed",
+                "severity": "error",
+                "last_status": vm.last_status,
+                "last_backup": last_backup_iso,
+            })
+        elif vm.is_job_active and (not vm.last_backup or vm.last_backup < stale_cutoff):
+            attention.append({
+                "vm_id": vm.id,
+                "vm_name": vm.vm_name,
+                "host_name": host_name,
+                "reason": "No recent backup (48h+)",
+                "severity": "warning",
+                "last_status": vm.last_status or "Never",
+                "last_backup": last_backup_iso,
+            })
+        elif vm.last_status == "Never":
+            attention.append({
+                "vm_id": vm.id,
+                "vm_name": vm.vm_name,
+                "host_name": host_name,
+                "reason": "Never backed up",
+                "severity": "info",
+                "last_status": "Never",
+                "last_backup": None,
+            })
+
+    severity_order = {"error": 0, "warning": 1, "info": 2}
+    attention.sort(key=lambda x: (severity_order.get(x["severity"], 9), x["vm_name"]))
+
+    live_jobs = []
+    for vm in selected:
+        if not _vm_is_running(vm):
+            continue
+        live_jobs.append({
+            "vm_id": vm.id,
+            "vm_name": vm.vm_name,
+            "host_name": vm.esxi_host.name if vm.esxi_host else "—",
+            "progress": vm.progress or 0,
+            "current_action": vm.current_action or "",
+            "speed_mbps": round(getattr(vm, "speed_mbps", 0) or 0, 1),
+        })
+
+    recent_activity = list_backup_logs(db, limit=15)
+    restores = list_restores(db, limit=10)
+    active_restores = [r for r in restores if r.get("status") == "In Progress"]
+
+    worker_online, worker_age = _worker_health()
+    storage = _cached_storage_scan(config)
+    setup_incomplete = len(esxi_hosts) == 0 or len(selected) == 0
+
+    return {
+        "protected_count": len(selected),
+        "scheduled_count": sum(1 for v in selected if v.is_job_active),
+        "running_count": len(live_jobs),
+        "host_count": len(esxi_hosts),
+        "inventory_count": len(vms),
+        "status_counts": status_counts,
+        "log_stats_7d": log_stats_7d,
+        "success_rate_7d": success_rate_7d,
+        "storage": storage,
+        "worker_online": worker_online,
+        "worker_last_seen_seconds": worker_age,
+        "max_global_backups": config.max_global_backups or 10,
+        "live_jobs": live_jobs,
+        "recent_activity": recent_activity,
+        "active_restores": active_restores[:5],
+        "attention": attention[:12],
+        "setup_incomplete": setup_incomplete,
+    }

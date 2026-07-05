@@ -83,6 +83,7 @@ class Config(Base):
     datastore_min_free_pct = Column(Integer, default=15)
     datastore_headroom_gb = Column(Integer, default=10)
     datastore_est_multiplier = Column(Float, default=2.0)
+    scheduler_paused = Column(Boolean, default=False)
 
     # Storage Settings
     storage_type = Column(String, default="SMB") # SMB, NFS, S3
@@ -200,6 +201,7 @@ def init_db():
             ("datastore_min_free_pct", "ALTER TABLE config ADD COLUMN datastore_min_free_pct INTEGER DEFAULT 15"),
             ("datastore_headroom_gb", "ALTER TABLE config ADD COLUMN datastore_headroom_gb INTEGER DEFAULT 10"),
             ("datastore_est_multiplier", "ALTER TABLE config ADD COLUMN datastore_est_multiplier REAL DEFAULT 2.0"),
+            ("scheduler_paused", "ALTER TABLE config ADD COLUMN scheduler_paused BOOLEAN DEFAULT 0"),
         ]
         
         from logger_util import log_info, log_warn
