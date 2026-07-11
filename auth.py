@@ -31,7 +31,6 @@ def generate_qr_code(uri):
     img = qr.make_image(fill_color="black", back_color="white")
     
     buffered = io.BytesIO()
-    img.save(buffered)
     try:
         img.save(buffered, format="PNG")  # Pillow backend
     except TypeError:
