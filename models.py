@@ -78,6 +78,9 @@ class Config(Base):
     imap_password = Column(String, default="")
     imap_use_ssl = Column(Boolean, default=True)
     
+    # Network Security
+    allowed_ips = Column(String, nullable=True)
+    
     # Webhooks & Reporting
     webhook_url = Column(String, default="")
     daily_report_time = Column(String, default="08:00")

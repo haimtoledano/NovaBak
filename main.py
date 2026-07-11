@@ -77,6 +77,27 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(RequestIDMiddleware)
 
+class IPAllowlistMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        client_ip = request.client.host if request.client else "127.0.0.1"
+        # Bypass for localhost
+        if client_ip in ["127.0.0.1", "::1", "localhost"]:
+            return await call_next(request)
+            
+        with SessionLocal() as db:
+            config = db.query(Config).first()
+            if config and config.allowed_ips:
+                allowed = [ip.strip() for ip in config.allowed_ips.split(",") if ip.strip()]
+                if allowed and client_ip not in allowed:
+                    log_warn(f"Blocked unauthorized access attempt from IP: {client_ip}")
+                    return HTMLResponse(
+                        content="<h1>403 Forbidden</h1><p>Your IP address is not authorized to access this service.</p>", 
+                        status_code=403
+                    )
+        return await call_next(request)
+
+app.add_middleware(IPAllowlistMiddleware)
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     log_error(f"Unhandled exception: {exc}", exc_info=True)
@@ -391,6 +412,7 @@ def save_config(
     datastore_min_free_pct: int = Form(15),
     datastore_headroom_gb: int = Form(10),
     datastore_est_multiplier: float = Form(2.0),
+    allowed_ips: str = Form(""),
 
     storage_type: str = Form("SMB"),
     nfs_path: str = Form(""),
@@ -420,6 +442,7 @@ def save_config(
     config.smtp_to_email = smtp_to_email
     config.smtp_use_tls = smtp_use_tls
     config.smtp_use_ssl = smtp_use_ssl
+    config.allowed_ips = allowed_ips
     config.imap_server = imap_server
     config.imap_port = imap_port
     config.imap_user = imap_user

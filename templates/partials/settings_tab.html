@@ -29,6 +29,10 @@
                                 <svg class="settings-nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                                 Webhooks & Reports
                             </button>
+                            <button type="button" class="settings-nav-item" data-settings-panel="network" onclick="showSettingsPanel('network')">
+                                <svg class="settings-nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path></svg>
+                                Network Security
+                            </button>
                             <button type="button" class="settings-nav-item" data-settings-panel="api" onclick="showSettingsPanel('api')">
                                 <svg class="settings-nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
                                 API Keys
@@ -336,6 +340,28 @@
                                 </div>
                                 <div class="mt-6 flex justify-end">
                                     <button type="submit" class="btn-primary px-6 py-2 text-sm font-semibold">Save webhook settings</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Network Security -->
+                        <div id="settings-panel-network" class="settings-panel hidden">
+                            <h2 class="settings-panel-title">Network Security</h2>
+                            <p class="settings-panel-desc">Restrict access to this system using an IP allowlist.</p>
+                            <div class="card p-5">
+                                <div class="grid grid-cols-1 gap-4">
+                                    <div>
+                                        <div class="field-label-row">
+                                            <span class="input-label">Allowed IPs (Comma separated)</span>
+                                        </div>
+                                        <input type="text" name="allowed_ips" value="{{ config.allowed_ips or '' }}" placeholder="e.g. 192.168.1.100, 10.0.0.5" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                        <p class="text-[10px] mt-2" style="color: var(--text-muted)">
+                                            Leave empty to allow all IP addresses. <b>Note:</b> 127.0.0.1 is always allowed to prevent permanent lockouts.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="mt-6 flex justify-end">
+                                    <button type="submit" class="btn-primary px-6 py-2 text-sm font-semibold">Save network settings</button>
                                 </div>
                             </div>
                         </div>
