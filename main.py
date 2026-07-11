@@ -18,7 +18,13 @@ import time
 from logger_util import log_info, log_warn, log_error, log_critical
 from services import backup_ops
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from limiter import limiter
+
 app = FastAPI(title="NovaBak")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 from api.v1.router import router as v1_router
 v1_app = FastAPI(
@@ -101,6 +107,7 @@ def login_page(request: Request, error: str = None):
     return templates.TemplateResponse("login.html", {"request": request, "error": error})
 
 @app.post("/login")
+@limiter.limit("5/minute")
 def login_post(request: Request, username: str = Form(...), password: str = Form(...), mfa_code: str = Form(None), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == username).first()
     if not user or not auth.verify_password(password, user.hashed_password):
@@ -119,10 +126,15 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
         uri = auth.get_totp_uri(secret, username)
         qr_b64 = auth.generate_qr_code(uri)
         
+        from logger_util import log_audit
+        log_audit(db, username, "login", "User logged in (Pending MFA setup)", request.client.host)
+        
         response = templates.TemplateResponse("mfa_setup.html", {"request": request, "qr_code": qr_b64, "secret": secret})
         response.set_cookie(key="session_token", value=token, httponly=True)
         return response
 
+    from logger_util import log_audit
+    log_audit(db, username, "login", "User logged in", request.client.host)
     response = RedirectResponse(url="/", status_code=303)
     response.set_cookie(key="session_token", value=token, httponly=True)
     return response
@@ -146,7 +158,16 @@ def mfa_verify(request: Request, secret: str = Form(...), mfa_code: str = Form(.
         return templates.TemplateResponse("mfa_setup.html", {"request": request, "qr_code": qr_b64, "secret": secret, "error": "Invalid code, try again."})
 
 @app.get("/logout")
-def logout():
+def logout(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get("session_token")
+    if token:
+        try:
+            username = auth.decode_access_token(token)
+            from logger_util import log_audit
+            log_audit(db, username, "logout", "User logged out", request.client.host)
+        except Exception:
+            pass
+            
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie("session_token")
     return response
@@ -170,12 +191,8 @@ def get_current_user_from_request(request: Request, db: Session = Depends(get_db
 
 # ─── Admin: User Management ───────────────────────────────────────────────────
 
-import secrets
-import string
-
-def _gen_temp_password(length=12):
-    alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(length))
+from services import user_ops
+import urllib.parse
 
 @app.post("/admin/add_user")
 def admin_add_user(
@@ -184,23 +201,13 @@ def admin_add_user(
     role: str = Form("operator"),
     db: Session = Depends(get_db)
 ):
-    require_role(request, "admin", db=db)
-    existing = db.query(User).filter(User.username == username).first()
-    if existing:
-        return RedirectResponse(url="/?tab=users&user_error=exists", status_code=303)
-    temp_pw = _gen_temp_password()
-    new_user = User(
-        username=username,
-        hashed_password=auth.get_password_hash(temp_pw),
-        role=role,
-        is_mfa_enabled=False
-    )
-    db.add(new_user)
-    db.commit()
-    log_info(f"[ADMIN] Created user '{username}' with role '{role}'")
-    # Encode temp password in URL so admin can copy it (shown once)
-    import urllib.parse
-    return RedirectResponse(url=f"/?tab=users&new_user={urllib.parse.quote(username)}&new_pw={urllib.parse.quote(temp_pw)}", status_code=303)
+    current = require_role(request, "admin", db=db)
+    try:
+        new_user, temp_pw = user_ops.create_user(db, username, role, current.username, request.client.host)
+        log_info(f"[ADMIN] Created user '{username}' with role '{role}'")
+        return RedirectResponse(url=f"/?tab=users&new_user={urllib.parse.quote(username)}&new_pw={urllib.parse.quote(temp_pw)}", status_code=303)
+    except ValueError as e:
+        return RedirectResponse(url=f"/?tab=users&user_error=exists", status_code=303)
 
 @app.post("/admin/delete_user")
 def admin_delete_user(
@@ -209,15 +216,14 @@ def admin_delete_user(
     db: Session = Depends(get_db)
 ):
     current = require_role(request, "admin", db=db)
-    target = db.query(User).filter(User.id == user_id).first()
-    if not target:
+    try:
+        target = user_ops.delete_user(db, user_id, current.username, request.client.host)
+        log_info(f"[ADMIN] Deleted user '{target.username}'")
+        return RedirectResponse(url="/?tab=users&user_ok=deleted", status_code=303)
+    except ValueError as e:
+        if "Cannot delete your own account" in str(e):
+            return RedirectResponse(url="/?tab=users&user_error=self_delete", status_code=303)
         return RedirectResponse(url="/?tab=users", status_code=303)
-    if target.username == current.username:
-        return RedirectResponse(url="/?tab=users&user_error=self_delete", status_code=303)
-    db.delete(target)
-    db.commit()
-    log_info(f"[ADMIN] Deleted user '{target.username}'")
-    return RedirectResponse(url="/?tab=users&user_ok=deleted", status_code=303)
 
 @app.post("/admin/reset_password")
 def admin_reset_password(
@@ -225,16 +231,13 @@ def admin_reset_password(
     user_id: int = Form(...),
     db: Session = Depends(get_db)
 ):
-    require_role(request, "admin", db=db)
-    target = db.query(User).filter(User.id == user_id).first()
-    if not target:
+    current = require_role(request, "admin", db=db)
+    try:
+        target, temp_pw = user_ops.reset_password(db, user_id, current.username, request.client.host)
+        log_info(f"[ADMIN] Reset password for user '{target.username}'")
+        return RedirectResponse(url=f"/?tab=users&reset_user={urllib.parse.quote(target.username)}&reset_pw={urllib.parse.quote(temp_pw)}", status_code=303)
+    except ValueError:
         return RedirectResponse(url="/?tab=users", status_code=303)
-    temp_pw = _gen_temp_password()
-    target.hashed_password = auth.get_password_hash(temp_pw)
-    db.commit()
-    log_info(f"[ADMIN] Reset password for user '{target.username}'")
-    import urllib.parse
-    return RedirectResponse(url=f"/?tab=users&reset_user={urllib.parse.quote(target.username)}&reset_pw={urllib.parse.quote(temp_pw)}", status_code=303)
 
 @app.post("/admin/reset_mfa")
 def admin_reset_mfa(
@@ -242,15 +245,13 @@ def admin_reset_mfa(
     user_id: int = Form(...),
     db: Session = Depends(get_db)
 ):
-    require_role(request, "admin", db=db)
-    target = db.query(User).filter(User.id == user_id).first()
-    if not target:
+    current = require_role(request, "admin", db=db)
+    try:
+        target = user_ops.reset_mfa(db, user_id, current.username, request.client.host)
+        log_info(f"[ADMIN] Reset MFA for user '{target.username}' — will be prompted on next login")
+        return RedirectResponse(url="/?tab=users&user_ok=mfa_reset", status_code=303)
+    except ValueError:
         return RedirectResponse(url="/?tab=users", status_code=303)
-    target.is_mfa_enabled = False
-    target.mfa_secret = None
-    db.commit()
-    log_info(f"[ADMIN] Reset MFA for user '{target.username}' — will be prompted on next login")
-    return RedirectResponse(url="/?tab=users&user_ok=mfa_reset", status_code=303)
 
 @app.post("/admin/update_role")
 def admin_update_role(
@@ -260,15 +261,12 @@ def admin_update_role(
     db: Session = Depends(get_db)
 ):
     current = require_role(request, "admin", db=db)
-    target = db.query(User).filter(User.id == user_id).first()
-    if not target or target.username == current.username:
+    try:
+        target = user_ops.update_role(db, user_id, role, current.username, request.client.host)
+        log_info(f"[ADMIN] Changed role of '{target.username}' to '{role}'")
+        return RedirectResponse(url="/?tab=users&user_ok=role_updated", status_code=303)
+    except ValueError:
         return RedirectResponse(url="/?tab=users", status_code=303)
-    if role not in ("admin", "operator", "viewer"):
-        return RedirectResponse(url="/?tab=users", status_code=303)
-    target.role = role
-    db.commit()
-    log_info(f"[ADMIN] Changed role of '{target.username}' to '{role}'")
-    return RedirectResponse(url="/?tab=users&user_ok=role_updated", status_code=303)
 
 @app.get("/")
 def read_root(request: Request, db: Session = Depends(get_db)):
@@ -400,18 +398,17 @@ def add_esxi_host(
     db: Session = Depends(get_db)
 ):
     require_auth(request)
-    new_host = ESXiHost(name=name, host_ip=host_ip, username=username, password=password)
-    db.add(new_host)
-    db.commit()
+    try:
+        backup_ops.add_esxi_host(db, name, host_ip, username, password)
+    except ValueError as e:
+        import urllib.parse
+        return RedirectResponse(url=f"/?tab=hosts&error={urllib.parse.quote(str(e))}", status_code=303)
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/delete_esxi_host")
 def delete_esxi_host(request: Request, host_id: int = Form(...), db: Session = Depends(get_db)):
     require_auth(request)
-    host = db.query(ESXiHost).filter(ESXiHost.id == host_id).first()
-    if host:
-        db.delete(host)
-        db.commit()
+    backup_ops.delete_esxi_host(db, host_id)
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/fetch_vms")
@@ -421,48 +418,21 @@ def fetch_vms(request: Request, esxi_host_id: int = Form(...), db: Session = Dep
     except HTTPException:
         return RedirectResponse(url="/login", status_code=303)
         
-    host = db.query(ESXiHost).filter(ESXiHost.id == esxi_host_id).first()
-    if not host:
-        return {"error": "Invalid ESXi host selected."}
+    try:
+        backup_ops.sync_vms_for_host(db, esxi_host_id)
+    except Exception as e:
+        return {"error": str(e)}
         
-    si = esxi_handler.connect_esxi(host.host_ip, host.username, host.password)
-    if not si:
-        return {"error": "Could not connect to ESXi."}
-        
-    vm_list = esxi_handler.get_all_vms(si)
-    esxi_handler.Disconnect(si)
-    
-    # Update DB
-    existing_vms = {vm.vm_name: vm for vm in db.query(VM).all()}
-    
-    for vm_data in vm_list:
-        if vm_data['name'] not in existing_vms:
-            new_vm = VM(
-                vm_name=vm_data['name'], 
-                esxi_host_id=host.id,
-                cpu_count=vm_data.get('cpu_count', 0),
-                memory_mb=vm_data.get('memory_mb', 0),
-                storage_gb=vm_data.get('storage_gb', 0.0),
-                power_state=vm_data.get('power_state', 'Unknown')
-            )
-            db.add(new_vm)
-        else:
-            vm = existing_vms[vm_data['name']]
-            vm.cpu_count = vm_data.get('cpu_count', 0)
-            vm.memory_mb = vm_data.get('memory_mb', 0)
-            vm.storage_gb = vm_data.get('storage_gb', 0.0)
-            vm.power_state = vm_data.get('power_state', 'Unknown')
-            
-    db.commit()
     return RedirectResponse(url="/", status_code=303)
+
 
 @app.post("/toggle_vm")
 def toggle_vm(request: Request, vm_id: int = Form(...), is_selected: bool = Form(False), db: Session = Depends(get_db)):
     require_auth(request)
-    vm = db.query(VM).filter(VM.id == vm_id).first()
-    if vm:
-        vm.is_selected = is_selected
-        db.commit()
+    try:
+        backup_ops.update_vm_job(db, vm_id, {"is_selected": is_selected})
+    except ValueError:
+        pass
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/update_job")
@@ -479,28 +449,27 @@ def update_job(
     db: Session = Depends(get_db)
 ):
     require_auth(request)
-    vm = db.query(VM).filter(VM.id == vm_id).first()
-    if vm:
-        vm.schedule_hour = schedule_hour
-        vm.schedule_minute = schedule_minute
-        vm.retention_count = retention_count
-        vm.is_job_active = is_job_active
-        vm.power_off_for_backup = power_off_for_backup
-        vm.schedule_frequency = schedule_frequency if schedule_frequency in ("daily", "weekly", "monthly") else "daily"
-        valid_days = [d.strip() for d in schedule_days.split(',') if d.strip().isdigit() and 0 <= int(d.strip()) <= 6]
-        vm.schedule_days = ','.join(valid_days) if valid_days else "0,1,2,3,4,5,6"
-        db.commit()
-        # The external worker_daemon.py will auto-detect this schedule change via md5 hash polling.
+    try:
+        backup_ops.update_vm_job(db, vm_id, {
+            "schedule_hour": schedule_hour,
+            "schedule_minute": schedule_minute,
+            "retention_count": retention_count,
+            "is_job_active": is_job_active,
+            "power_off_for_backup": power_off_for_backup,
+            "schedule_frequency": schedule_frequency,
+            "schedule_days": schedule_days
+        })
+    except ValueError:
+        pass
     return RedirectResponse(url="/", status_code=303)
-
-
 
 @app.post("/run_now")
 def run_now(request: Request, vm_id: int = Form(...), db: Session = Depends(get_db)):
-    require_auth(request)
+    username = require_auth(request)
     try:
-        backup_ops.trigger_backup(db, vm_id)
-    except ValueError:
+        from services import backup_ops
+        backup_ops.trigger_backup(db, vm_id, username, request.client.host)
+    except ValueError as e:
         pass
     return RedirectResponse(url="/", status_code=303)
 
@@ -705,27 +674,6 @@ def delete_restore(request: Request, job_id: int, db: Session = Depends(get_db))
         return {"status": "ok"}
     return {"status": "error", "message": "Job not found"}
     
-@app.post("/add_user")
-def add_user(request: Request, new_username: str = Form(...), new_password: str = Form(...), db: Session = Depends(get_db)):
-    require_auth(request)
-    existing = db.query(User).filter(User.username == new_username).first()
-    if not existing:
-        hashed = auth.get_password_hash(new_password)
-        new_user = User(username=new_username, hashed_password=hashed)
-        db.add(new_user)
-        db.commit()
-    return RedirectResponse(url="/", status_code=303)
-
-@app.post("/delete_user")
-def delete_user(request: Request, user_id: int = Form(...), db: Session = Depends(get_db)):
-    current_username = require_auth(request)
-    user_to_delete = db.query(User).filter(User.id == user_id).first()
-    
-    if user_to_delete and user_to_delete.username != current_username:
-        db.delete(user_to_delete)
-        db.commit()
-        
-    return RedirectResponse(url="/", status_code=303)
 
 @app.post("/profile/update")
 def profile_update(
@@ -745,13 +693,31 @@ def profile_update(
     return RedirectResponse(url="/?tab=settings&profile_saved=1", status_code=303)
 
 
+@app.post("/profile/password")
+def profile_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    username = require_auth(request)
+    try:
+        from services import user_ops
+        user_ops.change_password(db, username, current_password, new_password, request.client.host)
+    except ValueError as e:
+        return RedirectResponse(url=f"/?tab=settings&pw_error={e}", status_code=303)
+    return RedirectResponse(url="/?tab=settings&pw_saved=1", status_code=303)
+
+
+
 @app.post("/stop_job")
 def stop_job(request: Request, vm_id: int = Form(...), db: Session = Depends(get_db)):
-    require_auth(request)
-    vm = db.query(VM).filter(VM.id == vm_id).first()
-    if vm:
-        vm.current_action = "PENDING_STOP"
-        db.commit()
+    username = require_auth(request)
+    from services import backup_ops
+    try:
+        backup_ops.stop_backup(db, vm_id, username, request.client.host)
+    except ValueError:
+        pass
     return RedirectResponse(url="/", status_code=303)
 @app.get("/job_progress")
 def get_job_progress(request: Request, db: Session = Depends(get_db)):
@@ -877,15 +843,15 @@ if __name__ == "__main__":
         l_config["formatters"]["default"]["fmt"] = "[%(asctime)s] %(levelprefix)s %(message)s"
 
         log_info("=" * 55)
-        log_info("  NovaBak is starting on HTTPS port 8000")
-        log_info("Open: https://localhost:8000")
+        log_info("  NovaBak is starting on HTTPS port 8001")
+        log_info("Open: https://localhost:8001")
         log_info("  (Browser will warn about self-signed cert - click Advanced -> Proceed)")
         log_info("=" * 55)
 
         uvicorn.run(
             "main:app",
             host="0.0.0.0",
-            port=8000,
+            port=8001,
             ssl_certfile=cert_file,
             ssl_keyfile=key_file,
             log_config=l_config,

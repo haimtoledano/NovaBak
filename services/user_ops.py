@@ -27,7 +27,9 @@ def list_users(db):
     return db.query(User).order_by(User.username).all()
 
 
-def create_user(db, username, role="operator"):
+from logger_util import log_audit
+
+def create_user(db, username, role="operator", current_user="system", ip_address=None):
     if role not in ("admin", "operator", "viewer"):
         raise ValueError("Invalid role")
     existing = db.query(User).filter(User.username == username).first()
@@ -43,10 +45,11 @@ def create_user(db, username, role="operator"):
     db.add(user)
     db.commit()
     db.refresh(user)
+    log_audit(db, current_user, "create_user", f"Created user {username} with role {role}", ip_address)
     return user, temp_pw
 
 
-def delete_user(db, user_id, current_username):
+def delete_user(db, user_id, current_username, ip_address=None):
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
         raise ValueError("User not found")
@@ -54,30 +57,33 @@ def delete_user(db, user_id, current_username):
         raise ValueError("Cannot delete your own account")
     db.delete(target)
     db.commit()
+    log_audit(db, current_username, "delete_user", f"Deleted user {target.username}", ip_address)
     return target
 
 
-def reset_password(db, user_id):
+def reset_password(db, user_id, current_username="system", ip_address=None):
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
         raise ValueError("User not found")
     temp_pw = _gen_temp_password()
     target.hashed_password = auth.get_password_hash(temp_pw)
     db.commit()
+    log_audit(db, current_username, "reset_password", f"Reset password for {target.username}", ip_address)
     return target, temp_pw
 
 
-def reset_mfa(db, user_id):
+def reset_mfa(db, user_id, current_username="system", ip_address=None):
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
         raise ValueError("User not found")
     target.is_mfa_enabled = False
     target.mfa_secret = None
     db.commit()
+    log_audit(db, current_username, "reset_mfa", f"Disabled MFA for {target.username}", ip_address)
     return target
 
 
-def update_role(db, user_id, role, current_username):
+def update_role(db, user_id, role, current_username, ip_address=None):
     if role not in ("admin", "operator", "viewer"):
         raise ValueError("Invalid role")
     target = db.query(User).filter(User.id == user_id).first()
@@ -88,6 +94,7 @@ def update_role(db, user_id, role, current_username):
     target.role = role
     db.commit()
     db.refresh(target)
+    log_audit(db, current_username, "update_role", f"Changed role of {target.username} to {role}", ip_address)
     return target
 
 
@@ -101,6 +108,21 @@ def update_profile(db, username, email=None, notify_subscriptions=None):
         user.notify_subscriptions = notify_subscriptions.strip()
     db.commit()
     db.refresh(user)
+    return user
+
+
+def change_password(db, username, current_password, new_password, ip_address=None):
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise ValueError("User not found")
+    if not auth.verify_password(current_password, user.hashed_password):
+        raise ValueError("Incorrect current password")
+    if len(new_password) < 6:
+        raise ValueError("New password must be at least 6 characters")
+        
+    user.hashed_password = auth.get_password_hash(new_password)
+    db.commit()
+    log_audit(db, username, "change_password", "User changed their password", ip_address)
     return user
 
 

@@ -204,7 +204,13 @@ def sync_vms_for_host(db, host_id):
     host = db.query(ESXiHost).filter(ESXiHost.id == host_id).first()
     if not host:
         raise ValueError("Invalid ESXi host")
-    si = esxi_handler.connect_esxi(host.host_ip, host.username, host.password)
+    host_ip = host.host_ip
+    username = host.username
+    password = host.password
+    host_id_val = host.id
+    db.commit() # Release SQLite lock before long network call
+    
+    si = esxi_handler.connect_esxi(host_ip, username, password)
     if not si:
         raise ConnectionError("Could not connect to ESXi.")
     vm_list = esxi_handler.get_all_vms(si)
@@ -216,7 +222,7 @@ def sync_vms_for_host(db, host_id):
         if vm_data["name"] not in existing_vms:
             new_vm = VM(
                 vm_name=vm_data["name"],
-                esxi_host_id=host.id,
+                esxi_host_id=host_id_val,
                 cpu_count=vm_data.get("cpu_count", 0),
                 memory_mb=vm_data.get("memory_mb", 0),
                 storage_gb=vm_data.get("storage_gb", 0.0),
@@ -230,8 +236,8 @@ def sync_vms_for_host(db, host_id):
             vm.memory_mb = vm_data.get("memory_mb", 0)
             vm.storage_gb = vm_data.get("storage_gb", 0.0)
             vm.power_state = vm_data.get("power_state", "Unknown")
-            if vm.esxi_host_id != host.id:
-                vm.esxi_host_id = host.id
+            if vm.esxi_host_id != host_id_val:
+                vm.esxi_host_id = host_id_val
     db.commit()
     return {"synced_new": synced, "total_on_host": len(vm_list)}
 
@@ -293,7 +299,7 @@ def set_scheduler_paused(db, paused):
     return config
 
 
-def trigger_backup(db, vm_id):
+def trigger_backup(db, vm_id, current_username="system", ip_address=None):
     if is_scheduler_paused(db):
         raise ValueError("All backups are paused. Click Resume all on the Tasks page to run backups.")
     vm = db.query(VM).filter(VM.id == vm_id).first()
@@ -301,15 +307,19 @@ def trigger_backup(db, vm_id):
         raise ValueError("VM not found")
     vm.current_action = "PENDING_RUN"
     db.commit()
+    from logger_util import log_audit
+    log_audit(db, current_username, "trigger_backup", f"Triggered backup for VM {vm.vm_name}", ip_address)
     return vm
 
 
-def stop_backup(db, vm_id):
+def stop_backup(db, vm_id, current_username="system", ip_address=None):
     vm = db.query(VM).filter(VM.id == vm_id).first()
     if not vm:
         raise ValueError("VM not found")
     vm.current_action = "PENDING_STOP"
     db.commit()
+    from logger_util import log_audit
+    log_audit(db, current_username, "stop_backup", f"Stopped backup for VM {vm.vm_name}", ip_address)
     return vm
 
 
@@ -420,7 +430,7 @@ def list_restores(db, limit=50):
     return [restore_to_dict(job) for job in jobs]
 
 
-def start_restore(db, target_esxi_id, source_ova, target_name, datastore):
+def start_restore(db, target_esxi_id, source_ova, target_name, datastore, current_username="system", ip_address=None):
     config = db.query(Config).first()
     target_host = db.query(ESXiHost).filter(ESXiHost.id == target_esxi_id).first()
     if not config or not target_host:
@@ -439,6 +449,8 @@ def start_restore(db, target_esxi_id, source_ova, target_name, datastore):
     db.add(restore_job)
     db.commit()
     db.refresh(restore_job)
+    from logger_util import log_audit
+    log_audit(db, current_username, "start_restore", f"Started restore of {source_ova} to {target_name} on {target_host.name}", ip_address)
     worker.restore_queue_executor.submit(
         worker.perform_restore,
         config,
@@ -453,7 +465,7 @@ def start_restore(db, target_esxi_id, source_ova, target_name, datastore):
     return restore_job
 
 
-def stop_restore(db, job_id):
+def stop_restore(db, job_id, current_username="system", ip_address=None):
     job = db.query(RestoreJob).filter(RestoreJob.id == job_id).first()
     if not job:
         raise ValueError("Restore job not found")
@@ -462,15 +474,19 @@ def stop_restore(db, job_id):
     job.is_cancelled = True
     job.current_action = "Stopping..."
     db.commit()
+    from logger_util import log_audit
+    log_audit(db, current_username, "stop_restore", f"Stopped restore job {job_id}", ip_address)
     return job
 
 
-def delete_restore(db, job_id):
+def delete_restore(db, job_id, current_username="system", ip_address=None):
     job = db.query(RestoreJob).filter(RestoreJob.id == job_id).first()
     if not job:
         return False
     db.delete(job)
     db.commit()
+    from logger_util import log_audit
+    log_audit(db, current_username, "delete_restore", f"Deleted restore job {job_id}", ip_address)
     return True
 
 

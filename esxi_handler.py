@@ -16,12 +16,18 @@ def connect_esxi(host, user, pwd):
     context = ssl._create_unverified_context() # Ignore self-signed certs
     try:
         log_info(f"[ESXI] Connecting to {host}...")
-        si = SmartConnect(host=host, user=user, pwd=pwd, sslContext=context)
+        import socket
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(10.0) # 10 second timeout for ESXi connection
+        try:
+            si = SmartConnect(host=host, user=user, pwd=pwd, sslContext=context)
+        finally:
+            socket.setdefaulttimeout(old_timeout)
         log_info(f"[ESXI] Connected successfully to {host}")
         atexit.register(Disconnect, si)
         return si
     except Exception as e:
-        print(f"Failed to connect to ESXi: {e}")
+        log_error(f"Failed to connect to ESXi {host}: {e}")
         return None
 
 def get_all_vms(si):

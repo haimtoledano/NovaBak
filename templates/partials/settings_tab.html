@@ -47,6 +47,16 @@
                     <div id="profile-saved-msg" class="hidden mb-4 px-4 py-3 rounded text-sm font-medium" style="background:rgba(34,197,94,0.12); color:#4ade80;">
                         ✓ Notification preferences saved.
                     </div>
+                    
+                    <script>
+                        const urlParams = new URLSearchParams(window.location.search);
+                        if(urlParams.has('pw_saved')) {
+                            document.write('<div class="mb-4 px-4 py-3 rounded text-sm font-medium" style="background:rgba(34,197,94,0.12); color:#4ade80;">✓ Password changed successfully.</div>');
+                        }
+                        if(urlParams.has('pw_error')) {
+                            document.write('<div class="mb-4 px-4 py-3 rounded text-sm font-medium" style="background:rgba(239,68,68,0.12); color:#f87171;">⚠ ' + urlParams.get('pw_error') + '</div>');
+                        }
+                    </script>
 
                     <!-- Profile -->
                     <div id="settings-panel-profile" class="settings-panel">
@@ -80,7 +90,28 @@
                                 </div>
                             </div>
                         </form>
+
+                        <form action="/profile/password" method="POST" class="mt-6">
+                            <div class="card p-5">
+                                <div class="flex flex-wrap justify-between items-start gap-3 mb-4 border-b pb-4" style="border-color: var(--border-color)">
+                                    <h3 class="font-semibold text-sm">Change Password</h3>
+                                    <button type="submit" class="btn-primary px-4 py-2 text-sm font-semibold">Change password</button>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <span class="input-label">Current password</span>
+                                        <input type="password" name="current_password" required class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                    </div>
+                                    <div>
+                                        <span class="input-label">New password</span>
+                                        <input type="password" name="new_password" required minlength="6" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                        <p class="text-[10px] opacity-50 mt-1">Must be at least 6 characters.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
                     </div>
+
 
                     {% if current_user and current_user.role == 'admin' %}
                     <form action="/save_config" method="POST" id="settings-config-form">

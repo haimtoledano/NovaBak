@@ -43,3 +43,17 @@ def log_critical(message):
 def log_debug(message):
     log(message, "DEBUG")
 
+def log_audit(db_session, username: str, action: str, details: str = None, ip_address: str = None):
+    """Writes an audit log entry to the database."""
+    try:
+        from models import AuditLog
+        new_log = AuditLog(
+            username=username,
+            action=action,
+            details=details,
+            ip_address=ip_address
+        )
+        db_session.add(new_log)
+        db_session.commit()
+    except Exception as e:
+        log_error(f"Failed to write audit log: {e}")

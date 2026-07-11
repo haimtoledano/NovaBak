@@ -25,20 +25,20 @@ try:
         admin_user = User(username="admin", hashed_password=hashed, is_mfa_enabled=False)
         db.add(admin_user)
         db.commit()
-        print("✅ Created default user: admin / admin")
+        print("[OK] Created default user: admin / admin")
     else:
-        print("ℹ️  Admin user already exists, skipping.")
+        print("[INFO] Admin user already exists, skipping.")
 
     # Ensure a config row exists
     from models import Config
     if not db.query(Config).first():
         db.add(Config())
         db.commit()
-        print("✅ Created default config row.")
+        print("[OK] Created default config row.")
 
-    print("\n✅ Database initialized successfully.")
+    print("\n[OK] Database initialized successfully.")
     print("   DB location:", os.path.abspath(os.path.join("data", "backup_system.db")))
     print("   Login with: admin / admin")
-    print("   ⚠️  Change your password after first login!")
+    print("   [!] Change your password after first login!")
 finally:
     db.close()

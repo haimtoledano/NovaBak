@@ -40,7 +40,8 @@ def generate_qr_code(uri):
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 
-SECRET_KEY = "super-secure-backup-manager-secret"
+from config_env import SECRET_KEY
+
 ALGORITHM = "HS256"
 
 def create_access_token(username: str):

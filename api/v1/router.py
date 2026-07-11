@@ -10,7 +10,7 @@ from api.schemas import (
     StorageConfigUpdate, ConfigResponse, ConfigUpdate, TestResult,
     ESXiHostCreate, ESXiHostResponse, VmUpdate, VmResponse, SyncResult,
     UserResponse, UserCreateRequest, UserCreateResponse, UserRoleUpdate,
-    PasswordResetResponse, ProfileUpdate, BackupLogEntry, SystemLogsResponse,
+    PasswordResetResponse, ProfileUpdate, PasswordChangeRequest, BackupLogEntry, SystemLogsResponse,
     RestoreCreateRequest, RestoreResponse, OverviewResponse,
 )
 from models import User, ApiKey
@@ -30,14 +30,19 @@ def _authenticate_login(db: Session, username: str, password: str, mfa_code: Opt
     return user
 
 
+from limiter import limiter
+from fastapi import Request
+
 # ─── Auth / Tokens ────────────────────────────────────────────────────────────
 
 @router.post("/auth/token", response_model=TokenResponse)
 @router.post("/auth/login", response_model=TokenResponse)
-def create_token(body: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def create_token(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     """Create a short-lived JWT bearer token (7 days). Use for API key creation or direct API calls."""
     user = _authenticate_login(db, body.username, body.password, body.mfa_code)
     return TokenResponse(access_token=auth.create_access_token(user.username))
+
 
 
 @router.post("/auth/api-keys", response_model=ApiKeyCreateResponse)
@@ -238,6 +243,20 @@ def update_profile(
     return UserResponse(**user_ops.user_to_dict(updated))
 
 
+@router.post("/profile/password")
+def change_password(
+    request: Request,
+    body: PasswordChangeRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_api_user),
+):
+    try:
+        user_ops.change_password(db, user.username, body.current_password, body.new_password, request.client.host)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True, "message": "Password updated successfully"}
+
+
 # ─── ESXi Hosts ───────────────────────────────────────────────────────────────
 
 @router.get("/hosts", response_model=List[ESXiHostResponse])
@@ -325,12 +344,13 @@ def patch_vm(
 
 @router.post("/vms/{vm_id}/run")
 def run_vm_backup(
+    request: Request,
     vm_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(require_api_role("admin", "operator")),
 ):
     try:
-        backup_ops.trigger_backup(db, vm_id)
+        backup_ops.trigger_backup(db, vm_id, user.username, request.client.host)
     except ValueError as e:
         code = 409 if "paused" in str(e).lower() else 404
         raise HTTPException(status_code=code, detail=str(e))
@@ -339,12 +359,13 @@ def run_vm_backup(
 
 @router.post("/vms/{vm_id}/stop")
 def stop_vm_backup(
+    request: Request,
     vm_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(require_api_role("admin", "operator")),
 ):
     try:
-        backup_ops.stop_backup(db, vm_id)
+        backup_ops.stop_backup(db, vm_id, user.username, request.client.host)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"ok": True, "message": "Stop requested"}
@@ -406,13 +427,14 @@ def list_restores(
 
 @router.post("/restores", response_model=RestoreResponse, status_code=202)
 def create_restore(
+    request: Request,
     body: RestoreCreateRequest,
     db: Session = Depends(get_db),
     user: User = Depends(require_api_role("admin", "operator")),
 ):
     try:
         job = backup_ops.start_restore(
-            db, body.target_esxi_id, body.source_ova, body.target_name, body.datastore
+            db, body.target_esxi_id, body.source_ova, body.target_name, body.datastore, user.username, request.client.host
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -421,12 +443,13 @@ def create_restore(
 
 @router.post("/restores/{job_id}/stop")
 def stop_restore_job(
+    request: Request,
     job_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(require_api_role("admin", "operator")),
 ):
     try:
-        job = backup_ops.stop_restore(db, job_id)
+        job = backup_ops.stop_restore(db, job_id, user.username, request.client.host)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"ok": True, "id": job.id, "message": "Stop requested"}
@@ -434,11 +457,12 @@ def stop_restore_job(
 
 @router.delete("/restores/{job_id}")
 def delete_restore_job(
+    request: Request,
     job_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(require_api_role("admin", "operator")),
 ):
-    if not backup_ops.delete_restore(db, job_id):
+    if not backup_ops.delete_restore(db, job_id, user.username, request.client.host):
         raise HTTPException(status_code=404, detail="Restore job not found")
     return {"ok": True}
 

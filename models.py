@@ -149,74 +149,38 @@ class RestoreJob(Base):
     end_time = Column(DateTime, nullable=True)
     error_message = Column(String, nullable=True)
 
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    username = Column(String, index=True)
+    action = Column(String)
+    details = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+
 # Database startup logic
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 30})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+from config_env import BASE_DIR
+
 def init_db():
-    # 1. Physical Table Creation (metadata)
-    Base.metadata.create_all(bind=engine)
+    from alembic.config import Config as AlembicConfig
+    from alembic import command
     
-    # 2. Database Migrations (Manual ALTER TABLEs)
+    alembic_cfg = AlembicConfig(os.path.join(BASE_DIR, "alembic.ini"))
     db_path = os.path.join(DATA_DIR, "backup_system.db")
-    if os.path.exists(db_path):
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # List of migrations to run (column_name, sql_command)
-        migrations = [
-            ("progress", 'ALTER TABLE vms ADD COLUMN progress INTEGER DEFAULT 0'),
-            ("current_action", 'ALTER TABLE vms ADD COLUMN current_action VARCHAR DEFAULT ""'),
-            ("cpu_count", 'ALTER TABLE vms ADD COLUMN cpu_count INTEGER DEFAULT 0'),
-            ("memory_mb", 'ALTER TABLE vms ADD COLUMN memory_mb INTEGER DEFAULT 0'),
-            ("storage_gb", 'ALTER TABLE vms ADD COLUMN storage_gb REAL DEFAULT 0.0'),
-            ("perf_parallel_threads", 'ALTER TABLE config ADD COLUMN perf_parallel_threads INTEGER DEFAULT 0'),
-            ("perf_compression_level", 'ALTER TABLE config ADD COLUMN perf_compression_level INTEGER DEFAULT 0'),
-            ("smtp_use_tls", 'ALTER TABLE config ADD COLUMN smtp_use_tls BOOLEAN DEFAULT 1'),
-            ("smtp_use_ssl", 'ALTER TABLE config ADD COLUMN smtp_use_ssl BOOLEAN DEFAULT 0'),
-            ("backup_timeout_mins", 'ALTER TABLE config ADD COLUMN backup_timeout_mins INTEGER DEFAULT 15'),
-            ("imap_server", 'ALTER TABLE config ADD COLUMN imap_server VARCHAR DEFAULT ""'),
-            ("imap_port", 'ALTER TABLE config ADD COLUMN imap_port INTEGER DEFAULT 993'),
-            ("imap_user", 'ALTER TABLE config ADD COLUMN imap_user VARCHAR DEFAULT ""'),
-            ("imap_password", 'ALTER TABLE config ADD COLUMN imap_password VARCHAR DEFAULT ""'),
-            ("imap_use_ssl", 'ALTER TABLE config ADD COLUMN imap_use_ssl BOOLEAN DEFAULT 1'),
-            ("power_state", 'ALTER TABLE vms ADD COLUMN power_state VARCHAR DEFAULT "Unknown"'),
-            ("storage_type", 'ALTER TABLE config ADD COLUMN storage_type VARCHAR DEFAULT "SMB"'),
-            ("nfs_path", 'ALTER TABLE config ADD COLUMN nfs_path VARCHAR DEFAULT ""'),
-            ("s3_endpoint", 'ALTER TABLE config ADD COLUMN s3_endpoint VARCHAR DEFAULT ""'),
-            ("s3_access_key", 'ALTER TABLE config ADD COLUMN s3_access_key VARCHAR DEFAULT ""'),
-            ("s3_secret_key", 'ALTER TABLE config ADD COLUMN s3_secret_key VARCHAR DEFAULT ""'),
-            ("s3_bucket", 'ALTER TABLE config ADD COLUMN s3_bucket VARCHAR DEFAULT ""'),
-            ("s3_region", 'ALTER TABLE config ADD COLUMN s3_region VARCHAR DEFAULT "us-east-1"'),
-            ("is_cancelled", 'ALTER TABLE restore_jobs ADD COLUMN is_cancelled BOOLEAN DEFAULT 0'),
-            ("speed_mbps", 'ALTER TABLE vms ADD COLUMN speed_mbps REAL DEFAULT 0.0'),
-            ("power_off_for_backup", 'ALTER TABLE vms ADD COLUMN power_off_for_backup BOOLEAN DEFAULT 0'),
-            ("role", "ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'admin'"),
-            ("email", "ALTER TABLE users ADD COLUMN email VARCHAR DEFAULT ''"),
-            ("notify_subscriptions", "ALTER TABLE users ADD COLUMN notify_subscriptions VARCHAR DEFAULT ''"),
-            ("schedule_frequency", "ALTER TABLE vms ADD COLUMN schedule_frequency VARCHAR DEFAULT 'daily'"),
-            ("schedule_days", "ALTER TABLE vms ADD COLUMN schedule_days VARCHAR DEFAULT '0,1,2,3,4,5,6'"),
-            ("max_global_backups", "ALTER TABLE config ADD COLUMN max_global_backups INTEGER DEFAULT 10"),
-            ("max_backups_per_host", "ALTER TABLE config ADD COLUMN max_backups_per_host INTEGER DEFAULT 2"),
-            ("datastore_min_free_pct", "ALTER TABLE config ADD COLUMN datastore_min_free_pct INTEGER DEFAULT 15"),
-            ("datastore_headroom_gb", "ALTER TABLE config ADD COLUMN datastore_headroom_gb INTEGER DEFAULT 10"),
-            ("datastore_est_multiplier", "ALTER TABLE config ADD COLUMN datastore_est_multiplier REAL DEFAULT 2.0"),
-            ("scheduler_paused", "ALTER TABLE config ADD COLUMN scheduler_paused BOOLEAN DEFAULT 0"),
-        ]
-        
-        from logger_util import log_info, log_warn
-        for col_name, sql in migrations:
-            try:
-                cursor.execute(sql)
-                log_info(f"[MIGRATION] Added column {col_name}")
-            except sqlite3.OperationalError:
-                # Column likely already exists
-                pass
-            except Exception as e:
-                log_warn(f"[MIGRATION] Failed to add column {col_name}: {e}")
-        
-        conn.commit()
-        conn.close()
+    is_new = not os.path.exists(db_path)
+    
+    if is_new:
+        Base.metadata.create_all(bind=engine)
+        command.stamp(alembic_cfg, "head")
+    else:
+        try:
+            command.upgrade(alembic_cfg, "head")
+        except Exception as e:
+            from logger_util import log_error
+            log_error(f"Failed to run alembic migrations: {e}")
 
     # 3. Default Row Initialization
     db = SessionLocal()

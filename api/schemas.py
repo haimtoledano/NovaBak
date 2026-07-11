@@ -212,6 +212,12 @@ class ProfileUpdate(BaseModel):
     notify_subscriptions: Optional[str] = None
 
 
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=6)
+
+
+
 class BackupLogEntry(BaseModel):
     id: int
     vm_name: str
