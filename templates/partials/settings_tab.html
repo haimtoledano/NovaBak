@@ -80,7 +80,7 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <span class="input-label">Email address</span>
-                                        <input type="email" name="email" value="{{ current_user.email or '' }}" placeholder="you@example.com" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                        <input type="email" name="email" value="{{ current_user.email or '' }}" placeholder="you@example.com" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                         <p class="text-[10px] opacity-50 mt-1">Notifications are sent here, independent of the global SMTP recipient.</p>
                                     </div>
                                     <div>
@@ -108,11 +108,11 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <span class="input-label">Current password</span>
-                                        <input type="password" name="current_password" required class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                        <input type="password" name="current_password" required class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                     </div>
                                     <div>
                                         <span class="input-label">New password</span>
-                                        <input type="password" name="new_password" required minlength="6" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                        <input type="password" name="new_password" required minlength="6" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                         <p class="text-[10px] opacity-50 mt-1">Must be at least 6 characters.</p>
                                     </div>
                                 </div>
@@ -123,62 +123,47 @@
 
                     {% if current_user and current_user.role == 'admin' %}
                     <form action="/save_config" method="POST" id="settings-config-form">
-                        <!-- Storage -->
+                        <!-- Storage Targets -->
                         <div id="settings-panel-storage" class="settings-panel hidden">
-                            <h2 class="settings-panel-title">Storage</h2>
-                            <p class="settings-panel-desc">Where NovaBak writes backup files.</p>
+                            <div class="flex justify-between items-center mb-4">
+                                <div>
+                                    <h2 class="settings-panel-title mb-0">Storage Targets</h2>
+                                    <p class="settings-panel-desc">Manage multiple backup destinations.</p>
+                                </div>
+                                <button type="button" onclick="openStorageTargetModal()" class="btn-primary px-4 py-2 text-sm font-semibold flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                    Add Target
+                                </button>
+                            </div>
+
+                            <div class="card overflow-hidden">
+                                <table class="min-w-full divide-y" style="border-color: var(--border-color)">
+                                    <thead class="bg-opacity-50" style="background: var(--bg-hover)">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style="color: var(--text-muted)">Name</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style="color: var(--text-muted)">Type</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style="color: var(--text-muted)">Path / Endpoint</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style="color: var(--text-muted)">Default</th>
+                                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider" style="color: var(--text-muted)">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="storage-targets-list" class="divide-y" style="border-color: var(--border-color)">
+                                        <tr><td colspan="5" class="text-center py-4 text-sm" style="color: var(--text-muted)">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Encryption Settings -->
+                            <h2 class="settings-panel-title mt-8">Global Encryption</h2>
+                            <p class="settings-panel-desc">Set a global AES-256 encryption key for all backups.</p>
                             <div class="card p-5">
-                                <div class="flex flex-wrap justify-between items-center gap-3 mb-4 border-b pb-3" style="border-color: var(--border-color)">
-                                    <div class="flex space-x-3">
-                                        <label class="flex items-center space-x-1 cursor-pointer">
-                                            <input type="radio" name="storage_type" value="SMB" onchange="toggleStorageFields()" {% if config.storage_type == 'SMB' or not config.storage_type %}checked{% endif %} class="w-3 h-3">
-                                            <span class="text-xs font-medium">SMB</span>
-                                        </label>
-                                        <label class="flex items-center space-x-1 cursor-pointer">
-                                            <input type="radio" name="storage_type" value="NFS" onchange="toggleStorageFields()" {% if config.storage_type == 'NFS' %}checked{% endif %} class="w-3 h-3">
-                                            <span class="text-xs font-medium">NFS</span>
-                                        </label>
-                                        <label class="flex items-center space-x-1 cursor-pointer">
-                                            <input type="radio" name="storage_type" value="S3" onchange="toggleStorageFields()" {% if config.storage_type == 'S3' %}checked{% endif %} class="w-3 h-3">
-                                            <span class="text-xs font-medium">S3</span>
-                                        </label>
+                                <form action="/api/v1/config" method="PUT" id="settings-encryption-form" class="flex gap-4 items-end" onsubmit="saveEncryptionKey(event)">
+                                    <div class="flex-1">
+                                        <span class="input-label">Encryption Key (Leave empty to disable)</span>
+                                        <input type="password" id="encryption_key_input" placeholder="Base64 Encoded Key (or raw string)" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                     </div>
-                                    <button type="button" onclick="testStorage()" class="text-xs font-medium hover:underline" style="color: var(--brand)">Verify connection</button>
-                                </div>
-
-                                <div id="fields-SMB" class="storage-fields {% if config.storage_type != 'SMB' and config.storage_type %}hidden{% endif %}">
-                                    <div class="mb-4">
-                                        <span class="input-label">UNC Path</span>
-                                        <input type="text" name="smb_unc_path" value="{{ config.smb_unc_path }}" placeholder="\\server\share\backups" class="w-full py-2 px-3 font-mono text-sm mt-1">
-                                    </div>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div><span class="input-label">Username</span><input type="text" name="smb_user" value="{{ config.smb_user }}" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
-                                        <div><span class="input-label">Password</span><input type="password" name="smb_password" placeholder="(Unchanged)" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
-                                    </div>
-                                </div>
-
-                                <div id="fields-NFS" class="storage-fields {% if config.storage_type != 'NFS' %}hidden{% endif %}">
-                                    <span class="input-label">NFS Export Path</span>
-                                    <input type="text" name="nfs_path" value="{{ config.nfs_path }}" placeholder="/mnt/backups" class="w-full py-2 px-3 font-mono text-sm mt-1">
-                                    <p class="text-[10px] opacity-60 mt-1">Local path or mount point on this server.</p>
-                                </div>
-
-                                <div id="fields-S3" class="storage-fields {% if config.storage_type != 'S3' %}hidden{% endif %}">
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div class="sm:col-span-2">
-                                            <span class="input-label">S3 Endpoint (optional for AWS)</span>
-                                            <input type="text" name="s3_endpoint" value="{{ config.s3_endpoint }}" placeholder="https://s3.wasabisys.com" class="w-full py-2 px-3 font-mono text-sm mt-1">
-                                        </div>
-                                        <div><span class="input-label">Access Key</span><input type="text" name="s3_access_key" value="{{ config.s3_access_key }}" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
-                                        <div><span class="input-label">Secret Key</span><input type="password" name="s3_secret_key" placeholder="(Unchanged)" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
-                                        <div><span class="input-label">Bucket Name</span><input type="text" name="s3_bucket" value="{{ config.s3_bucket }}" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
-                                        <div><span class="input-label">Region</span><input type="text" name="s3_region" value="{{ config.s3_region }}" placeholder="us-east-1" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
-                                    </div>
-                                </div>
-
-                                <div class="mt-6 flex justify-end">
-                                    <button type="submit" class="btn-primary px-6 py-2 text-sm font-semibold">Save storage</button>
-                                </div>
+                                    <button type="submit" class="btn-primary px-6 py-2 text-sm font-semibold">Save Key</button>
+                                </form>
                             </div>
                         </div>
 
@@ -286,7 +271,7 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div class="sm:col-span-2 md:col-span-1">
                                         <span class="input-label">SMTP server</span>
-                                        <input type="text" name="smtp_server" value="{{ config.smtp_server }}" placeholder="smtp.gmail.com" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                        <input type="text" name="smtp_server" value="{{ config.smtp_server }}" placeholder="smtp.gmail.com" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                     </div>
                                     <div>
                                         <span class="input-label">Port</span>
@@ -294,15 +279,15 @@
                                     </div>
                                     <div>
                                         <span class="input-label">Username</span>
-                                        <input type="text" name="smtp_user" value="{{ config.smtp_user }}" placeholder="user@domain.com" class="w-full py-2 px-3 font-mono text-sm mt-1" autocomplete="off">
+                                        <input type="text" name="smtp_user" value="{{ config.smtp_user }}" placeholder="user@domain.com" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)" autocomplete="off">
                                     </div>
                                     <div>
                                         <span class="input-label">Password</span>
-                                        <input type="password" name="smtp_password" placeholder="(Unchanged)" class="w-full py-2 px-3 font-mono text-sm mt-1" autocomplete="new-password">
+                                        <input type="password" name="smtp_password" placeholder="(Unchanged)" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)" autocomplete="new-password">
                                     </div>
                                     <div class="sm:col-span-2">
                                         <span class="input-label">Default recipient email</span>
-                                        <input type="email" name="smtp_to_email" value="{{ config.smtp_to_email }}" placeholder="alerts@yourdomain.com" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                        <input type="email" name="smtp_to_email" value="{{ config.smtp_to_email }}" placeholder="alerts@yourdomain.com" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                     </div>
                                     <div class="sm:col-span-2 flex flex-wrap items-center gap-6 pt-1">
                                         <label class="flex items-center gap-2 cursor-pointer">
@@ -331,11 +316,11 @@
                                 <div class="grid grid-cols-1 gap-4">
                                     <div>
                                         <span class="input-label">Webhook URL (Slack, Teams, Make.com)</span>
-                                        <input type="url" name="webhook_url" value="{{ config.webhook_url }}" placeholder="https://hooks.slack.com/services/..." class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                        <input type="url" name="webhook_url" value="{{ config.webhook_url }}" placeholder="https://hooks.slack.com/services/..." class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                     </div>
                                     <div>
                                         <span class="input-label">Daily Report Schedule</span>
-                                        <input type="time" name="daily_report_time" value="{{ config.daily_report_time or '08:00' }}" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                        <input type="time" name="daily_report_time" value="{{ config.daily_report_time or '08:00' }}" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                     </div>
                                 </div>
                                 <div class="mt-6 flex justify-end">
@@ -354,7 +339,7 @@
                                         <div class="field-label-row">
                                             <span class="input-label">Allowed IPs (Comma separated)</span>
                                         </div>
-                                        <input type="text" name="allowed_ips" value="{{ config.allowed_ips or '' }}" placeholder="e.g. 192.168.1.100, 10.0.0.5" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                        <input type="text" name="allowed_ips" value="{{ config.allowed_ips or '' }}" placeholder="e.g. 192.168.1.100, 10.0.0.5" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                         <p class="text-[10px] mt-2" style="color: var(--text-muted)">
                                             Leave empty to allow all IP addresses. <b>Note:</b> 127.0.0.1 is always allowed to prevent permanent lockouts.
                                         </p>
@@ -382,6 +367,9 @@
                                     </div>
                                     <form action="/delete_esxi_host" method="POST" data-confirm="Remove this host from NovaBak?" data-confirm-title="Remove host">
                                         <input type="hidden" name="host_id" value="{{ host.id }}">
+                                        <button type="button" onclick="openEsxiEditModal('{{ host.id }}', '{{ host.name|e }}', '{{ host.host_ip|e }}', '{{ host.username|e }}')" class="text-blue-500 hover:text-blue-400 transition-colors mr-3" title="Edit">
+                                            <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                        </button>
                                         <button type="submit" class="text-gray-500 hover:text-red-400 transition-colors" title="Delete">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                         </button>
@@ -473,3 +461,334 @@
                 </div>
             </div>
         </div><!-- end tab-settings -->
+
+<script>
+async function loadStorageTargets() {
+    try {
+        const res = await fetch('/api/v1/storage-targets');
+        if (!res.ok) throw new Error('Failed to fetch storage targets');
+        const targets = await res.json();
+        const tbody = document.getElementById('storage-targets-list');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (targets.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-sm" style="color: var(--text-muted)">No storage targets found.</td></tr>';
+            return;
+        }
+        targets.forEach(t => {
+            const tr = document.createElement('tr');
+            let path = t.smb_unc_path || t.nfs_path || t.s3_endpoint || '';
+            tr.innerHTML = `
+                <td class="px-4 py-3 text-sm font-medium">${t.name}</td>
+                <td class="px-4 py-3 text-sm">${t.storage_type}</td>
+                <td class="px-4 py-3 text-sm font-mono">${path}</td>
+                <td class="px-4 py-3 text-sm">${t.is_default ? '<span class="px-2 py-1 bg-green-900 text-green-200 rounded text-xs">Default</span>' : ''}</td>
+                <td class="px-4 py-3 text-sm text-right space-x-2">
+                    <button onclick="deleteStorageTarget(${t.id})" class="text-red-400 hover:text-red-300">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function deleteStorageTarget(id) {
+    if (!confirm('Are you sure you want to delete this target?')) return;
+    try {
+        await fetch(`/api/v1/storage-targets/${id}`, { method: 'DELETE' });
+        loadStorageTargets();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function saveEncryptionKey(e) {
+    e.preventDefault();
+    const key = document.getElementById('encryption_key_input').value;
+    try {
+        await fetch('/api/v1/config', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ encryption_key: key || null })
+        });
+        showAlert('Encryption key saved successfully');
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+
+function toggleStFields() {
+    const type = document.getElementById('st_type').value;
+    document.querySelectorAll('.st-fields').forEach(el => el.classList.add('hidden'));
+    document.getElementById(`st_fields_${type}`).classList.remove('hidden');
+}
+
+function openStorageTargetModal(target = null) {
+    const modal = document.getElementById('storage-target-modal');
+    const form = document.getElementById('storage-target-form');
+    form.reset();
+    
+    if (target) {
+        document.getElementById('storage-target-modal-title').innerText = 'Edit Storage Target';
+        document.getElementById('st_id').value = target.id;
+        document.getElementById('st_name').value = target.name;
+        document.getElementById('st_is_default').checked = target.is_default;
+        document.getElementById('st_type').value = target.storage_type;
+        document.getElementById('st_smb_unc_path').value = target.smb_unc_path || '';
+        document.getElementById('st_smb_user').value = target.smb_user || '';
+        document.getElementById('st_nfs_path').value = target.nfs_path || '';
+        document.getElementById('st_s3_endpoint').value = target.s3_endpoint || '';
+        document.getElementById('st_s3_access_key').value = target.s3_access_key || '';
+        document.getElementById('st_s3_bucket').value = target.s3_bucket || '';
+        document.getElementById('st_s3_region').value = target.s3_region || '';
+    } else {
+        document.getElementById('storage-target-modal-title').innerText = 'Add Storage Target';
+        document.getElementById('st_id').value = '';
+    }
+    
+    toggleStFields();
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeStorageTargetModal() {
+    const modal = document.getElementById('storage-target-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+async function submitStorageTarget(e) {
+    e.preventDefault();
+    const id = document.getElementById('st_id').value;
+    const isEdit = !!id;
+    
+    const payload = {
+        name: document.getElementById('st_name').value,
+        is_default: document.getElementById('st_is_default').checked,
+        storage_type: document.getElementById('st_type').value,
+        smb_unc_path: document.getElementById('st_smb_unc_path').value || null,
+        smb_user: document.getElementById('st_smb_user').value || null,
+        smb_password: document.getElementById('st_smb_password').value || null,
+        nfs_path: document.getElementById('st_nfs_path').value || null,
+        s3_endpoint: document.getElementById('st_s3_endpoint').value || null,
+        s3_access_key: document.getElementById('st_s3_access_key').value || null,
+        s3_secret_key: document.getElementById('st_s3_secret_key').value || null,
+        s3_bucket: document.getElementById('st_st_s3_bucket') ? document.getElementById('st_st_s3_bucket').value : document.getElementById('st_s3_bucket').value || null,
+        s3_region: document.getElementById('st_s3_region').value || null
+    };
+
+    try {
+        const url = isEdit ? `/api/v1/storage-targets/${id}` : '/api/v1/storage-targets';
+        const method = isEdit ? 'PUT' : 'POST';
+        
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Failed to save target');
+        }
+        
+        closeStorageTargetModal();
+        loadStorageTargets();
+        showAlert('Storage target saved successfully!');
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Intercept switchTab
+    const originalSwitchTab = window.switchTab;
+    window.switchTab = function(tabId) {
+        if (originalSwitchTab) originalSwitchTab(tabId);
+        if (tabId === 'tab-settings') {
+            loadStorageTargets();
+        }
+    };
+    
+    const oldShowSettingsPanel = window.showSettingsPanel;
+    window.showSettingsPanel = function(panelId) {
+        if (oldShowSettingsPanel) oldShowSettingsPanel(panelId);
+        if (panelId === 'storage') {
+            loadStorageTargets();
+        }
+    };
+});
+</script>
+
+
+<!-- Storage Target Modal -->
+<div id="storage-target-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-2xl rounded-xl shadow-2xl p-6 relative" style="background-color: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);">
+        <h3 id="storage-target-modal-title" class="text-lg font-semibold mb-4">Add Storage Target</h3>
+        <form id="storage-target-form" onsubmit="submitStorageTarget(event)">
+            <input type="hidden" id="st_id">
+            
+            <div class="mb-4">
+                <span class="input-label">Target Name</span>
+                <input type="text" id="st_name" required class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)" placeholder="e.g. Primary NAS">
+            </div>
+            
+            <div class="mb-4 flex items-center space-x-2">
+                <input type="checkbox" id="st_is_default" class="w-4 h-4">
+                <span class="input-label mb-0">Set as Default Storage Target</span>
+            </div>
+
+            <div class="mb-4">
+                <span class="input-label">Storage Type</span>
+                <select id="st_type" required onchange="toggleStFields()" class="w-full py-2 px-3 text-sm mt-1 border rounded" style="border-color: var(--border-color); background: var(--bg-card); color: var(--text-main)">
+                    <option value="SMB">SMB (Windows Share)</option>
+                    <option value="NFS">NFS</option>
+                    <option value="S3">S3 Compatible</option>
+                </select>
+            </div>
+
+            <!-- SMB Fields -->
+            <div id="st_fields_SMB" class="st-fields">
+                <div class="mb-4">
+                    <span class="input-label">UNC Path</span>
+                    <input type="text" id="st_smb_unc_path" placeholder="\\server\share\backups" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div><span class="input-label">Username</span><input type="text" id="st_smb_user" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)"></div>
+                    <div><span class="input-label">Password</span><input type="password" id="st_smb_password" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)"></div>
+                </div>
+            </div>
+
+            <!-- NFS Fields -->
+            <div id="st_fields_NFS" class="st-fields hidden">
+                <span class="input-label">NFS Export Path</span>
+                <input type="text" id="st_nfs_path" placeholder="/mnt/backups" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
+            </div>
+
+            <!-- S3 Fields -->
+            <div id="st_fields_S3" class="st-fields hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div class="sm:col-span-2">
+                        <span class="input-label">S3 Endpoint (optional for AWS)</span>
+                        <input type="text" id="st_s3_endpoint" placeholder="https://s3.wasabisys.com" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
+                    </div>
+                    <div><span class="input-label">Access Key</span><input type="text" id="st_s3_access_key" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)"></div>
+                    <div><span class="input-label">Secret Key</span><input type="password" id="st_s3_secret_key" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)"></div>
+                    <div><span class="input-label">Bucket Name</span><input type="text" id="st_s3_bucket" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)"></div>
+                    <div><span class="input-label">Region</span><input type="text" id="st_s3_region" placeholder="us-east-1" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)"></div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" onclick="closeStorageTargetModal()" class="px-4 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">Cancel</button>
+                <button type="submit" class="btn-primary px-6 py-2 text-sm font-semibold">Save Target</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ESXi Edit Modal -->
+<div id="esxi-edit-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="card p-6 w-full max-w-lg shadow-2xl border" style="background: var(--bg-main); border-color: var(--border-color)">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg">Edit ESXi Host</h3>
+            <button type="button" onclick="closeEsxiEditModal()" class="text-gray-400 hover:text-white">✕</button>
+        </div>
+        <input type="hidden" id="edit-esxi-id">
+        <div class="mb-3">
+            <span class="input-label">Alias</span>
+            <input type="text" id="edit-esxi-name" class="w-full p-2 text-sm font-sans border rounded" style="background:transparent; border-color:var(--border-color)">
+        </div>
+        <div class="mb-3">
+            <span class="input-label">IP or FQDN</span>
+            <input type="text" id="edit-esxi-ip" class="w-full p-2 text-sm font-sans border rounded" style="background:transparent; border-color:var(--border-color)">
+        </div>
+        <div class="mb-3">
+            <span class="input-label">Username</span>
+            <input type="text" id="edit-esxi-user" class="w-full p-2 text-sm font-sans border rounded" style="background:transparent; border-color:var(--border-color)">
+        </div>
+        <div class="mb-4">
+            <span class="input-label">Password (leave blank to keep unchanged)</span>
+            <input type="password" id="edit-esxi-pass" class="w-full p-2 text-sm font-sans border rounded" style="background:transparent; border-color:var(--border-color)">
+        </div>
+        <div id="edit-esxi-status" class="text-sm font-medium mb-4 rounded px-3 py-2 hidden"></div>
+        <div class="flex justify-end gap-2">
+            <button type="button" onclick="testEsxiConnection()" class="btn-secondary px-4 py-2 text-sm">Test Connection</button>
+            <button type="button" onclick="saveEsxiHost()" class="btn-primary px-4 py-2 text-sm">Save</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEsxiEditModal(id, name, ip, user) {
+    document.getElementById('edit-esxi-id').value = id;
+    document.getElementById('edit-esxi-name').value = name;
+    document.getElementById('edit-esxi-ip').value = ip;
+    document.getElementById('edit-esxi-user').value = user;
+    document.getElementById('edit-esxi-pass').value = '';
+    document.getElementById('edit-esxi-status').classList.add('hidden');
+    document.getElementById('esxi-edit-modal').classList.remove('hidden');
+}
+
+function closeEsxiEditModal() {
+    document.getElementById('esxi-edit-modal').classList.add('hidden');
+}
+
+async function testEsxiConnection() {
+    const status = document.getElementById('edit-esxi-status');
+    status.classList.remove('hidden');
+    status.className = 'text-sm font-medium mb-4 rounded px-3 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20';
+    status.textContent = 'Testing connection...';
+    
+    try {
+        const res = await fetch('/api/v1/hosts/test', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                host_ip: document.getElementById('edit-esxi-ip').value,
+                username: document.getElementById('edit-esxi-user').value,
+                password: document.getElementById('edit-esxi-pass').value
+            })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            status.className = 'text-sm font-medium mb-4 rounded px-3 py-2 bg-green-500/10 text-green-400 border border-green-500/20';
+            status.textContent = '✓ ' + data.message;
+        } else {
+            status.className = 'text-sm font-medium mb-4 rounded px-3 py-2 bg-red-500/10 text-red-400 border border-red-500/20';
+            status.textContent = '✗ ' + data.message;
+        }
+    } catch (e) {
+        status.className = 'text-sm font-medium mb-4 rounded px-3 py-2 bg-red-500/10 text-red-400 border border-red-500/20';
+        status.textContent = 'Error: ' + e;
+    }
+}
+
+async function saveEsxiHost() {
+    const id = document.getElementById('edit-esxi-id').value;
+    try {
+        const res = await fetch('/api/v1/hosts/' + id, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: document.getElementById('edit-esxi-name').value,
+                host_ip: document.getElementById('edit-esxi-ip').value,
+                username: document.getElementById('edit-esxi-user').value,
+                password: document.getElementById('edit-esxi-pass').value || null
+            })
+        });
+        if (res.ok) {
+            window.location.reload();
+        } else {
+            const data = await res.json();
+            alert('Failed to update host: ' + (data.detail || res.statusText));
+        }
+    } catch (e) {
+        alert('Error: ' + e);
+    }
+}
+</script>

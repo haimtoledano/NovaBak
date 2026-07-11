@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
-from models import SessionLocal, init_db, Config, VM, BackupLog, User, ESXiHost, RestoreJob
+from models import SessionLocal, init_db, Config, VM, BackupLog, User, ESXiHost, RestoreJob, StorageTarget
 import esxi_handler
 import worker
 from config_env import TEMPLATES_DIR, DATA_DIR
@@ -368,6 +368,8 @@ def read_root(request: Request, db: Session = Depends(get_db)):
     vms = db.query(VM).all()
     logs = db.query(BackupLog).order_by(BackupLog.timestamp.desc()).limit(10).all()
     users = db.query(User).all()
+    from models import StorageTarget
+    storage_targets = db.query(StorageTarget).all()
     esxi_hosts = db.query(ESXiHost).all()
     selected_vm_count = db.query(VM).filter(VM.is_selected == True).count()
     setup_wizard_suggested = len(esxi_hosts) == 0 or selected_vm_count == 0
@@ -383,6 +385,7 @@ def read_root(request: Request, db: Session = Depends(get_db)):
         "esxi_hosts": esxi_hosts,
         "setup_wizard_suggested": setup_wizard_suggested,
         "notify_events": NOTIFY_EVENTS,
+        "storage_targets": storage_targets,
     })
 
 
@@ -633,7 +636,13 @@ def get_datastores(request: Request, host_id: int, db: Session = Depends(get_db)
     if not host:
         return {"error": "Invalid host"}
         
-    si = esxi_handler.connect_esxi(host.host_ip, host.username, host.password)
+    from security import SecretManager
+    try:
+        real_password = SecretManager.decrypt(host.password)
+    except Exception:
+        real_password = host.password  # Fallback if unencrypted
+
+    si = esxi_handler.connect_esxi(host.host_ip, host.username, real_password)
     if not si:
         return {"error": "Could not connect to ESXi host"}
         
@@ -652,7 +661,10 @@ def get_backups(request: Request, db: Session = Depends(get_db)):
         config = db.query(Config).first()
         if not config:
             return {"error": "No configuration found"}
-        backups = worker.get_available_backups(config)
+        targets = db.query(StorageTarget).all()
+        backups = []
+        for t in targets:
+            backups.extend(worker.get_available_backups(t))
         return backups
     except Exception as e:
         import traceback
@@ -671,7 +683,10 @@ def get_backups_grouped(request: Request, db: Session = Depends(get_db)):
         config = db.query(Config).first()
         if not config:
             return {"error": "No configuration found"}
-        backups = worker.get_available_backups(config)
+        targets = db.query(StorageTarget).all()
+        backups = []
+        for t in targets:
+            backups.extend(worker.get_available_backups(t))
         # Group by vm_name
         grouped = {}
         for b in backups:

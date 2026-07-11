@@ -9,7 +9,7 @@ import esxi_handler
 import worker
 import storage_util
 from config_env import DATA_DIR
-from models import Config, VM, ESXiHost, BackupLog, RestoreJob
+from models import Config, VM, ESXiHost, BackupLog, RestoreJob, StorageTarget
 
 _overview_storage_cache = {"ts": 0, "data": None}
 _OVERVIEW_STORAGE_TTL = 300
@@ -354,7 +354,10 @@ def list_backups_grouped(db):
     config = db.query(Config).first()
     if not config:
         raise ValueError("No configuration found")
-    backups = worker.get_available_backups(config)
+        targets = db.query(StorageTarget).all()
+    backups = []
+    for t in targets:
+        backups.extend(worker.get_available_backups(t))
     grouped = {}
     for b in backups:
         grouped.setdefault(b["vm_name"], []).append(
@@ -591,7 +594,7 @@ def _cached_storage_scan(target):
 
     try:
         if target and target.storage_type == "SMB":
-            worker.authenticate_smb(target)
+            pass
         backups = worker.get_available_backups(target)
         total_bytes = sum(_parse_backup_size_bytes(b.get("size")) for b in backups)
         vm_names = {b["vm_name"] for b in backups}

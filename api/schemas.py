@@ -143,6 +143,13 @@ class ESXiHostCreate(BaseModel):
     host_type: Optional[str] = "esxi"
 
 
+class ESXiHostUpdate(BaseModel):
+    name: Optional[str] = None
+    host_ip: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    host_type: Optional[str] = None
+
 class ESXiHostResponse(BaseModel):
     id: int
     name: str

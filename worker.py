@@ -722,60 +722,41 @@ def start_scheduler():
     return scheduler
 
 
-def get_available_backups(config):
+def get_available_backups(target):
     """ Scans the target storage and returns a list of available backups. """
-    storage = storage_util.get_storage(config)
-    if config.storage_type == "SMB":
-        authenticate_smb(config)
+    from storage_util import get_storage
     
     backups = []
+    if not target:
+        return backups
+        
+    storage = get_storage(target)
+    if target.storage_type == "SMB":
+        authenticate_smb(target)
+        
     try:
-        # List major VM directories
         vm_dirs = storage.list_dirs("")
-        log_info(f"[SCAN] Storage type={config.storage_type}. Found {len(vm_dirs)} top-level dirs: {vm_dirs}")
         for vm_name in vm_dirs:
-            # List date folders within each VM directory
             date_folders = storage.list_dirs(vm_name)
-            log_info(f"[SCAN] VM '{vm_name}' -> {len(date_folders)} date folders: {date_folders}")
             for date_folder in date_folders:
                 rel_date_dir = f"{vm_name}/{date_folder}"
-                
-                # Look for descriptor files
                 files = storage.list_files(rel_date_dir)
-                log_info(f"[SCAN]   {rel_date_dir} -> files: {files}")
-                found_vmx = next((f for f in files if f.endswith('.vmx')), None)
-                found_ovf = next((f for f in files if f.endswith('.ovf')), None)
-                found_ova = next((f for f in files if f.endswith('.ova')), None)
                 
-                backup_file_rel = None
-                if found_vmx: backup_file_rel = f"{rel_date_dir}/{found_vmx}"
-                elif found_ovf: backup_file_rel = f"{rel_date_dir}/{found_ovf}"
-                elif found_ova: backup_file_rel = f"{rel_date_dir}/{found_ova}"
-                
-                if backup_file_rel:
-                    size_bytes = storage.get_size(rel_date_dir)
-                    size_str = f"{size_bytes / (1024**3):.2f} GB" if size_bytes > 1024**3 else f"{size_bytes / (1024**2):.2f} MB"
-                    
-                    # Store either absolute path (Local) or S3 URI
-                    full_path = ""
-                    if hasattr(storage, '_full_path'):
-                        full_path = storage._full_path(backup_file_rel)
-                    else:
-                        full_path = f"{storage.get_base_path()}{backup_file_rel}"
-
+                has_descriptor = any(f.endswith(".ovf") or f.endswith(".vmx") for f in files)
+                if has_descriptor:
+                    # Find main disk size
+                    total_size = sum(storage.get_file_size(f"{rel_date_dir}/{f}") for f in files)
                     backups.append({
                         "vm_name": vm_name,
                         "date": date_folder,
-                        "path": full_path,
-                        "size": size_str
+                        "path": rel_date_dir,
+                        "size": total_size,
+                        "target_id": target.id,
+                        "target_name": target.name
                     })
     except Exception as e:
-        import traceback
-        log_error(f"Error scanning storage repository: {e}\n{traceback.format_exc()}")
+        log_error(f"Failed to scan storage target {target.name}: {e}")
         
-    log_info(f"[SCAN] Total backups found: {len(backups)}")
-    # Sort by date descending
-    backups.sort(key=lambda x: x["date"], reverse=True)
     return backups
 
 

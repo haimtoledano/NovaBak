@@ -2460,17 +2460,23 @@
 
     async function loadDatastores(hostId) {
         const selectBox = document.getElementById('datastoreSelect'); selectBox.disabled = true; selectBox.innerHTML = '<option disabled selected>Querying host...</option>';
-        try { let res = await fetch('/get_datastores/' + hostId); let dsList = await res.json();
-              selectBox.innerHTML = dsList.length === 0 ? '<option disabled selected>No datastores found</option>' : '';
-              if (!dsList.error && dsList.length > 0) {
-                  dsList.forEach(ds => { 
-                      let opt = document.createElement('option'); 
-                      opt.value = ds.name; 
-                      opt.text = `${ds.name}  [${ds.free_gb} GB Free]`; 
-                      selectBox.appendChild(opt); 
-                  });
-                  selectBox.disabled = false;
-              }
+        try { 
+            let res = await fetch('/get_datastores/' + hostId); 
+            let dsList = await res.json();
+            if (dsList.error) {
+                selectBox.innerHTML = `<option disabled selected>Error: ${dsList.error}</option>`;
+                return;
+            }
+            selectBox.innerHTML = dsList.length === 0 ? '<option disabled selected>No datastores found</option>' : '';
+            if (dsList.length > 0) {
+                dsList.forEach(ds => { 
+                    let opt = document.createElement('option'); 
+                    opt.value = ds.name; 
+                    opt.text = `${ds.name}  [${ds.free_gb} GB Free]`; 
+                    selectBox.appendChild(opt); 
+                });
+                selectBox.disabled = false;
+            }
         } catch(e) { selectBox.innerHTML = '<option disabled selected>Query failed</option>'; }
     }
     
@@ -2869,19 +2875,22 @@
         }
     }
 
-    async function wizardSaveStorage() {
+        async function wizardSaveStorage() {
         const status = document.getElementById('wizard-storage-status');
         if (status) {
             status.classList.remove('hidden');
-            status.textContent = 'Testing storage connection…';
+            status.textContent = 'Saving storage target...';
             status.style.background = 'rgba(59,130,246,0.08)';
             status.style.color = 'var(--text-muted)';
         }
-        await wizardApi('PUT', '/config/storage', wizardGetStoragePayload());
-        const test = await wizardApi('POST', '/config/storage/test');
-        if (!test.ok) throw new Error(test.message || 'Storage test failed');
+        const payload = wizardGetStoragePayload();
+        payload.name = "Primary Storage";
+        payload.is_default = true;
+        
+        await wizardApi('POST', '/api/v1/storage-targets', payload);
+        
         if (status) {
-            status.textContent = '✓ ' + test.message;
+            status.textContent = '✓ Storage target saved successfully';
             status.style.background = 'rgba(34,197,94,0.12)';
             status.style.color = '#4ade80';
         }

@@ -8,7 +8,7 @@ from api.deps import get_db, get_api_user, require_api_role, bearer_scheme, _use
 from api.schemas import (
     LoginRequest, TokenResponse, ApiKeyCreateRequest, ApiKeyCreateResponse, ApiKeyInfo,
     ConfigResponse, ConfigUpdate, TestResult,
-    ESXiHostCreate, ESXiHostResponse, VMUpdateRequest, VMResponse, SyncResult,
+    ESXiHostCreate, ESXiHostUpdate, ESXiHostResponse, VMUpdateRequest, VMResponse, SyncResult,
     UserResponse, UserCreateRequest, UserCreateResponse, UserRoleUpdate,
     PasswordResetResponse, ProfileUpdate, PasswordChangeRequest, BackupLogEntry, SystemLogsResponse,
     RestoreCreateRequest, RestoreResponse, OverviewResponse,
@@ -330,6 +330,26 @@ def create_host(
         raise HTTPException(status_code=409, detail=str(e))
     return ESXiHostResponse(**backup_ops.host_to_dict(host))
 
+
+@router.post("/hosts/test", response_model=TestResult)
+def test_esxi_host(body: dict, user: User = Depends(require_api_role("admin", "operator"))):
+    host_ip = body.get("host_ip")
+    username = body.get("username")
+    password = body.get("password")
+    ok, message = backup_ops.test_esxi_connection(host_ip, username, password)
+    return TestResult(ok=ok, message=message)
+
+@router.put("/hosts/{host_id}", response_model=ESXiHostResponse)
+def update_esxi_host(
+    host_id: int, 
+    body: ESXiHostUpdate, 
+    db: Session = Depends(get_db), 
+    user: User = Depends(require_api_role("admin", "operator"))
+):
+    try:
+        return backup_ops.update_esxi_host(db, host_id, body.model_dump(exclude_unset=True))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 @router.delete("/hosts/{host_id}")
 def remove_host(
