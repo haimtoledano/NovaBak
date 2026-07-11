@@ -32,6 +32,10 @@ def generate_qr_code(uri):
     
     buffered = io.BytesIO()
     img.save(buffered)
+    try:
+        img.save(buffered, format="PNG")  # Pillow backend
+    except TypeError:
+        img.save(buffered)  # PyPNG backend fallback
     return base64.b64encode(buffered.getvalue()).decode()
 
 from jose import JWTError, jwt
