@@ -115,11 +115,17 @@
                     <!-- Step 2: Hosts -->
                     <div class="wizard-step hidden" data-wizard-step="2">
                         <div class="wizard-step-inner">
-                            <h3 class="font-semibold text-base mb-1 flex-shrink-0">ESXi hosts</h3>
-                            <p class="text-sm mb-5 flex-shrink-0" style="color: var(--text-muted)">Register ESXi hosts using direct host credentials (typically <code class="text-xs font-mono px-1 rounded" style="background:var(--bg-nav)">root</code>). VM inventory is discovered automatically when you continue.</p>
+                            <h3 class="font-semibold text-base mb-1 flex-shrink-0">ESXi / vCenter hosts</h3>
+                            <p class="text-sm mb-5 flex-shrink-0" style="color: var(--text-muted)">Register ESXi or vCenter hosts using direct credentials (e.g. <code class="text-xs font-mono px-1 rounded" style="background:var(--bg-nav)">root</code> or <code class="text-xs font-mono px-1 rounded" style="background:var(--bg-nav)">administrator@vsphere.local</code>). VM inventory is discovered automatically.</p>
                             <div class="flex flex-wrap items-end gap-2 mb-4 flex-shrink-0">
+                                <div class="w-24 min-w-[5rem]"><span class="input-label">Type</span>
+                                    <select id="wizard-host-type" class="w-full py-2 px-3 text-sm mt-1">
+                                        <option value="esxi">ESXi</option>
+                                        <option value="vcenter">vCenter</option>
+                                    </select>
+                                </div>
                                 <div class="flex-1 min-w-[5.5rem]"><span class="input-label">Alias</span><input type="text" id="wizard-host-name" placeholder="esxi-01" class="w-full py-2 px-3 text-sm mt-1"></div>
-                                <div class="flex-[1.4] min-w-[7rem]"><span class="input-label">IP / FQDN</span><input type="text" id="wizard-host-ip" placeholder="esxi.example.com" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
+                                <div class="flex-[1.4] min-w-[7rem]"><span class="input-label">IP / FQDN</span><input type="text" id="wizard-host-ip" placeholder="vcenter.example.com" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
                                 <div class="w-24 min-w-[5rem]"><span class="input-label">Username</span><input type="text" id="wizard-host-user" value="root" class="w-full py-2 px-3 text-sm mt-1"></div>
                                 <div class="w-28 min-w-[5.5rem]"><span class="input-label">Password</span><input type="password" id="wizard-host-pass" class="w-full py-2 px-3 text-sm mt-1"></div>
                                 <button type="button" onclick="wizardAddHost()" class="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap mb-0.5">Add Host</button>

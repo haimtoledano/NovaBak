@@ -295,7 +295,7 @@ def create_host(
     user: User = Depends(require_api_role("admin")),
 ):
     try:
-        host = backup_ops.add_esxi_host(db, body.name, body.host_ip, body.username, body.password)
+        host = backup_ops.add_esxi_host(db, body.name, body.host_ip, body.username, body.password, host_type=body.host_type)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
     return ESXiHostResponse(**backup_ops.host_to_dict(host))

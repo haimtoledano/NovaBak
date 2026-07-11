@@ -60,6 +60,38 @@ def get_all_vms(si):
     
     return vm_list
 
+
+def get_datacenter_name(si, datastore_name):
+    """
+    Finds a Datastore by name and traverses its parent hierarchy to find its Datacenter.
+    If no Datacenter is found (or it's a standalone ESXi host without one), returns 'ha-datacenter'.
+    """
+    if not si:
+        return "ha-datacenter"
+    
+    content = si.RetrieveContent()
+    containerView = content.viewManager.CreateContainerView(content.rootFolder, [vim.Datastore], True)
+    
+    target_ds = None
+    for ds in containerView.view:
+        if ds.name == datastore_name:
+            target_ds = ds
+            break
+            
+    if not target_ds:
+        return "ha-datacenter"
+        
+    obj = target_ds.parent
+    while obj:
+        if isinstance(obj, vim.Datacenter):
+            return obj.name
+        if hasattr(obj, 'parent'):
+            obj = obj.parent
+        else:
+            break
+            
+    return "ha-datacenter"
+
 def get_datastores(si):
     """
     Retrieves a list of all datastore names on the host.

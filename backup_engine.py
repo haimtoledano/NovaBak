@@ -104,11 +104,14 @@ def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, p
 
     cookies = _get_session_cookies(si)
 
+    from esxi_handler import get_datacenter_name
+    dc_name = get_datacenter_name(si, datastore_name)
+
     # URL-encode the file path (but not the slashes)
     encoded_path = '/'.join(url_quote(p, safe='') for p in file_path.split('/'))
 
     url = (f"https://{host_ip}/folder/{encoded_path}"
-           f"?dcPath=ha-datacenter&dsName={url_quote(datastore_name, safe='')}")
+           f"?dcPath={url_quote(dc_name, safe='')}&dsName={url_quote(datastore_name, safe='')}")
 
     log_info(f"[DOWNLOAD] {file_path} from [{datastore_name}] to {dest_rel_path}")
 
@@ -596,9 +599,12 @@ def _upload_file_http(si, datastore_name, dest_rel_path, storage, source_rel_pat
     host_ip = _get_host_ip(si)
     cookies = _get_session_cookies(si)
 
+    from esxi_handler import get_datacenter_name
+    dc_name = get_datacenter_name(si, datastore_name)
+
     encoded_path = '/'.join(url_quote(p, safe='') for p in dest_rel_path.split('/'))
     url = (f"https://{host_ip}/folder/{encoded_path}"
-           f"?dcPath=ha-datacenter&dsName={url_quote(datastore_name, safe='')}")
+           f"?dcPath={url_quote(dc_name, safe='')}&dsName={url_quote(datastore_name, safe='')}")
 
     log_info(f"[UPLOAD] {source_rel_path} to [{datastore_name}] {dest_rel_path}")
 

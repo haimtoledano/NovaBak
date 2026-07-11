@@ -2924,6 +2924,8 @@
 
     async function wizardAddHost() {
         wizardShowError('');
+        const typeSelect = document.getElementById('wizard-host-type');
+        const host_type = typeSelect ? typeSelect.value : 'esxi';
         const name = document.getElementById('wizard-host-name')?.value?.trim();
         const host_ip = document.getElementById('wizard-host-ip')?.value?.trim();
         const username = document.getElementById('wizard-host-user')?.value?.trim();
@@ -2933,7 +2935,7 @@
             return;
         }
         try {
-            const host = await wizardApi('POST', '/hosts', { name, host_ip, username, password });
+            const host = await wizardApi('POST', '/hosts', { name, host_ip, username, password, host_type });
             if (!wizardState.hosts.some(h => h.id === host.id)) wizardState.hosts.push(host);
             wizardRefreshHostList();
             document.getElementById('wizard-host-pass').value = '';

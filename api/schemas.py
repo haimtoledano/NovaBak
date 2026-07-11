@@ -130,6 +130,7 @@ class ESXiHostCreate(BaseModel):
     host_ip: str
     username: str
     password: str
+    host_type: Optional[str] = "esxi"
 
 
 class ESXiHostResponse(BaseModel):
@@ -137,6 +138,7 @@ class ESXiHostResponse(BaseModel):
     name: str
     host_ip: str
     username: str
+    host_type: str
 
 
 class VmUpdate(BaseModel):

@@ -180,19 +180,20 @@ def host_to_dict(host, include_secrets=False):
         "name": host.name,
         "host_ip": host.host_ip,
         "username": host.username,
+        "host_type": getattr(host, "host_type", "esxi"),
     }
     if include_secrets:
         data["password"] = host.password
     return data
 
 
-def add_esxi_host(db, name, host_ip, username, password):
+def add_esxi_host(db, name, host_ip, username, password, host_type="esxi"):
     from security import SecretManager
     existing = db.query(ESXiHost).filter(ESXiHost.name == name).first()
     if existing:
         raise ValueError(f"Host '{name}' already exists")
     encrypted_password = SecretManager.encrypt(password)
-    host = ESXiHost(name=name, host_ip=host_ip, username=username, password=encrypted_password)
+    host = ESXiHost(name=name, host_ip=host_ip, username=username, password=encrypted_password, host_type=host_type)
     db.add(host)
     db.commit()
     db.refresh(host)
