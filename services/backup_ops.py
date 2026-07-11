@@ -187,10 +187,12 @@ def host_to_dict(host, include_secrets=False):
 
 
 def add_esxi_host(db, name, host_ip, username, password):
+    from security import SecretManager
     existing = db.query(ESXiHost).filter(ESXiHost.name == name).first()
     if existing:
         raise ValueError(f"Host '{name}' already exists")
-    host = ESXiHost(name=name, host_ip=host_ip, username=username, password=password)
+    encrypted_password = SecretManager.encrypt(password)
+    host = ESXiHost(name=name, host_ip=host_ip, username=username, password=encrypted_password)
     db.add(host)
     db.commit()
     db.refresh(host)
@@ -207,12 +209,13 @@ def delete_esxi_host(db, host_id):
 
 
 def sync_vms_for_host(db, host_id):
+    from security import SecretManager
     host = db.query(ESXiHost).filter(ESXiHost.id == host_id).first()
     if not host:
         raise ValueError("Invalid ESXi host")
     host_ip = host.host_ip
     username = host.username
-    password = host.password
+    password = SecretManager.decrypt(host.password)
     host_id_val = host.id
     db.commit() # Release SQLite lock before long network call
     

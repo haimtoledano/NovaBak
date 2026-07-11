@@ -59,6 +59,31 @@ def get_db():
     finally:
         db.close()
 
+import uuid
+from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.responses import JSONResponse
+from logger_util import request_id_var
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        req_id = str(uuid.uuid4())
+        token = request_id_var.set(req_id)
+        try:
+            response = await call_next(request)
+            response.headers["X-Request-ID"] = req_id
+            return response
+        finally:
+            request_id_var.reset(token)
+
+app.add_middleware(RequestIDMiddleware)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    log_error(f"Unhandled exception: {exc}", exc_info=True)
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(status_code=500, content={"error": "Internal Server Error", "details": str(exc)})
+    return HTMLResponse(content=f"<h1>500 Internal Server Error</h1><p>An unexpected error occurred. See logs for details.</p>", status_code=500)
+
 def get_current_user(request: Request, token: str = Depends(cookie_sec), db: Session = Depends(get_db)):
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
@@ -381,24 +406,28 @@ def save_config(
     except HTTPException:
         return RedirectResponse(url="/login", status_code=303)
         
+    from security import SecretManager
     config = db.query(Config).first()
     config.smb_unc_path = smb_unc_path
     config.smb_user = smb_user
-    if smb_password:
-        config.smb_password = smb_password
+    if smb_password and smb_password != "********":
+        config.smb_password = SecretManager.encrypt(smb_password)
     config.smtp_server = smtp_server
     config.smtp_port = smtp_port
     config.smtp_user = smtp_user
-    if smtp_password:
-        config.smtp_password = smtp_password
+    if smtp_password and smtp_password != "********":
+        config.smtp_password = SecretManager.encrypt(smtp_password)
     config.smtp_to_email = smtp_to_email
     config.smtp_use_tls = smtp_use_tls
     config.smtp_use_ssl = smtp_use_ssl
     config.imap_server = imap_server
     config.imap_port = imap_port
     config.imap_user = imap_user
-    if imap_password:
-        config.imap_password = imap_password
+    if imap_password and imap_password != "********":
+        config.imap_password = SecretManager.encrypt(imap_password)
+    
+    if s3_secret_key and s3_secret_key != "********":
+        config.s3_secret_key = SecretManager.encrypt(s3_secret_key)
     config.imap_use_ssl = imap_use_ssl
     
     config.perf_parallel_threads = perf_parallel_threads
@@ -414,8 +443,7 @@ def save_config(
     config.nfs_path = nfs_path
     config.s3_endpoint = s3_endpoint
     config.s3_access_key = s3_access_key
-    if s3_secret_key:
-        config.s3_secret_key = s3_secret_key
+
     config.s3_bucket = s3_bucket
     config.s3_region = s3_region
     

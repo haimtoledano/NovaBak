@@ -10,7 +10,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import esxi_handler
 import backup_engine
 import storage_util
-from models import SessionLocal, Config, VM, BackupLog, RestoreJob
+from models import SessionLocal, Config, VM, BackupLog, RestoreJob, AuditLog
+from security import SecretManager
 from config_env import DATA_DIR
 from logger_util import log_info, log_warn, log_error, log_debug
 
@@ -114,17 +115,22 @@ def send_email_report(config, logs_today):
 def authenticate_smb(config):
     """ Authenticates to the SMB share on Windows using net use. Returns (bool, str) """
     if os.name == 'nt' and config.smb_unc_path:
-        user_str = config.smb_user if hasattr(config, 'smb_user') else ""
+        user_str = getattr(config, 'smb_user', '')
+        if getattr(config, 'smb_domain', ''):
+            user_str = f"{config.smb_domain}\\{config.smb_user}"
+            
         if user_str:
             log_info(f"Authenticating to SMB share: {config.smb_unc_path} with user {user_str}")
-        
+            
         # Disconnect just in case there's a stale connection
+        import subprocess
         subprocess.run(["net", "use", config.smb_unc_path, "/delete", "/y"], capture_output=True)
         
         # Connect
         cmd = ["net", "use", config.smb_unc_path]
-        if hasattr(config, 'smb_password') and config.smb_password and user_str:
-            cmd.extend([config.smb_password, f"/user:{user_str}"])
+        smb_pass = SecretManager.decrypt(getattr(config, 'smb_password', ''))
+        if smb_pass and user_str:
+            cmd.extend([smb_pass, f"/user:{user_str}"])
             
         res = subprocess.run(cmd, capture_output=True, text=True)
         if res.returncode != 0:
@@ -344,6 +350,8 @@ def stop_job(vm_id: int):
 
 def perform_backup(vm_id: int):
     """ Backs up a specific VM using the native pyVmomi engine. Runs in parallel with other VMs. """
+    from logger_util import job_id_var
+    job_id_var.set(f"backup-{vm_id}")
     pid = os.getpid()
     db = SessionLocal()
     config = db.query(Config).first()
@@ -367,9 +375,14 @@ def perform_backup(vm_id: int):
     if config.storage_type == "SMB":
         authenticate_smb(config)
 
-    si = esxi_handler.connect_esxi(host.host_ip, host.username, host.password)
-    if not si:
-        msg = f"Failed to connect to ESXi host {host.name}"
+    try:
+        update_job(10, action="Connecting to ESXi...", status="Running")
+        host_pass = SecretManager.decrypt(host.password)
+        si = esxi_handler.connect_esxi(host.host_ip, host.username, host_pass)
+        if not si:
+            raise Exception(f"Failed to connect to ESXi host {host.host_ip}")
+    except Exception as e:
+        msg = f"Failed to connect to ESXi host {host.name}: {e}"
         log_error(f"[PID {pid}] {msg} for {vm.vm_name}")
         db.add(BackupLog(vm_name=vm.vm_name, status="Failed", message=msg))
         vm.current_action = ""
@@ -766,8 +779,10 @@ def get_available_backups(config):
     return backups
 
 
-def perform_restore(config, target_ip, target_user, target_password, source_ova_path, target_name, datastore, restore_job_id):
+def perform_restore(config, target_ip, target_user, target_password, source_ova_path, target_name, datastore, restore_job_id, is_test_restore=False):
     """ Restores a VM by uploading backup files to ESXi and registering them. """
+    from logger_util import job_id_var
+    job_id_var.set(f"restore-{restore_job_id}")
     log_info(f"Starting Native Restore: {source_ova_path} -> {target_name} on {datastore} ({target_ip})")
     
     from models import SessionLocal
@@ -786,6 +801,7 @@ def perform_restore(config, target_ip, target_user, target_password, source_ova_
                 db.commit()
 
     log_info(f"[RESTORE] Connecting to target ESXi {target_ip}...")
+    target_password = SecretManager.decrypt(target_password)
     si = esxi_handler.connect_esxi(target_ip, target_user, target_password)
     if not si:
         log_warn(f"[RESTORE] Could not connect to target ESXi {target_ip}")
