@@ -1,7 +1,13 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script>
+        (function () {
+            var t = localStorage.getItem('userTheme');
+            document.documentElement.setAttribute('data-theme', (t === 'dark' || t === 'cyberpunk') ? t : 'light');
+        })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NovaBak</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -68,6 +74,99 @@
         }
 
         .nav-bar { background-color: var(--bg-nav); border-bottom: 1px solid var(--border-color); }
+        .nav-inner {
+            display: grid; grid-template-columns: 1fr auto 1fr;
+            align-items: center; height: 4rem; gap: 0.75rem;
+        }
+        .nav-brand { display: flex; align-items: center; gap: 0.5rem; justify-self: start; min-width: 0; }
+        .nav-primary {
+            display: flex; align-items: center; justify-content: center;
+            gap: 0.15rem; height: 100%; justify-self: center;
+        }
+        .nav-utilities { display: flex; align-items: center; gap: 0.75rem; justify-self: end; flex-shrink: 0; }
+        .tab-nav {
+            display: inline-flex; align-items: center; height: 4rem;
+            padding: 0 0.65rem; border-bottom: 2px solid transparent;
+            font-size: 0.875rem; font-weight: 500; background: transparent; border-top: none;
+            border-left: none; border-right: none; cursor: pointer; white-space: nowrap;
+            transition: color 0.15s, border-color 0.15s, background 0.15s;
+        }
+        .tab-nav:hover { color: var(--text-main) !important; }
+        .nav-user-wrap { position: relative; }
+        .nav-user-btn {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.35rem 0.55rem 0.35rem 0.35rem; border-radius: 0.5rem;
+            border: 1px solid var(--border-color); background: var(--bg-card);
+            color: var(--text-main); font-size: 0.8125rem; font-weight: 600;
+            cursor: pointer; transition: background 0.15s, border-color 0.15s;
+        }
+        .nav-user-btn:hover { background: var(--btn-sec-hover); }
+        .nav-user-btn.nav-user-active { border-color: var(--brand); color: var(--brand); }
+        .nav-user-avatar {
+            width: 1.75rem; height: 1.75rem; border-radius: 9999px;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+            background: rgba(59, 130, 246, 0.15); color: var(--brand); flex-shrink: 0;
+        }
+        .nav-user-menu {
+            position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 55;
+            min-width: 11rem; padding: 0.35rem; border-radius: 0.5rem;
+            border: 1px solid var(--border-color); background: var(--bg-card);
+            box-shadow: 0 10px 28px rgba(0,0,0,0.16);
+        }
+        .nav-user-menu.hidden { display: none; }
+        .nav-user-menu-header {
+            padding: 0.45rem 0.625rem 0.35rem; font-size: 0.6875rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);
+        }
+        .nav-user-item {
+            display: flex; align-items: center; width: 100%;
+            padding: 0.5rem 0.625rem; font-size: 0.8125rem; text-align: left;
+            background: transparent; border: none; cursor: pointer;
+            color: var(--btn-sec-text); border-radius: 0.375rem;
+            transition: background 0.15s, color 0.15s;
+        }
+        .nav-user-item:hover { background: var(--btn-sec-hover); color: var(--text-main); }
+        .nav-user-item.active { color: var(--brand); font-weight: 600; background: rgba(59, 130, 246, 0.1); }
+        .nav-user-menu-divider { height: 1px; margin: 0.35rem 0.25rem; background: var(--border-color); }
+        .nav-user-signout {
+            display: block; width: 100%; padding: 0.5rem 0.625rem;
+            font-size: 0.8125rem; font-weight: 600; text-align: left;
+            color: #ef4444; border-radius: 0.375rem; text-decoration: none;
+            transition: background 0.15s;
+        }
+        .nav-user-signout:hover { background: rgba(239, 68, 68, 0.08); }
+        .nav-mobile-signout {
+            display: block; width: 100%; margin-top: 0.35rem; padding: 0.625rem 0.5rem;
+            font-size: 0.875rem; font-weight: 600; text-align: left; color: #ef4444;
+            border-top: 1px solid var(--border-color); text-decoration: none;
+        }
+        .nav-mobile-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--border-color);
+            background: var(--bg-card); color: var(--text-muted); cursor: pointer;
+        }
+        .nav-mobile-btn:hover { color: var(--text-main); background: var(--btn-sec-hover); }
+        .nav-mobile-menu {
+            border-top: 1px solid var(--border-color); background: var(--bg-nav);
+            padding: 0.5rem 1rem 0.75rem;
+        }
+        .nav-mobile-menu.hidden { display: none; }
+        .nav-mobile-item {
+            display: block; width: 100%; text-align: left; padding: 0.625rem 0.5rem;
+            font-size: 0.875rem; font-weight: 500; color: var(--text-muted);
+            background: transparent; border: none; border-radius: 0.375rem; cursor: pointer;
+        }
+        .nav-mobile-item:hover { background: var(--btn-sec-hover); color: var(--text-main); }
+        .nav-mobile-item.active { color: var(--brand); background: rgba(59, 130, 246, 0.08); }
+        .nav-mobile-section {
+            font-size: 0.625rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.06em; color: var(--text-muted); opacity: 0.7;
+            padding: 0.5rem 0.5rem 0.25rem; margin-top: 0.25rem;
+        }
+        @media (min-width: 768px) {
+            .nav-mobile-btn, .nav-mobile-menu { display: none !important; }
+        }
         .card { 
             background-color: var(--bg-card); 
             border: 1px solid var(--border-color); 
@@ -84,6 +183,24 @@
         }
         input:focus, select:focus { outline: none; border-color: var(--brand) !important; box-shadow: 0 0 0 2px var(--brand); }
         .input-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.25rem; display: block; }
+        .field-label-row { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.25rem; }
+        .field-label-row .input-label { margin-bottom: 0; display: inline; }
+        .field-tip { position: relative; display: inline-flex; align-items: center; cursor: help; color: var(--text-muted); opacity: 0.55; line-height: 0; }
+        .field-tip:hover, .field-tip:focus { opacity: 1; color: var(--brand); outline: none; }
+        .field-tip svg { width: 13px; height: 13px; }
+        .field-tip-text {
+            visibility: hidden; opacity: 0; position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+            width: max-content; max-width: 240px; padding: 0.5rem 0.65rem; font-size: 0.6875rem; font-weight: 400;
+            text-transform: none; letter-spacing: normal; line-height: 1.4; text-align: left;
+            background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 0.375rem;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.28); color: var(--text-main); z-index: 30;
+            pointer-events: none; transition: opacity 0.12s ease;
+        }
+        .field-tip-text::after {
+            content: ''; position: absolute; top: 100%; left: 50%; margin-left: -5px;
+            border: 5px solid transparent; border-top-color: var(--border-color);
+        }
+        .field-tip:hover .field-tip-text, .field-tip:focus .field-tip-text { visibility: visible; opacity: 1; }
 
         .btn-primary { background-color: var(--brand); color: #fff; transition: background-color 0.2s; border-radius: 0.375rem; }
         .btn-primary:hover { background-color: var(--brand-hover); }
@@ -100,6 +217,203 @@
         .status-success { background-color: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
         .status-error { background-color: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
         .status-neutral { background-color: rgba(107, 114, 128, 0.1); color: var(--text-muted); border: 1px solid var(--border-color); }
+        .status-running { background-color: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
+        .status-cancelled { background-color: rgba(234, 179, 8, 0.1); color: #fbbf24; border: 1px solid rgba(234,179,8,0.2); }
+
+        .jobs-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.875rem; }
+        .jobs-table th { text-align: left; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); background: var(--bg-nav); }
+        .jobs-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+        .jobs-table tbody tr.vm-job-row:hover { background: rgba(59, 130, 246, 0.04); }
+        .jobs-table .prog-container { height: 4px; margin-top: 4px; }
+        .job-detail-row td { background: var(--bg-nav); padding: 0.6rem 1.25rem 0.75rem; }
+        .job-actions-wrap { position: relative; display: inline-block; }
+        .job-actions-menu {
+            position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 60;
+            min-width: 15.5rem; max-width: 17rem; padding: 0.75rem;
+            border-radius: 0.5rem; border: 1px solid var(--border-color);
+            background: var(--bg-card); box-shadow: 0 10px 28px rgba(0,0,0,0.16); text-align: left;
+        }
+        .job-actions-menu.hidden { display: none; }
+        .job-actions-menu-header {
+            font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+            color: var(--text-muted); margin-bottom: 0.5rem; padding-bottom: 0.375rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .jobs-table td.actions-cell { overflow: visible; position: relative; }
+        #jobsListView.card { overflow: visible; }
+        .overview-stat-card {
+            padding: 1rem 1.1rem; border-radius: 0.5rem; border: 1px solid var(--border-color);
+            background: var(--bg-card);
+        }
+        .overview-stat-label {
+            font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+            color: var(--text-muted); margin-bottom: 0.35rem;
+        }
+        .overview-stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+        .overview-stat-sub { font-size: 0.6875rem; margin-top: 0.25rem; color: var(--text-muted); }
+        .overview-panel { overflow: hidden; }
+        .overview-panel-header {
+            display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+            padding: 0.75rem 1rem; font-size: 0.8125rem; font-weight: 700;
+            border-bottom: 1px solid var(--border-color); background: var(--bg-nav);
+        }
+        .overview-panel-body { padding: 1rem; }
+        .overview-chip {
+            font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+            padding: 0.15rem 0.45rem; border-radius: 9999px;
+            background: rgba(59, 130, 246, 0.12); color: var(--brand);
+        }
+        .overview-chip-warn { background: rgba(239, 68, 68, 0.12); color: #f87171; }
+        .overview-bar-track {
+            height: 8px; border-radius: 4px; overflow: hidden; background: var(--border-color);
+        }
+        .overview-bar-fill {
+            height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--brand), #60a5fa);
+            transition: width 0.4s ease;
+        }
+        .overview-bar-fill.overview-bar-warn { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .overview-bar-fill.overview-bar-danger { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .overview-bar-disk { background: linear-gradient(90deg, #10b981, #34d399); }
+        .overview-status-row { display: flex; align-items: center; gap: 0.5rem; }
+        .overview-status-row-label { width: 4.5rem; font-size: 0.6875rem; font-weight: 600; color: var(--text-muted); flex-shrink: 0; }
+        .overview-status-row-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--border-color); overflow: hidden; }
+        .overview-status-row-fill { height: 100%; border-radius: 3px; transition: width 0.35s ease; }
+        .overview-status-row-count { width: 1.5rem; text-align: right; font-size: 0.75rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .overview-scroll-list { min-height: 4rem; }
+        .overview-live-item, .overview-attention-item, .overview-activity-item {
+            padding: 0.65rem 0; border-bottom: 1px solid var(--border-color);
+        }
+        .overview-live-item:last-child, .overview-attention-item:last-child, .overview-activity-item:last-child { border-bottom: none; }
+        .overview-live-item .prog-container { display: block; height: 4px; margin-top: 0.35rem; }
+        .job-schedule-inline input[type="number"] { -moz-appearance: textfield; }
+        .job-schedule-inline input[type="number"]::-webkit-outer-spin-button,
+        .job-schedule-inline input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .jobs-view-btn { padding: 0.375rem 0.75rem; font-size: 0.75rem; font-weight: 600; border-radius: 0.375rem; border: 1px solid var(--border-color); color: var(--text-muted); background: var(--bg-card); }
+        .jobs-view-btn.active { border-color: var(--brand); color: var(--brand); background: rgba(59, 130, 246, 0.08); }
+        .jobs-sort-th { cursor: pointer; user-select: none; white-space: nowrap; }
+        .jobs-sort-th:hover { color: var(--text-main); }
+        .jobs-sort-th.active { color: var(--brand); }
+        .jobs-sort-ind { display: inline-block; width: 0.75rem; margin-left: 0.15rem; opacity: 0.85; }
+        .jobs-bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; margin-bottom: 0.75rem; border: 1px solid var(--border-color); border-radius: 0.375rem; background: var(--bg-nav); }
+        .jobs-bulk-bar.hidden { display: none; }
+        .jobs-paused-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.625rem 1rem; margin-bottom: 0.75rem; border: 1px solid rgba(245,158,11,0.35); border-radius: 0.375rem; background: rgba(245,158,11,0.1); color: #d97706; }
+        .jobs-paused-banner.hidden { display: none; }
+        [data-theme="dark"] .jobs-paused-banner, [data-theme="cyberpunk"] .jobs-paused-banner { color: #fbbf24; }
+        .job-row-cb { width: 1rem; height: 1rem; cursor: pointer; accent-color: var(--brand); }
+        .theme-menu { position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 50; min-width: 9.5rem; padding: 0.35rem; border-radius: 0.5rem; border: 1px solid var(--border-color); background: var(--bg-card); box-shadow: 0 10px 28px rgba(0,0,0,0.16); }
+        .theme-menu.hidden { display: none; }
+        .theme-menu-item {
+            display: flex; align-items: center; gap: 0.5rem; width: 100%;
+            padding: 0.5rem 0.625rem; font-size: 0.8125rem; text-align: left;
+            background: transparent; border: none; cursor: pointer;
+            color: var(--btn-sec-text); border-radius: 0.375rem;
+            transition: background 0.15s, color 0.15s;
+        }
+        .theme-menu-item:hover { background: var(--btn-sec-hover); color: var(--text-main); }
+        .theme-menu-item.active { color: var(--brand); font-weight: 600; background: rgba(59, 130, 246, 0.1); }
+        .theme-menu-check { width: 0.875rem; flex-shrink: 0; opacity: 0; color: var(--brand); }
+        .theme-menu-item.active .theme-menu-check { opacity: 1; }
+        .theme-menu-icon { width: 1rem; height: 1rem; flex-shrink: 0; opacity: 0.85; }
+        .theme-menu-item.active .theme-menu-icon { opacity: 1; color: var(--brand); }
+        .theme-picker-btn { padding: 0.5rem; border-radius: 0.375rem; color: var(--text-muted); background: transparent; border: none; cursor: pointer; transition: color 0.15s, background 0.15s; }
+        .theme-picker-btn:hover { color: var(--text-main); background: var(--btn-sec-hover); }
+        html:not([data-theme="dark"]):not([data-theme="cyberpunk"]) .theme-menu-item:not(.active),
+        [data-theme="light"] .theme-menu-item:not(.active) { color: #374151; }
+        html:not([data-theme="dark"]):not([data-theme="cyberpunk"]) .theme-menu-item:hover,
+        [data-theme="light"] .theme-menu-item:hover { color: #111827; background: #f3f4f6; }
+
+        .wizard-overlay { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 0.75rem; }
+        .wizard-overlay.hidden { display: none; }
+        .wizard-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); }
+        .wizard-panel {
+            position: relative; width: 100%; max-width: 72rem;
+            height: min(44rem, calc(100vh - 1.5rem));
+            display: flex; flex-direction: column; overflow: hidden;
+            border-radius: 0.5rem; animation: modalIn 0.15s ease-out;
+        }
+        .wizard-topbar {
+            display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+            padding: 1.125rem 1.5rem; border-bottom: 1px solid var(--border-color); background: var(--bg-nav);
+        }
+        .wizard-close {
+            padding: 0.375rem; border-radius: 0.375rem; color: var(--text-muted);
+            transition: color 0.15s, background 0.15s;
+        }
+        .wizard-close:hover { color: var(--text-main); background: var(--btn-sec); }
+        .wizard-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+        .wizard-nav {
+            width: 13rem; flex-shrink: 0; border-right: 1px solid var(--border-color);
+            background: var(--bg-nav); padding: 0.875rem 0; overflow-y: auto;
+            align-self: stretch;
+        }
+        .wizard-nav-item {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.75rem 1.125rem; font-size: 0.875rem; color: var(--text-muted);
+            border-left: 3px solid transparent; transition: color 0.15s, border-color 0.15s, background 0.15s;
+        }
+        .wizard-nav-num {
+            width: 1.375rem; height: 1.375rem; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 9999px; font-size: 0.6875rem; font-weight: 600;
+            border: 1px solid var(--border-color); color: var(--text-muted); background: var(--bg-card);
+        }
+        .wizard-nav-label { font-weight: 500; line-height: 1.2; }
+        .wizard-nav-item.active {
+            color: var(--text-main); border-left-color: var(--brand); background: rgba(59,130,246,0.06);
+        }
+        .wizard-nav-item.active .wizard-nav-num { border-color: var(--brand); background: var(--brand); color: #fff; }
+        .wizard-nav-item.done { color: var(--text-muted); }
+        .wizard-nav-item.done .wizard-nav-num { border-color: rgba(16,185,129,0.5); color: #34d399; background: rgba(16,185,129,0.08); }
+        .wizard-content { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+        .wizard-step { position: absolute; inset: 0; overflow-y: auto; padding: 1.5rem 2rem; }
+        .wizard-step-inner { display: flex; flex-direction: column; min-height: 100%; }
+        .wizard-step-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+        .wizard-footer {
+            flex-shrink: 0; display: flex; align-items: center; gap: 0.75rem;
+            padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); background: var(--bg-nav);
+        }
+        @media (max-width: 640px) {
+            .wizard-nav { width: 3.25rem; }
+            .wizard-nav-label { display: none; }
+            .wizard-nav-item { justify-content: center; padding: 0.625rem 0.5rem; }
+        }
+
+        .settings-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
+        .settings-sidebar { width: 13.5rem; flex-shrink: 0; position: sticky; top: 1rem; }
+        .settings-sidebar-nav { overflow: hidden; display: flex; flex-direction: column; max-height: calc(100vh - 7rem); }
+        .settings-sidebar-header { padding: 0.875rem 1rem; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); border-bottom: 1px solid var(--border-color); background: var(--bg-nav); }
+        .settings-nav { display: flex; flex-direction: column; padding: 0.375rem; gap: 0.125rem; flex: 1; min-height: 0; overflow-y: auto; }
+        .settings-nav-item {
+            display: flex; align-items: center; gap: 0.625rem; width: 100%;
+            padding: 0.5625rem 0.75rem; font-size: 0.8125rem; font-weight: 500; text-align: left;
+            color: var(--text-muted); background: transparent; border: none; border-radius: 0.375rem;
+            cursor: pointer; transition: color 0.15s, background 0.15s;
+        }
+        .settings-nav-item:hover { color: var(--text-main); background: var(--btn-sec-hover); }
+        .settings-nav-item.active { color: var(--brand); background: rgba(59, 130, 246, 0.1); font-weight: 600; }
+        .settings-nav-icon { width: 1rem; height: 1rem; flex-shrink: 0; opacity: 0.85; }
+        .settings-nav-item.active .settings-nav-icon { opacity: 1; }
+        .settings-sidebar-footer { padding: 0.625rem; border-top: 1px solid var(--border-color); background: var(--bg-nav); flex-shrink: 0; }
+        .settings-wizard-btn { width: 100%; padding: 0.5rem 0.75rem; font-size: 0.8125rem; font-weight: 500; border-radius: 0.375rem; border: 1px dashed var(--border-color); color: var(--text-muted); background: transparent; cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+        .settings-wizard-btn:hover { color: var(--brand); border-color: var(--brand); background: rgba(59, 130, 246, 0.06); }
+        .settings-content { flex: 1; min-width: 0; }
+        .settings-panel.hidden { display: none; }
+        .settings-panel-title { font-size: 1.375rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .settings-panel-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.25rem; }
+        @media (max-width: 768px) {
+            .settings-layout { flex-direction: column; }
+            .settings-sidebar { width: 100%; position: static; }
+            .settings-nav { flex-direction: row; flex-wrap: wrap; }
+            .settings-nav-item { width: auto; flex: 1 1 auto; min-width: calc(50% - 0.25rem); justify-content: center; }
+            .settings-nav-icon { display: none; }
+            .settings-sidebar-footer { display: none; }
+        }
+
+        .modal-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .modal-overlay.hidden { display: none; }
+        .modal-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(2px); }
+        .modal-panel { position: relative; width: 100%; max-width: 28rem; padding: 1.5rem; border-radius: 0.75rem; animation: modalIn 0.15s ease-out; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.96) translateY(4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
         /* Minimal scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -118,42 +432,505 @@
         }
     </style>
     <script>
+        // ─── App Modal (confirm / alert) ─────────────────────────────────────
+        let _modalResolve = null;
+
+        function closeAppModal(result) {
+            const overlay = document.getElementById('appModal');
+            if (overlay) overlay.classList.add('hidden');
+            document.body.style.overflow = '';
+            if (_modalResolve) {
+                _modalResolve(result);
+                _modalResolve = null;
+            }
+        }
+
+        function showAppModal({ title, message, confirmText = 'OK', cancelText = null, danger = false }) {
+            return new Promise(resolve => {
+                _modalResolve = resolve;
+                document.getElementById('appModalTitle').textContent = title || 'Confirm';
+                document.getElementById('appModalMessage').textContent = message;
+                const cancelBtn = document.getElementById('appModalCancel');
+                const confirmBtn = document.getElementById('appModalConfirm');
+                confirmBtn.textContent = confirmText;
+                confirmBtn.className = (danger ? 'btn-danger' : 'btn-primary') + ' px-4 py-2 text-sm font-semibold min-w-[5rem]';
+                if (cancelText) {
+                    cancelBtn.textContent = cancelText;
+                    cancelBtn.classList.remove('hidden');
+                } else {
+                    cancelBtn.classList.add('hidden');
+                }
+                document.getElementById('appModal').classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                confirmBtn.focus();
+            });
+        }
+
+        function showConfirm(message, opts = {}) {
+            return showAppModal({
+                title: opts.title || 'Confirm',
+                message,
+                confirmText: opts.confirmText || 'Confirm',
+                cancelText: opts.cancelText || 'Cancel',
+                danger: opts.danger !== false,
+            });
+        }
+
+        function showAlert(message, opts = {}) {
+            return showAppModal({
+                title: opts.title || 'Notice',
+                message,
+                confirmText: opts.confirmText || 'OK',
+                cancelText: null,
+                danger: false,
+            });
+        }
+
+        function initConfirmForms() {
+            document.querySelectorAll('form[data-confirm]').forEach(form => {
+                if (form.dataset.confirmBound === '1') return;
+                form.dataset.confirmBound = '1';
+                form.addEventListener('submit', async e => {
+                    e.preventDefault();
+                    const msg = form.getAttribute('data-confirm');
+                    const danger = form.getAttribute('data-confirm-danger') !== 'false';
+                    const title = form.getAttribute('data-confirm-title') || 'Confirm';
+                    const confirmText = form.getAttribute('data-confirm-submit') || 'Confirm';
+                    const ok = await showConfirm(msg, { title, confirmText, danger });
+                    if (ok) form.submit(); // native submit — bypasses this listener
+                });
+            });
+        }
+
         // Theme Management
         function applyTheme(themeName) {
             document.documentElement.setAttribute('data-theme', themeName);
             localStorage.setItem('userTheme', themeName);
-            document.getElementById('themeSelector').value = themeName;
+            updateThemePickerUI(themeName);
+            closeThemeMenu();
         }
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        function updateThemePickerUI(themeName) {
+            document.querySelectorAll('.theme-icon').forEach(el => el.classList.add('hidden'));
+            const icon = document.getElementById('theme-icon-' + themeName);
+            if (icon) icon.classList.remove('hidden');
+            document.querySelectorAll('.theme-menu-item').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === themeName);
+            });
+        }
+
+        function toggleThemeMenu() {
+            closeUserMenu();
+            closeNavMobileMenu();
+            const menu = document.getElementById('themeMenu');
+            if (menu) menu.classList.toggle('hidden');
+        }
+
+        function closeThemeMenu() {
+            const menu = document.getElementById('themeMenu');
+            if (menu) menu.classList.add('hidden');
+        }
+
+        function goHome() {
+            switchTab('tab-overview');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function getInitialTabId() {
+            const params = new URLSearchParams(window.location.search);
+            const tabParam = params.get('tab');
+            if (tabParam && document.getElementById('tab-' + tabParam)) {
+                return 'tab-' + tabParam;
+            }
+            return 'tab-overview';
+        }
+
+        const NAV_USER_TABS = ['tab-syslogs', 'tab-settings', 'tab-users'];
+
+        function closeUserMenu() {
+            document.getElementById('nav-user-menu')?.classList.add('hidden');
+            document.getElementById('nav-user-btn')?.setAttribute('aria-expanded', 'false');
+        }
+
+        function toggleUserMenu() {
+            const menu = document.getElementById('nav-user-menu');
+            const btn = document.getElementById('nav-user-btn');
+            if (!menu) return;
+            const open = menu.classList.contains('hidden');
+            closeThemeMenu();
+            closeNavMobileMenu();
+            menu.classList.toggle('hidden', !open);
+            btn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function closeNavMobileMenu() {
+            document.getElementById('nav-mobile-menu')?.classList.add('hidden');
+        }
+
+        function toggleNavMobileMenu() {
+            const menu = document.getElementById('nav-mobile-menu');
+            if (!menu) return;
+            const open = menu.classList.contains('hidden');
+            closeThemeMenu();
+            closeUserMenu();
+            menu.classList.toggle('hidden', !open);
+        }
+
+        function syncNavActiveState(tabId) {
             document.querySelectorAll('.tab-nav').forEach(el => {
                 el.classList.remove('border-[var(--brand)]', 'text-[var(--brand)]');
                 el.classList.add('border-transparent', 'text-[var(--text-muted)]');
             });
-            
-            document.getElementById(tabId).classList.remove('hidden');
-            const navBtn = document.getElementById('nav-' + tabId);
-            navBtn.classList.remove('border-transparent', 'text-[var(--text-muted)]');
-            navBtn.classList.add('border-[var(--brand)]', 'text-[var(--brand)]');
+            document.querySelectorAll('.nav-user-item, .nav-mobile-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.tab === tabId);
+            });
+
+            const userBtn = document.getElementById('nav-user-btn');
+            if (NAV_USER_TABS.includes(tabId)) {
+                userBtn?.classList.add('nav-user-active');
+            } else {
+                userBtn?.classList.remove('nav-user-active');
+                const navBtn = document.getElementById('nav-' + tabId);
+                if (navBtn) {
+                    navBtn.classList.remove('border-transparent', 'text-[var(--text-muted)]');
+                    navBtn.classList.add('border-[var(--brand)]', 'text-[var(--brand)]');
+                }
+            }
+            closeUserMenu();
+            closeNavMobileMenu();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            const panel = document.getElementById(tabId);
+            if (!panel) return;
+            panel.classList.remove('hidden');
+            syncNavActiveState(tabId);
             localStorage.setItem('activeTab', tabId);
 
-            // Auto-scan repository when switching to Recovery tab
             if (tabId === 'tab-restore' && typeof loadGroupedBackups === 'function') {
                 loadGroupedBackups();
             }
+            if (tabId === 'tab-settings' && typeof showSettingsPanel === 'function') {
+                showSettingsPanel(localStorage.getItem('settingsPanel') || 'profile');
+                if (sessionStorage.getItem('novabak_open_wizard') === '1') {
+                    sessionStorage.removeItem('novabak_open_wizard');
+                    setTimeout(() => { if (typeof window.openSetupWizard === 'function') window.openSetupWizard(); }, 50);
+                }
+            }
+            if (tabId === 'tab-overview' && typeof refreshOverview === 'function') {
+                refreshOverview(false);
+            }
+        }
+
+        let _overviewLoading = false;
+        let _overviewLastFetch = 0;
+
+        function overviewStatusClass(status) {
+            const s = (status || '').toLowerCase();
+            if (s === 'success') return 'status-success';
+            if (s === 'failed') return 'status-error';
+            if (s === 'cancelled') return 'status-cancelled';
+            if (s === 'skipped' || s === 'warning') return 'status-neutral';
+            if (s === 'in progress' || s.includes('running') || s.includes('backing')) return 'status-running';
+            return 'status-neutral';
+        }
+
+        function overviewFormatTs(iso) {
+            if (!iso) return '—';
+            try {
+                const d = new Date(iso);
+                if (Number.isNaN(d.getTime())) return iso;
+                return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch (e) { return iso; }
+        }
+
+        function overviewRenderStatusBars(containerId, counts, colors) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+            const order = Object.keys(counts);
+            el.innerHTML = order.map(key => {
+                const n = counts[key] || 0;
+                if (n === 0 && key === 'Other') return '';
+                const pct = Math.max(n ? (n / total) * 100 : 0, n ? 4 : 0);
+                const color = colors[key] || '#6b7280';
+                return `<div class="overview-status-row">
+                    <span class="overview-status-row-label">${key}</span>
+                    <div class="overview-status-row-bar"><div class="overview-status-row-fill" style="width:${pct}%;background:${color}"></div></div>
+                    <span class="overview-status-row-count">${n}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function overviewRenderOverview(data) {
+            const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+
+            set('ov-protected', data.protected_count ?? '0');
+            set('ov-scheduled-sub', `${data.scheduled_count ?? 0} scheduled`);
+            set('ov-running', data.running_count ?? '0');
+            set('ov-success', data.status_counts?.Success ?? '0');
+            set('ov-failed', data.status_counts?.Failed ?? '0');
+
+            const rate = data.success_rate_7d;
+            set('ov-rate', rate != null ? `${rate}%` : '—');
+            const logTotal = Object.values(data.log_stats_7d || {}).reduce((a, b) => a + b, 0);
+            set('ov-rate-sub', `${logTotal} events`);
+
+            const workerEl = document.getElementById('ov-worker');
+            if (workerEl) {
+                workerEl.textContent = data.worker_online ? 'Online' : 'Offline';
+                workerEl.className = 'overview-stat-value ' + (data.worker_online ? 'text-emerald-500' : 'text-red-400');
+            }
+            const age = data.worker_last_seen_seconds;
+            set('ov-worker-sub', data.worker_online ? 'worker active' : (age != null ? `last seen ${age}s ago` : 'no worker log'));
+
+            const banner = document.getElementById('overview-setup-banner');
+            if (banner) banner.classList.toggle('hidden', !data.setup_incomplete);
+
+            const st = data.storage || {};
+            set('ov-storage-type', st.type || '—');
+            const pathEl = document.getElementById('ov-storage-path');
+            if (pathEl) {
+                pathEl.textContent = st.path || '—';
+                pathEl.title = st.path || '';
+            }
+            set('ov-storage-used-label', st.total_human || '—');
+            set('ov-storage-meta', `${st.version_count ?? 0} versions · ${st.vm_count ?? 0} VMs in repo`);
+
+            const diskSection = document.getElementById('ov-disk-section');
+            const barWrap = document.getElementById('ov-storage-bar-wrap');
+            if (st.disk_total_gb != null && st.disk_free_gb != null) {
+                diskSection?.classList.remove('hidden');
+                const usedPct = Math.min(100, Math.round(100 * (st.disk_used_gb / st.disk_total_gb)));
+                const freePct = st.disk_free_pct ?? 0;
+                set('ov-disk-free-label', `${st.disk_free_gb} GB free (${freePct}%)`);
+                set('ov-disk-meta', `${st.disk_used_gb} GB used of ${st.disk_total_gb} GB total`);
+                const diskBar = document.getElementById('ov-disk-bar');
+                if (diskBar) {
+                    diskBar.style.width = `${freePct}%`;
+                    diskBar.classList.toggle('overview-bar-danger', freePct < 15);
+                    diskBar.classList.toggle('overview-bar-warn', freePct >= 15 && freePct < 25);
+                }
+                if (barWrap && st.total_bytes) {
+                    barWrap.classList.remove('hidden');
+                    const repoPct = Math.min(100, Math.round(100 * (st.total_bytes / (1024 ** 3)) / st.disk_total_gb));
+                    const repoBar = document.getElementById('ov-storage-bar');
+                    if (repoBar) repoBar.style.width = `${Math.max(repoPct, 2)}%`;
+                }
+            } else {
+                diskSection?.classList.add('hidden');
+                barWrap?.classList.add('hidden');
+            }
+
+            const errEl = document.getElementById('ov-storage-error');
+            if (errEl) {
+                if (st.scan_error) {
+                    errEl.textContent = `Scan: ${st.scan_error}`;
+                    errEl.classList.remove('hidden');
+                } else {
+                    errEl.classList.add('hidden');
+                }
+            }
+
+            overviewRenderStatusBars('ov-status-bars', data.status_counts || {}, {
+                Success: '#10b981', Failed: '#ef4444', Cancelled: '#eab308', Skipped: '#6b7280', Never: '#94a3b8', Other: '#64748b'
+            });
+            overviewRenderStatusBars('ov-log-stats', data.log_stats_7d || {}, {
+                Success: '#10b981', Failed: '#ef4444', Cancelled: '#eab308', Skipped: '#6b7280', Warning: '#f59e0b', Other: '#64748b'
+            });
+
+            set('ov-hosts', data.host_count ?? '0');
+            set('ov-inventory', data.inventory_count ?? '0');
+
+            const liveEl = document.getElementById('ov-live-jobs');
+            if (liveEl) {
+                const jobs = data.live_jobs || [];
+                liveEl.innerHTML = jobs.length ? jobs.map(j => {
+                    const speed = j.speed_mbps > 0 ? ` · ${j.speed_mbps} MB/s` : '';
+                    return `<div class="overview-live-item">
+                        <div class="flex justify-between gap-2 text-sm">
+                            <span class="font-semibold truncate">${j.vm_name}</span>
+                            <span class="text-xs font-mono shrink-0" style="color: var(--brand)">${j.progress}%</span>
+                        </div>
+                        <div class="text-[11px] truncate mt-0.5" style="color: var(--text-muted)">${j.host_name} · ${j.current_action || 'Processing'}${speed}</div>
+                        <div class="prog-container active"><div class="prog-bar" style="width:${j.progress}%"></div></div>
+                    </div>`;
+                }).join('') : '<div class="text-sm py-6 text-center opacity-50 italic">No backups running</div>';
+            }
+
+            const restEl = document.getElementById('ov-restores');
+            if (restEl) {
+                const restores = data.active_restores || [];
+                restEl.innerHTML = restores.length ? restores.map(r => `
+                    <div class="overview-live-item">
+                        <div class="flex justify-between gap-2 text-sm">
+                            <span class="font-semibold truncate">${r.target_name}</span>
+                            <span class="text-xs font-mono shrink-0" style="color: var(--brand)">${r.progress}%</span>
+                        </div>
+                        <div class="text-[11px] truncate mt-0.5" style="color: var(--text-muted)">${r.target_esxi_host} · ${r.current_action || r.status}</div>
+                        <div class="prog-container active"><div class="prog-bar" style="width:${r.progress}%"></div></div>
+                    </div>`).join('') : '<div class="text-sm py-6 text-center opacity-50 italic">No active restores</div>';
+            }
+
+            const actEl = document.getElementById('ov-activity');
+            if (actEl) {
+                const logs = data.recent_activity || [];
+                actEl.innerHTML = logs.length ? logs.map(l => `
+                    <div class="overview-activity-item flex gap-2 items-start">
+                        <span class="status-badge ${overviewStatusClass(l.status)} shrink-0 mt-0.5">${l.status}</span>
+                        <div class="min-w-0 flex-1">
+                            <div class="text-sm font-medium truncate">${l.vm_name}</div>
+                            <div class="text-[11px] truncate" style="color: var(--text-muted)">${l.message || ''}</div>
+                            <div class="text-[10px] font-mono mt-0.5 opacity-50">${overviewFormatTs(l.timestamp)}</div>
+                        </div>
+                    </div>`).join('') : '<div class="text-sm py-6 text-center opacity-50 italic">No recent activity</div>';
+            }
+
+            const attEl = document.getElementById('ov-attention');
+            const attBadge = document.getElementById('ov-attention-count');
+            const attention = data.attention || [];
+            if (attBadge) {
+                attBadge.textContent = String(attention.length);
+                attBadge.classList.toggle('hidden', attention.length === 0);
+            }
+            if (attEl) {
+                attEl.innerHTML = attention.length ? attention.map(a => {
+                    const sevClass = a.severity === 'error' ? 'text-red-400' : a.severity === 'warning' ? 'text-amber-400' : '';
+                    return `<div class="overview-attention-item flex justify-between gap-2 items-start">
+                        <div class="min-w-0">
+                            <div class="text-sm font-semibold truncate">${a.vm_name}</div>
+                            <div class="text-[11px] ${sevClass}">${a.reason}</div>
+                            <div class="text-[10px] font-mono mt-0.5 opacity-50">${a.host_name} · ${a.last_status}${a.last_backup ? ' · ' + overviewFormatTs(a.last_backup) : ''}</div>
+                        </div>
+                        <button type="button" onclick="switchTab('tab-jobs')" class="btn-secondary px-2 py-1 text-[10px] font-medium rounded shrink-0">Tasks</button>
+                    </div>`;
+                }).join('') : '<div class="text-sm py-6 text-center opacity-50 italic">All clear ✓</div>';
+            }
+
+            set('overview-updated', `Updated ${new Date().toLocaleTimeString()}`);
+        }
+
+        async function refreshOverview(force) {
+            const tab = document.getElementById('tab-overview');
+            if (!tab || tab.classList.contains('hidden')) return;
+            if (_overviewLoading) return;
+            if (!force && Date.now() - _overviewLastFetch < 8000) return;
+            _overviewLoading = true;
+            try {
+                const res = await fetch('/overview');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                overviewRenderOverview(data);
+                _overviewLastFetch = Date.now();
+            } catch (e) {
+                const el = document.getElementById('overview-updated');
+                if (el) el.textContent = 'Refresh failed';
+                console.warn('overview refresh failed', e);
+            } finally {
+                _overviewLoading = false;
+            }
+        }
+
+        async function refreshOverviewLiveOnly() {
+            const tab = document.getElementById('tab-overview');
+            if (!tab || tab.classList.contains('hidden')) return;
+            try {
+                const res = await fetch('/job_progress');
+                const progress = await res.json();
+                const liveEl = document.getElementById('ov-live-jobs');
+                if (!liveEl) return;
+                const items = [];
+                Object.keys(progress).forEach(vmId => {
+                    const info = progress[vmId];
+                    const action = info.current_action || '';
+                    const prog = info.progress || 0;
+                    const active = action !== '' || (prog > 0 && prog < 100);
+                    if (!active) return;
+                    const row = document.getElementById('row-' + vmId);
+                    const name = row?.getAttribute('data-name') || ('VM ' + vmId);
+                    const host = row?.getAttribute('data-host') || '—';
+                    items.push({ vm_id: vmId, vm_name: name, host_name: host, progress: prog, current_action: action, speed_mbps: info.speed_mbps || 0 });
+                });
+                const runningEl = document.getElementById('ov-running');
+                if (runningEl) runningEl.textContent = String(items.length);
+                if (items.length) {
+                    liveEl.innerHTML = items.map(j => {
+                        const speed = j.speed_mbps > 0 ? ` · ${j.speed_mbps} MB/s` : '';
+                        return `<div class="overview-live-item">
+                            <div class="flex justify-between gap-2 text-sm">
+                                <span class="font-semibold truncate">${j.vm_name}</span>
+                                <span class="text-xs font-mono shrink-0" style="color: var(--brand)">${j.progress}%</span>
+                            </div>
+                            <div class="text-[11px] truncate mt-0.5" style="color: var(--text-muted)">${j.host_name} · ${j.current_action || 'Processing'}${speed}</div>
+                            <div class="prog-container active"><div class="prog-bar" style="width:${j.progress}%"></div></div>
+                        </div>`;
+                    }).join('');
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        function showSettingsPanel(panelId) {
+            document.querySelectorAll('.settings-panel').forEach(p => p.classList.add('hidden'));
+            const panel = document.getElementById('settings-panel-' + panelId);
+            if (panel) panel.classList.remove('hidden');
+            document.querySelectorAll('.settings-nav-item').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.settingsPanel === panelId);
+            });
+            localStorage.setItem('settingsPanel', panelId);
+            if (panelId === 'api' && typeof loadApiKeys === 'function') loadApiKeys();
+        }
+
+        function initSetupWizardTriggers() {
+            document.querySelectorAll('.settings-wizard-btn, [data-open-setup-wizard]').forEach(btn => {
+                if (btn.dataset.wizardBound === '1') return;
+                btn.dataset.wizardBound = '1';
+                btn.addEventListener('click', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    switchTab('tab-settings');
+                    if (typeof closeUserMenu === 'function') closeUserMenu();
+                    if (typeof closeNavMobileMenu === 'function') closeNavMobileMenu();
+                    if (typeof window.openSetupWizard === 'function') {
+                        window.openSetupWizard();
+                    } else {
+                        sessionStorage.setItem('novabak_open_wizard', '1');
+                    }
+                });
+            });
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('wizard') === '1' && document.body.dataset.admin === '1') {
+                switchTab('tab-settings');
+                setTimeout(() => { if (typeof window.openSetupWizard === 'function') window.openSetupWizard(); }, 100);
+            } else if (
+                document.body.dataset.admin === '1'
+                && document.body.dataset.setupSuggested === '1'
+                && !localStorage.getItem('setup_wizard_done')
+            ) {
+                setTimeout(() => { if (typeof window.openSetupWizard === 'function') window.openSetupWizard(); }, 300);
+            }
+        }
+
+        function requestSetupWizard() {
+            sessionStorage.setItem('novabak_open_wizard', '1');
+            if (typeof window.openSetupWizard === 'function') {
+                window.openSetupWizard();
+                return;
+            }
+            switchTab('tab-settings');
         }
 
         function filterJobs() {
             const searchQ = document.getElementById('jobSearch').value.toLowerCase();
             const filterStat = document.getElementById('jobFilter').value;
-            const cards = document.querySelectorAll('.vm-job-card');
+            const rows = document.querySelectorAll('.vm-job-row');
 
-            cards.forEach(card => {
-                const name = card.getAttribute('data-name').toLowerCase();
-                const status = card.getAttribute('data-status');
-                const isScheduled = card.getAttribute('data-scheduled') === 'true';
-                const isRunning = card.getAttribute('data-running') === 'true';
+            rows.forEach(row => {
+                const name = row.getAttribute('data-name').toLowerCase();
+                const status = row.getAttribute('data-status');
+                const isScheduled = row.getAttribute('data-scheduled') === 'true';
+                const isRunning = row.getAttribute('data-running') === 'true';
+                const vmId = row.id.replace('row-', '');
 
                 let matchesSearch = name.includes(searchQ);
                 let matchesStatus = true;
@@ -163,22 +940,372 @@
                 else if (filterStat === 'error') matchesStatus = (status === 'Failed');
                 else if (filterStat === 'success') matchesStatus = (status === 'Success');
 
-                if (matchesSearch && matchesStatus) {
-                    card.style.display = 'block';
+                const show = matchesSearch && matchesStatus;
+                row.style.display = show ? '' : 'none';
+            });
+
+            document.querySelectorAll('.vm-job-card').forEach(card => {
+                const name = card.getAttribute('data-name').toLowerCase();
+                const status = card.getAttribute('data-status');
+                const isScheduled = card.getAttribute('data-scheduled') === 'true';
+                const isRunning = card.getAttribute('data-running') === 'true';
+                let matchesSearch = name.includes(searchQ);
+                let matchesStatus = true;
+                if (filterStat === 'active') matchesStatus = isRunning;
+                else if (filterStat === 'scheduled') matchesStatus = isScheduled;
+                else if (filterStat === 'error') matchesStatus = (status === 'Failed');
+                else if (filterStat === 'success') matchesStatus = (status === 'Success');
+                card.style.display = (matchesSearch && matchesStatus) ? 'block' : 'none';
+            });
+            updateJobsBulkBar();
+        }
+
+        let _jobsSort = { key: 'name', dir: 'asc' };
+
+        function sortJobsTable(key) {
+            if (_jobsSort.key === key) {
+                _jobsSort.dir = _jobsSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                _jobsSort.key = key;
+                _jobsSort.dir = 'asc';
+            }
+            const tbody = document.querySelector('#jobsListView tbody');
+            if (!tbody) return;
+
+            const rows = [];
+            tbody.querySelectorAll('.vm-job-row').forEach(row => rows.push(row));
+
+            const dir = _jobsSort.dir === 'asc' ? 1 : -1;
+            rows.sort((a, b) => {
+                const ar = a;
+                const br = b;
+                let av;
+                let bv;
+                if (key === 'name') {
+                    av = (ar.getAttribute('data-name') || '').toLowerCase();
+                    bv = (br.getAttribute('data-name') || '').toLowerCase();
+                } else if (key === 'host') {
+                    av = (ar.getAttribute('data-host') || '').toLowerCase();
+                    bv = (br.getAttribute('data-host') || '').toLowerCase();
+                } else if (key === 'lastbackup') {
+                    av = parseFloat(ar.getAttribute('data-lastbackup') || '0');
+                    bv = parseFloat(br.getAttribute('data-lastbackup') || '0');
+                } else if (key === 'status') {
+                    av = ar.getAttribute('data-status-sort') || '';
+                    bv = br.getAttribute('data-status-sort') || '';
+                } else if (key === 'schedule') {
+                    av = (ar.getAttribute('data-schedule') || '').toLowerCase();
+                    bv = (br.getAttribute('data-schedule') || '').toLowerCase();
                 } else {
-                    card.style.display = 'none';
+                    return 0;
                 }
+                if (av < bv) return -1 * dir;
+                if (av > bv) return 1 * dir;
+                return 0;
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+            updateJobsSortIndicators();
+        }
+
+        function updateJobsSortIndicators() {
+            document.querySelectorAll('.jobs-sort-th').forEach(th => {
+                const key = th.getAttribute('data-sort-key');
+                const ind = th.querySelector('.jobs-sort-ind');
+                th.classList.toggle('active', key === _jobsSort.key);
+                if (ind) ind.textContent = key === _jobsSort.key ? (_jobsSort.dir === 'asc' ? '↑' : '↓') : '';
             });
         }
 
+        function jobItemVmId(el) {
+            return el.id.replace('row-', '').replace('card-', '');
+        }
+
+        function isJobsCardView() {
+            const grid = document.getElementById('jobsGridView');
+            return grid && !grid.classList.contains('hidden');
+        }
+
+        function getVisibleJobItems() {
+            return [...document.querySelectorAll('.vm-job-row')].filter(el => el.style.display !== 'none');
+        }
+
+        function getSelectedJobRows() {
+            return getVisibleJobItems().filter(el => el.querySelector('.job-row-cb:checked'));
+        }
+
+        function syncJobCheckbox(source) {
+            document.querySelectorAll(`.job-row-cb[value="${source.value}"]`).forEach(cb => { cb.checked = source.checked; });
+            updateJobsBulkBar();
+        }
+
+        function updateJobsBulkBar() {
+            const bar = document.getElementById('jobsBulkBar');
+            if (isJobsCardView()) {
+                if (bar) bar.classList.add('hidden');
+                return;
+            }
+            const selected = getSelectedJobRows();
+            const countEl = document.getElementById('jobsBulkCount');
+            const selectAll = document.getElementById('jobs-select-all');
+            const visible = getVisibleJobItems();
+            if (countEl) countEl.textContent = `${selected.length} selected`;
+            if (bar) bar.classList.toggle('hidden', selected.length === 0);
+            if (selectAll) {
+                selectAll.indeterminate = selected.length > 0 && selected.length < visible.length;
+                selectAll.checked = visible.length > 0 && selected.length === visible.length;
+            }
+        }
+
+        function toggleSelectAllJobs(checked) {
+            getVisibleJobItems().forEach(el => {
+                const cb = el.querySelector('.job-row-cb');
+                if (cb) cb.checked = checked;
+            });
+            updateJobsBulkBar();
+        }
+
+        function clearJobSelection() {
+            document.querySelectorAll('.job-row-cb').forEach(cb => { cb.checked = false; });
+            updateJobsBulkBar();
+        }
+
+        async function runSelectedJobs() {
+            const items = getSelectedJobRows();
+            if (!items.length) return;
+            const idle = items.filter(el => el.getAttribute('data-running') !== 'true');
+            if (!idle.length) {
+                await showAlert('All selected VMs are already running a backup.', { title: 'Run selected' });
+                return;
+            }
+            const ok = await showConfirm(`Start backup for ${idle.length} VM(s)?`, { title: 'Run selected', confirmText: 'Run' });
+            if (!ok) return;
+            let started = 0;
+            for (const el of idle) {
+                const vmId = jobItemVmId(el);
+                try {
+                    const res = await fetch(`/api/v1/vms/${vmId}/run`, { method: 'POST' });
+                    if (res.ok) started++;
+                } catch (e) { /* continue */ }
+            }
+            await showAlert(`Backup queued for ${started} VM(s).`, { title: 'Backups started', confirmText: 'OK' });
+            clearJobSelection();
+        }
+
+        async function abortSelectedJobs() {
+            const rows = getSelectedJobRows().filter(r => r.getAttribute('data-running') === 'true');
+            if (!rows.length) {
+                await showAlert('No running backups among the selected VMs.', { title: 'Abort selected' });
+                return;
+            }
+            const ok = await showConfirm(`Abort ${rows.length} running backup(s)?`, { title: 'Abort selected', confirmText: 'Abort', danger: true });
+            if (!ok) return;
+            let stopped = 0;
+            for (const row of rows) {
+                const vmId = jobItemVmId(row);
+                try {
+                    const res = await fetch(`/api/v1/vms/${vmId}/stop`, { method: 'POST' });
+                    if (res.ok) stopped++;
+                } catch (e) { /* continue */ }
+            }
+            await showAlert(`Stop requested for ${stopped} backup(s).`, { title: 'Backups stopping', confirmText: 'OK' });
+            clearJobSelection();
+        }
+
+        async function removeSelectedJobs() {
+            const rows = getSelectedJobRows();
+            if (!rows.length) return;
+            const ok = await showConfirm(`Remove ${rows.length} VM(s) from backup tasks?`, { title: 'Remove selected', confirmText: 'Remove', danger: true });
+            if (!ok) return;
+            for (const row of rows) {
+                const vmId = jobItemVmId(row);
+                const vmName = row.getAttribute('data-name') || 'VM';
+                await removeVmFromTasks(parseInt(vmId, 10), vmName, true);
+            }
+            clearJobSelection();
+        }
+
+        let _schedulerPaused = {{ 'true' if config and config.scheduler_paused else 'false' }};
+
+        function updateSchedulerPauseUi() {
+            const btn = document.getElementById('jobsPauseToggle');
+            const banner = document.getElementById('jobsPausedBanner');
+            if (btn) {
+                btn.textContent = _schedulerPaused ? 'Resume all' : 'Pause all';
+                btn.classList.toggle('btn-danger', !_schedulerPaused);
+                btn.classList.toggle('btn-secondary', _schedulerPaused);
+            }
+            if (banner) banner.classList.toggle('hidden', !_schedulerPaused);
+        }
+
+        async function refreshSchedulerPauseState() {
+            try {
+                const res = await fetch('/api/v1/jobs/scheduler');
+                if (res.ok) {
+                    const data = await res.json();
+                    _schedulerPaused = !!data.paused;
+                    updateSchedulerPauseUi();
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        async function toggleJobsPause() {
+            const pausing = !_schedulerPaused;
+            const ok = await showConfirm(
+                pausing
+                    ? 'Pause all backups? Scheduled runs and manual Run will be blocked until you resume.'
+                    : 'Resume all backups? Scheduled jobs will run again on their normal schedule.',
+                { title: pausing ? 'Pause all' : 'Resume all', confirmText: pausing ? 'Pause all' : 'Resume all', danger: pausing }
+            );
+            if (!ok) return;
+            try {
+                const res = await fetch(`/api/v1/jobs/${pausing ? 'pause' : 'resume'}`, { method: 'POST' });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+                _schedulerPaused = pausing;
+                updateSchedulerPauseUi();
+            } catch (e) {
+                await showAlert('Could not update pause state: ' + (e.message || 'Unknown error'), { title: 'Pause all' });
+            }
+        }
+
+        async function pauseSelectedJobs() {
+            const rows = getSelectedJobRows();
+            if (!rows.length) return;
+            const ok = await showConfirm(
+                `Pause scheduled backups for ${rows.length} VM(s)? They will stay in the task list but won't run on schedule.`,
+                { title: 'Pause selected', confirmText: 'Pause' }
+            );
+            if (!ok) return;
+            let paused = 0;
+            for (const row of rows) {
+                const vmId = jobItemVmId(row);
+                try {
+                    const res = await fetch(`/api/v1/vms/${vmId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ is_job_active: false }),
+                    });
+                    if (res.ok) {
+                        paused++;
+                        row.setAttribute('data-scheduled', 'false');
+                        row.querySelectorAll('span').forEach(span => {
+                            if (span.textContent.trim() === 'scheduled') span.textContent = 'paused';
+                        });
+                    }
+                } catch (e) { /* continue */ }
+            }
+            await showAlert(`Paused schedules for ${paused} VM(s).`, { title: 'Pause selected', confirmText: 'OK' });
+            clearJobSelection();
+            filterJobs();
+        }
+
+        function setJobsView(view) {
+            const list = document.getElementById('jobsListView');
+            const grid = document.getElementById('jobsGridView');
+            const btnList = document.getElementById('jobsViewList');
+            const btnCards = document.getElementById('jobsViewCards');
+            if (!list || !grid) return;
+            const isList = view === 'list';
+            list.classList.toggle('hidden', !isList);
+            grid.classList.toggle('hidden', isList);
+            btnList?.classList.toggle('active', isList);
+            btnCards?.classList.toggle('active', !isList);
+            localStorage.setItem('jobsView', view);
+            if (!isList) clearJobSelection();
+            updateJobsBulkBar();
+        }
+
+        function closeAllJobActionsMenus() {
+            document.querySelectorAll('.job-actions-menu').forEach(m => m.classList.add('hidden'));
+        }
+
+        function toggleJobActionsMenu(vmId) {
+            const menu = document.getElementById('job-actions-menu-' + vmId);
+            if (!menu) return;
+            const wasHidden = menu.classList.contains('hidden');
+            closeAllJobActionsMenus();
+            if (wasHidden) {
+                menu.classList.remove('hidden');
+                if (typeof showDaysRow === 'function') showDaysRow(vmId);
+            }
+        }
+
+        function updateJobProgressUI(vm_id, info) {
+            const isActive = info && (info.current_action !== "" || (info.progress > 0 && info.progress < 100));
+            const speedBadge = info && info.speed_mbps > 0 ? ` · ${info.speed_mbps} MB/s` : '';
+            const actionText = (info && info.current_action) ? info.current_action + speedBadge : 'Processing...';
+
+            const listWrap = document.getElementById('list-prog-wrap-' + vm_id);
+            if (listWrap) {
+                if (isActive) {
+                    listWrap.classList.remove('hidden');
+                    const pct = document.getElementById('list-prog-pct-' + vm_id);
+                    const bar = document.getElementById('list-prog-bar-' + vm_id);
+                    const text = document.getElementById('list-prog-text-' + vm_id);
+                    if (pct) pct.innerText = info.progress + '%';
+                    if (bar) bar.style.width = info.progress + '%';
+                    if (text) text.innerHTML = actionText;
+                } else {
+                    listWrap.classList.add('hidden');
+                }
+            }
+            const listRun = document.getElementById('list-form-run-' + vm_id);
+            const listStop = document.getElementById('list-form-stop-' + vm_id);
+            if (listRun) listRun.classList.toggle('hidden', isActive);
+            if (listStop) listStop.classList.toggle('hidden', !isActive);
+
+            const cardWrap = document.getElementById('prog-wrap-' + vm_id);
+            if (cardWrap) {
+                if (isActive) {
+                    cardWrap.classList.remove('hidden');
+                    const pct = document.getElementById('prog-pct-' + vm_id);
+                    const bar = document.getElementById('prog-bar-' + vm_id);
+                    const text = document.getElementById('prog-text-' + vm_id);
+                    if (pct) pct.innerText = info.progress + '%';
+                    if (bar) bar.style.width = info.progress + '%';
+                    if (text) text.innerHTML = actionText;
+                } else {
+                    cardWrap.classList.add('hidden');
+                }
+            }
+            const cardRun = document.getElementById('form-run-' + vm_id);
+            const cardStop = document.getElementById('form-stop-' + vm_id);
+            if (cardRun) cardRun.classList.toggle('hidden', isActive);
+            if (cardStop) cardStop.classList.toggle('hidden', !isActive);
+
+            const row = document.getElementById('row-' + vm_id);
+            const card = document.getElementById('card-' + vm_id);
+            if (row) row.setAttribute('data-running', isActive ? 'true' : 'false');
+            if (card) card.setAttribute('data-running', isActive ? 'true' : 'false');
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
-            const activeTab = localStorage.getItem('activeTab') || 'tab-jobs';
+            const activeTab = getInitialTabId();
             if (document.getElementById(activeTab)) { switchTab(activeTab); }
             
             const savedTheme = localStorage.getItem('userTheme') || 'light';
             applyTheme(savedTheme);
             
             filterJobs();
+            updateJobsSortIndicators();
+            setJobsView(localStorage.getItem('jobsView') || 'list');
+            initConfirmForms();
+            initSetupWizardTriggers();
+            updateSchedulerPauseUi();
+
+            document.getElementById('appModalCancel')?.addEventListener('click', () => closeAppModal(false));
+            document.getElementById('appModalConfirm')?.addEventListener('click', () => closeAppModal(true));
+            document.getElementById('appModal')?.addEventListener('keydown', e => {
+                if (e.key === 'Escape') closeAppModal(false);
+            });
+
+            document.addEventListener('click', e => {
+                const wrap = document.getElementById('themePickerWrap');
+                if (wrap && !wrap.contains(e.target)) closeThemeMenu();
+                if (!e.target.closest('.job-actions-wrap')) closeAllJobActionsMenus();
+                if (!e.target.closest('.nav-user-wrap')) closeUserMenu();
+            });
             
             // Auto scroll terminal on load
             const termPans = document.querySelectorAll('.terminal-window');
@@ -186,41 +1313,98 @@
         });
     </script>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col"{% if current_user and current_user.role == 'admin' %} data-admin="1"{% endif %} data-setup-suggested="{{ '1' if setup_wizard_suggested else '0' }}">
     
     <!-- Top Navigation -->
     <nav class="nav-bar sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center space-x-3">
-                    <img src="/static/novabak_logo.png" class="w-8 h-8 rounded" alt="NovaBak Logo">
-                    <span class="font-bold text-xl tracking-wide uppercase">NovaBak</span>
+            <div class="nav-inner">
+                <div class="nav-brand">
+                    <button type="button" onclick="goHome()" class="flex items-center space-x-2.5 rounded-md hover:opacity-85 transition-opacity cursor-pointer" aria-label="NovaBak home — Overview">
+                        <img src="/static/novabak_logo.png" class="w-8 h-8 rounded pointer-events-none" alt="">
+                        <span class="font-bold text-xl tracking-wide uppercase pointer-events-none hidden sm:inline">NovaBak</span>
+                    </button>
+                    <button type="button" id="navMobileBtn" class="nav-mobile-btn md:hidden" onclick="toggleNavMobileMenu()" aria-label="Open menu">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
                 </div>
-                <div class="flex items-center">
-                    <div class="hidden md:flex space-x-6 mr-6 h-full">
-                        <button id="nav-tab-jobs" onclick="switchTab('tab-jobs')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Tasks</button>
-                        <button id="nav-tab-inventory" onclick="switchTab('tab-inventory')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Inventory</button>
-                        <button id="nav-tab-restore" onclick="switchTab('tab-restore')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Recovery</button>
-                        <button id="nav-tab-syslogs" onclick="switchTab('tab-syslogs')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">System Logs</button>
-                        {% if current_user and current_user.role == 'admin' %}
-                        <button id="nav-tab-users" onclick="switchTab('tab-users')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Users</button>
-                        {% endif %}
-                        <button id="nav-tab-settings" onclick="switchTab('tab-settings')" class="tab-nav inline-flex items-center px-1 pt-1 border-b-2 font-medium text-sm transition-colors border-transparent" style="color: var(--text-muted)">Settings</button>
-                    </div>
-                    
-                    <select id="themeSelector" onchange="applyTheme(this.value)" class="text-xs mr-4 py-1 px-2 border-none ring-0">
-                        <option value="light">Mode: Light Modern</option>
-                        <option value="dark">Mode: Ent Dark</option>
-                        <option value="cyberpunk">Mode: Cyberpunk</option>
-                    </select>
 
-                    <a href="/logout" class="text-sm font-medium" style="color: #ef4444;">Sign Out</a>
+                <div class="nav-primary hidden md:flex">
+                    <button id="nav-tab-overview" onclick="switchTab('tab-overview')" class="tab-nav border-transparent" style="color: var(--text-muted)">Overview</button>
+                    <button id="nav-tab-jobs" onclick="switchTab('tab-jobs')" class="tab-nav border-transparent" style="color: var(--text-muted)">Tasks</button>
+                    <button id="nav-tab-inventory" onclick="switchTab('tab-inventory')" class="tab-nav border-transparent" style="color: var(--text-muted)">Inventory</button>
+                    <button id="nav-tab-restore" onclick="switchTab('tab-restore')" class="tab-nav border-transparent" style="color: var(--text-muted)">Recovery</button>
                 </div>
+
+                <div class="nav-utilities">
+                    <div class="relative" id="themePickerWrap">
+                        <button type="button" id="themePickerBtn" onclick="toggleThemeMenu()" class="theme-picker-btn" title="Change theme" aria-label="Change theme">
+                            <svg id="theme-icon-light" class="theme-icon w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                            <svg id="theme-icon-dark" class="theme-icon w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                            <svg id="theme-icon-cyberpunk" class="theme-icon w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </button>
+                        <div id="themeMenu" class="theme-menu hidden">
+                            <button type="button" class="theme-menu-item" data-theme="light" onclick="applyTheme('light')">
+                                <svg class="theme-menu-check" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <svg class="theme-menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                                Light
+                            </button>
+                            <button type="button" class="theme-menu-item" data-theme="dark" onclick="applyTheme('dark')">
+                                <svg class="theme-menu-check" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <svg class="theme-menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                                Dark
+                            </button>
+                            <button type="button" class="theme-menu-item" data-theme="cyberpunk" onclick="applyTheme('cyberpunk')">
+                                <svg class="theme-menu-check" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <svg class="theme-menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                Cyberpunk
+                            </button>
+                        </div>
+                    </div>
+                    <div class="relative nav-user-wrap" id="navUserWrap">
+                        <button type="button" id="nav-user-btn" onclick="toggleUserMenu()" class="nav-user-btn" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">
+                            <span class="nav-user-avatar">{% if current_user %}{{ current_user.username[0] }}{% else %}?{% endif %}</span>
+                            <span class="hidden sm:inline max-w-[8rem] truncate">{% if current_user %}{{ current_user.username }}{% else %}Account{% endif %}</span>
+                            <svg class="w-3.5 h-3.5 opacity-60 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div id="nav-user-menu" class="nav-user-menu hidden">
+                            {% if current_user %}
+                            <div class="nav-user-menu-header">{{ current_user.username }}</div>
+                            {% endif %}
+                            <button type="button" class="nav-user-item" data-tab="tab-syslogs" onclick="switchTab('tab-syslogs')">System Logs</button>
+                            <button type="button" class="nav-user-item" data-tab="tab-settings" onclick="switchTab('tab-settings')">Settings</button>
+                            {% if current_user and current_user.role == 'admin' %}
+                            <button type="button" class="nav-user-item" data-tab="tab-users" onclick="switchTab('tab-users')">Users</button>
+                            <button type="button" class="nav-user-item" data-open-setup-wizard>Setup wizard</button>
+                            {% endif %}
+                            <div class="nav-user-menu-divider"></div>
+                            <a href="/logout" class="nav-user-signout">Sign out</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="nav-mobile-menu" class="nav-mobile-menu hidden md:hidden">
+                <div class="nav-mobile-section">Operations</div>
+                <button type="button" class="nav-mobile-item" data-tab="tab-overview" onclick="switchTab('tab-overview')">Overview</button>
+                <button type="button" class="nav-mobile-item" data-tab="tab-jobs" onclick="switchTab('tab-jobs')">Tasks</button>
+                <button type="button" class="nav-mobile-item" data-tab="tab-inventory" onclick="switchTab('tab-inventory')">Inventory</button>
+                <button type="button" class="nav-mobile-item" data-tab="tab-restore" onclick="switchTab('tab-restore')">Recovery</button>
+                <div class="nav-mobile-section">Account</div>
+                <button type="button" class="nav-mobile-item" data-tab="tab-syslogs" onclick="switchTab('tab-syslogs')">System Logs</button>
+                <button type="button" class="nav-mobile-item" data-tab="tab-settings" onclick="switchTab('tab-settings')">Settings</button>
+                {% if current_user and current_user.role == 'admin' %}
+                <button type="button" class="nav-mobile-item" data-tab="tab-users" onclick="switchTab('tab-users')">Users</button>
+                <button type="button" class="nav-mobile-item" data-open-setup-wizard>Setup wizard</button>
+                {% endif %}
+                <a href="/logout" class="nav-mobile-signout">Sign out</a>
             </div>
         </div>
     </nav>
 
     <div class="max-w-7xl w-full mx-auto py-8 px-4 sm:px-6 lg:px-8 flex-1">
+
+        {% include 'partials/overview_tab.html' %}
 
         <!-- USERS TAB (admin only) -->
         {% if current_user and current_user.role == 'admin' %}
@@ -278,14 +1462,14 @@
                                 <td class="px-5 py-3">
                                     <div class="flex gap-2 justify-end">
                                         <!-- Reset Password (available for all users including self) -->
-                                        <form action="/admin/reset_password" method="POST" onsubmit="return confirm('Reset password for {{ u.username }}?')">
+                                        <form action="/admin/reset_password" method="POST" data-confirm="Reset password for {{ u.username }}?" data-confirm-title="Reset password">
                                             <input type="hidden" name="user_id" value="{{ u.id }}">
                                             <button type="submit" class="text-xs px-2 py-1 rounded border hover:bg-blue-500/10 hover:border-blue-500 transition-colors" style="border-color: var(--border-color)" title="Reset Password">
                                                 Reset PW
                                             </button>
                                         </form>
                                         <!-- Reset MFA (available for all users including self) -->
-                                        <form action="/admin/reset_mfa" method="POST" onsubmit="return confirm('Reset MFA for {{ u.username }}?')">
+                                        <form action="/admin/reset_mfa" method="POST" data-confirm="Reset MFA for {{ u.username }}? They will be prompted to set it up again on next login." data-confirm-title="Reset MFA">
                                             <input type="hidden" name="user_id" value="{{ u.id }}">
                                             <button type="submit" class="text-xs px-2 py-1 rounded border hover:bg-yellow-500/10 hover:border-yellow-500 transition-colors" style="border-color: var(--border-color)" title="Reset MFA">
                                                 Reset MFA
@@ -293,7 +1477,7 @@
                                         </form>
                                         {% if u.username != current_user.username %}
                                         <!-- Delete (not available for self) -->
-                                        <form action="/admin/delete_user" method="POST" onsubmit="return confirm('Delete user {{ u.username }}? This cannot be undone.')">
+                                        <form action="/admin/delete_user" method="POST" data-confirm="Delete user {{ u.username }}? This cannot be undone." data-confirm-title="Delete user">
                                             <input type="hidden" name="user_id" value="{{ u.id }}">
                                             <button type="submit" class="text-xs px-2 py-1 rounded border text-red-400 hover:bg-red-500/10 hover:border-red-500 transition-colors" style="border-color: var(--border-color)" title="Delete">
                                                 Delete
@@ -333,7 +1517,7 @@
         {% endif %}
 
         <!-- JOBS TAB -->
-        <div id="tab-jobs" class="tab-content">
+        <div id="tab-jobs" class="tab-content hidden">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 space-y-4 md:space-y-0">
                 <h2 class="text-2xl font-bold">Backup Tasks</h2>
                 
@@ -351,10 +1535,130 @@
                         <option value="error">Failed Backups</option>
                         <option value="success">Successful Backups</option>
                     </select>
+                    <div class="flex rounded-md overflow-hidden border" style="border-color: var(--border-color)">
+                        <button type="button" id="jobsViewList" onclick="setJobsView('list')" class="jobs-view-btn active rounded-none">List</button>
+                        <button type="button" id="jobsViewCards" onclick="setJobsView('cards')" class="jobs-view-btn rounded-none border-l" style="border-color: var(--border-color)">Cards</button>
+                    </div>
+                    <button type="button" id="jobsPauseToggle" onclick="toggleJobsPause()" class="btn-secondary px-3 py-2 text-xs font-semibold whitespace-nowrap">Pause all</button>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="jobsGrid">
+            <div id="jobsPausedBanner" class="jobs-paused-banner{% if not config or not config.scheduler_paused %} hidden{% endif %}">
+                <span class="text-sm font-medium">All backups are paused — scheduled and manual runs are blocked.</span>
+                <button type="button" onclick="toggleJobsPause()" class="btn-secondary px-3 py-1.5 text-xs font-medium">Resume all</button>
+            </div>
+
+            <!-- LIST VIEW -->
+            <div id="jobsBulkBar" class="jobs-bulk-bar hidden">
+                <span id="jobsBulkCount" class="text-sm font-medium">0 selected</span>
+                <button type="button" onclick="runSelectedJobs()" class="btn-primary px-3 py-1.5 text-xs font-medium">Run selected</button>
+                <button type="button" onclick="abortSelectedJobs()" class="btn-danger px-3 py-1.5 text-xs font-medium">Abort selected</button>
+                <button type="button" onclick="pauseSelectedJobs()" class="btn-secondary px-3 py-1.5 text-xs font-medium">Pause selected</button>
+                <button type="button" onclick="removeSelectedJobs()" class="btn-secondary px-3 py-1.5 text-xs font-medium hover:text-red-400 hover:border-red-400/50">Remove selected</button>
+                <button type="button" onclick="clearJobSelection()" class="text-xs font-medium opacity-60 hover:opacity-100">Clear</button>
+            </div>
+
+            <div id="jobsListView" class="card">
+                <div class="overflow-x-auto">
+                    <table class="jobs-table">
+                        <thead>
+                            <tr>
+                                <th class="w-10 text-center">
+                                    <input type="checkbox" id="jobs-select-all" class="job-row-cb" title="Select all visible" onchange="toggleSelectAllJobs(this.checked)">
+                                </th>
+                                <th class="jobs-sort-th" data-sort-key="name" onclick="sortJobsTable('name')">Virtual Machine<span class="jobs-sort-ind"></span></th>
+                                <th class="jobs-sort-th" data-sort-key="host" onclick="sortJobsTable('host')">Host<span class="jobs-sort-ind"></span></th>
+                                <th class="jobs-sort-th" data-sort-key="status" onclick="sortJobsTable('status')">Status<span class="jobs-sort-ind"></span></th>
+                                <th>Progress</th>
+                                <th class="jobs-sort-th" data-sort-key="lastbackup" onclick="sortJobsTable('lastbackup')">Last Backup<span class="jobs-sort-ind"></span></th>
+                                <th class="jobs-sort-th" data-sort-key="schedule" onclick="sortJobsTable('schedule')">Schedule<span class="jobs-sort-ind"></span></th>
+                                <th class="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for vm in vms %}
+                            {% if vm.is_selected %}
+                            <tr class="vm-job-row"
+                                id="row-{{ vm.id }}"
+                                data-name="{{ vm.vm_name }}"
+                                data-host="{{ vm.esxi_host.name }}"
+                                data-lastbackup="{{ vm.last_backup.timestamp() if vm.last_backup else 0 }}"
+                                data-schedule="{{ (vm.schedule_frequency or 'daily') }} {{ '%02d'|format(vm.schedule_hour) }}:{{ '%02d'|format(vm.schedule_minute) }}"
+                                data-status="{{ vm.last_status or 'None' }}"
+                                data-status-sort="{% if vm.current_action and vm.current_action != '' %}0-running{% elif vm.last_status == 'Failed' %}1-failed{% elif vm.last_status == 'Cancelled' %}2-cancelled{% elif vm.last_status == 'Success' %}3-success{% elif vm.last_status == 'Skipped' %}4-skipped{% else %}5-idle{% endif %}"
+                                data-scheduled="{{ 'true' if vm.is_job_active else 'false' }}"
+                                data-running="{{ 'true' if (vm.current_action and vm.current_action != '') else 'false' }}">
+                                <td class="text-center">
+                                    <input type="checkbox" class="job-row-cb" value="{{ vm.id }}" onchange="syncJobCheckbox(this)">
+                                </td>
+                                <td>
+                                    <div class="font-semibold">{{ vm.vm_name }}</div>
+                                    <div class="text-[10px] font-mono mt-0.5" style="color: var(--text-muted)">{{ vm.cpu_count }} vCPU · {% if vm.memory_mb %}{{ vm.memory_mb // 1024 }}{% else %}0{% endif %}GB · {{ vm.storage_gb }}GB</div>
+                                </td>
+                                <td class="text-xs font-mono" style="color: var(--brand)">{{ vm.esxi_host.name }}</td>
+                                <td>
+                                    {% if vm.current_action and vm.current_action != '' %}
+                                        <span class="status-badge status-running">Running</span>
+                                    {% elif vm.last_status == 'Success' %}
+                                        <span class="status-badge status-success">Success</span>
+                                    {% elif vm.last_status == 'Failed' %}
+                                        <span class="status-badge status-error">Failed</span>
+                                    {% elif vm.last_status == 'Cancelled' %}
+                                        <span class="status-badge status-cancelled">Cancelled</span>
+                                    {% else %}
+                                        <span class="status-badge status-neutral">Idle</span>
+                                    {% endif %}
+                                    {% if vm.is_job_active %}
+                                        <span class="ml-1 text-[10px] opacity-60">scheduled</span>
+                                    {% endif %}
+                                </td>
+                                <td class="min-w-[140px]">
+                                    <div id="list-prog-wrap-{{ vm.id }}" class="{% if vm.current_action %}block{% else %}hidden{% endif %}">
+                                        <div class="flex justify-between text-[10px] mb-0.5">
+                                            <span id="list-prog-text-{{ vm.id }}" class="truncate max-w-[120px]" style="color: var(--brand)">{{ vm.current_action or '' }}</span>
+                                            <span id="list-prog-pct-{{ vm.id }}" class="font-mono">{{ vm.progress or 0 }}%</span>
+                                        </div>
+                                        <div class="prog-container active"><div id="list-prog-bar-{{ vm.id }}" class="prog-bar" style="width: {{ vm.progress or 0 }}%"></div></div>
+                                    </div>
+                                    <span id="list-prog-idle-{{ vm.id }}" class="text-xs" style="color: var(--text-muted)">{% if not vm.current_action %}—{% endif %}</span>
+                                </td>
+                                <td class="text-xs font-mono whitespace-nowrap" style="color: var(--text-muted)">{{ vm.last_backup.strftime('%Y-%m-%d %H:%M') if vm.last_backup else 'Never' }}</td>
+                                <td class="text-xs whitespace-nowrap">{{ (vm.schedule_frequency or 'daily')|title }} {{ '%02d'|format(vm.schedule_hour) }}:{{ '%02d'|format(vm.schedule_minute) }} · keep {{ vm.retention_count }}</td>
+                                <td class="text-right whitespace-nowrap actions-cell">
+                                    <div class="inline-flex gap-1 items-center justify-end">
+                                        <button type="button" id="list-form-stop-{{ vm.id }}" onclick="stopVmJob({{ vm.id }})" class="hidden btn-danger p-1.5 rounded" title="Abort">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                        <form action="/run_now" method="POST" id="list-form-run-{{ vm.id }}" class="inline">
+                                            <input type="hidden" name="vm_id" value="{{ vm.id }}">
+                                            <button type="submit" class="btn-primary p-1.5 rounded text-xs px-2 font-medium">Run</button>
+                                        </form>
+                                        <div class="relative job-actions-wrap" id="job-actions-wrap-{{ vm.id }}">
+                                            <button type="button" onclick="toggleJobActionsMenu({{ vm.id }})" class="btn-secondary p-1.5 rounded" title="Schedule settings" aria-label="Schedule settings">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                                            </button>
+                                            <div id="job-actions-menu-{{ vm.id }}" class="job-actions-menu hidden">
+                                                <div class="job-actions-menu-header">Schedule</div>
+                                                {% include 'partials/job_schedule_form_popover.html' %}
+                                                <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="w-full mt-2 btn-secondary px-3 py-1.5 text-xs font-medium hover:text-red-400 hover:border-red-400/50 flex items-center justify-center gap-1.5">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                    Remove from tasks
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endif %}
+                        {% else %}
+                            <tr><td colspan="8" class="py-10 text-center" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden" id="jobsGridView">
                 {% for vm in vms %}
                     {% if vm.is_selected %}
                     <div class="card p-5 vm-job-card flex flex-col" 
@@ -365,7 +1669,7 @@
                          data-running="{{ 'true' if (vm.current_action and vm.current_action != '') else 'false' }}">
                         
                         <div class="flex justify-between items-start mb-4">
-                            <div>
+                            <div class="min-w-0">
                                 <h3 class="font-bold text-lg truncate max-w-[200px]" title="{{ vm.vm_name }}">{{ vm.vm_name }}</h3>
                                 <div class="text-[10px] mt-1 font-mono font-medium opacity-80" style="color: var(--text-muted)">
                                     {{ vm.cpu_count }} vCPU • {% if vm.memory_mb %}{{ vm.memory_mb // 1024 }}{% else %}0{% endif %}GB RAM • {{ vm.storage_gb }}GB Disk
@@ -375,13 +1679,10 @@
                                     {{ vm.esxi_host.name }}
                                 </div>
                             </div>
-                            <div class="flex space-x-2 shrink-0">
-                                <form action="/stop_job" method="POST" id="form-stop-{{ vm.id }}" class="hidden">
-                                    <input type="hidden" name="vm_id" value="{{ vm.id }}">
-                                    <button type="submit" class="btn-danger p-1.5 rounded" title="Abort">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                    </button>
-                                </form>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <button type="button" id="form-stop-{{ vm.id }}" onclick="stopVmJob({{ vm.id }})" class="hidden btn-danger p-1.5 rounded" title="Abort">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
                                 <form action="/run_now" method="POST" id="form-run-{{ vm.id }}">
                                     <input type="hidden" name="vm_id" value="{{ vm.id }}">
                                     <button type="submit" class="btn-primary p-1.5 rounded flex items-center text-xs px-2 shadow-sm font-medium">
@@ -389,6 +1690,9 @@
                                         Run Now
                                     </button>
                                 </form>
+                                <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary p-1.5 rounded hover:text-red-400 hover:border-red-400/50" title="Remove from tasks">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
                             </div>
                         </div>
 
@@ -417,109 +1721,7 @@
                         </div>
 
                         <div class="mt-auto pt-4" style="border-top: 1px solid var(--border-color)">
-                            <!-- Single unified form — all fields auto-save via fetch, no page reload -->
-                            <form id="job-form-{{ vm.id }}" action="/update_job" method="POST">
-                                <input type="hidden" name="vm_id" value="{{ vm.id }}">
-
-                                <!-- Frequency selector -->
-                                <div class="mb-2">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="input-label text-[10px]">Frequency</span>
-                                        <span id="save-flash-{{ vm.id }}" class="text-[10px] font-semibold text-green-400 opacity-0 transition-opacity duration-500">✓ Saved</span>
-                                    </div>
-                                    <div class="grid grid-cols-3 gap-1">
-                                        {% for freq_val, freq_label in [('daily','Daily'),('weekly','Weekly'),('monthly','Monthly')] %}
-                                        <label class="relative cursor-pointer">
-                                            <input type="radio" name="schedule_frequency" value="{{ freq_val }}"
-                                                   {% if (vm.schedule_frequency or 'daily') == freq_val %}checked{% endif %}
-                                                   class="sr-only peer"
-                                                   onchange="showDaysRow({{ vm.id }}); autoSaveJob({{ vm.id }})">
-                                            <div class="text-center text-[10px] font-semibold py-1 rounded border transition-all
-                                                        peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)] peer-checked:bg-blue-500/10
-                                                        border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--brand)]/50">
-                                                {{ freq_label }}
-                                            </div>
-                                        </label>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-
-                                <!-- Days of week (hidden for Daily, shown for Weekly & Monthly) -->
-                                <div class="mb-2" id="days-row-{{ vm.id }}">
-                                    <div class="flex items-center justify-between">
-                                        <span class="input-label text-[10px]" id="days-label-{{ vm.id }}">Days</span>
-                                        <span class="text-[9px] opacity-50" id="days-hint-{{ vm.id }}"></span>
-                                    </div>
-                                    <input type="hidden" name="schedule_days" id="days-hidden-{{ vm.id }}" value="{{ vm.schedule_days or '0,1,2,3,4,5,6' }}">
-                                    <div class="grid grid-cols-7 gap-0.5 mt-1">
-                                        {% set cur_days = (vm.schedule_days or '0,1,2,3,4,5,6').split(',') %}
-                                        {% for day_num, day_lbl in [(0,'Mo'),(1,'Tu'),(2,'We'),(3,'Th'),(4,'Fr'),(5,'Sa'),(6,'Su')] %}
-                                        <label class="relative cursor-pointer">
-                                            <input type="checkbox"
-                                                   class="day-cb-{{ vm.id }} sr-only peer"
-                                                   data-day="{{ day_num }}"
-                                                   {% if day_num|string in cur_days %}checked{% endif %}
-                                                   onchange="updateDaysHidden({{ vm.id }}); autoSaveJob({{ vm.id }})">
-                                            <div class="text-center text-[9px] font-bold py-1 rounded border transition-all
-                                                        peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)] peer-checked:bg-blue-500/10
-                                                        border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--brand)]/50">
-                                                {{ day_lbl }}
-                                            </div>
-                                        </label>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-
-                                <!-- Hour / Min / Keep / Active -->
-                                <div class="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end mb-2">
-                                    <div>
-                                        <span class="input-label text-[10px]">Hour</span>
-                                        <input type="number" name="schedule_hour" value="{{ vm.schedule_hour }}" min="0" max="23"
-                                               class="w-full px-2 py-1 text-center font-mono text-sm"
-                                               oninput="debounceJobSave({{ vm.id }})">
-                                    </div>
-                                    <div>
-                                        <span class="input-label text-[10px]">Min</span>
-                                        <input type="number" name="schedule_minute" value="{{ vm.schedule_minute }}" min="0" max="59"
-                                               class="w-full px-2 py-1 text-center font-mono text-sm"
-                                               oninput="debounceJobSave({{ vm.id }})">
-                                    </div>
-                                    <div>
-                                        <span class="input-label text-[10px]">Keep</span>
-                                        <input type="number" name="retention_count" value="{{ vm.retention_count }}" min="1" max="60"
-                                               class="w-full px-2 py-1 text-center font-mono text-sm"
-                                               oninput="debounceJobSave({{ vm.id }})">
-                                    </div>
-                                    <div class="flex flex-col items-center gap-1 pb-0.5">
-                                        <span class="input-label text-[10px]">Active</span>
-                                        <label class="relative w-9 h-5 cursor-pointer">
-                                            <input type="checkbox" name="is_job_active" value="True"
-                                                   {% if vm.is_job_active %}checked{% endif %}
-                                                   class="sr-only peer"
-                                                   onchange="autoSaveJob({{ vm.id }})">
-                                            <div class="absolute inset-0 rounded-full bg-gray-600 peer-checked:bg-[var(--brand)] transition-colors"></div>
-                                            <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <!-- Power Off toggle -->
-                                <div class="pt-2" style="border-top: 1px dashed var(--border-color)">
-                                    <label class="flex items-center gap-2 cursor-pointer" title="Shuts down the VM before backup for ~2x faster transfer, then powers it back on automatically.">
-                                        <div class="relative flex-shrink-0 w-8 h-4">
-                                            <input type="checkbox" name="power_off_for_backup" value="True"
-                                                   {% if vm.power_off_for_backup %}checked{% endif %}
-                                                   class="sr-only peer"
-                                                   onchange="autoSaveJob({{ vm.id }})">
-                                            <div class="absolute inset-0 rounded-full {% if vm.power_off_for_backup %}bg-orange-500{% else %}bg-gray-600{% endif %} peer-checked:bg-orange-500 transition-colors"></div>
-                                            <div class="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
-                                        </div>
-                                        <span class="text-[10px] font-semibold leading-tight {% if vm.power_off_for_backup %}text-orange-400{% else %}text-gray-500{% endif %} peer-checked:text-orange-400">
-                                            ⚡ {% if vm.power_off_for_backup %}Power Off (Fast){% else %}Live Backup (Safe){% endif %}
-                                        </span>
-                                    </label>
-                                </div>
-                            </form>
+                            {% include 'partials/job_schedule_form_card.html' %}
                         </div>
 
                     </div>
@@ -636,241 +1838,7 @@
             </div>
         </div>
 
-        <!-- SETTINGS TAB -->
-        <div id="tab-settings" class="tab-content hidden">
-            <!-- Included abbreviated settings for layout - you can insert full settings code from previous implementations here -->
-            <h2 class="text-2xl font-bold mb-6">Engine Configuration</h2>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-
-                <!-- Advanced Tools -->
-                 <div class="lg:col-span-3 card p-5 flex flex-col md:flex-row gap-4 justify-between items-center" style="border-top: 4px solid #eab308">
-
-
-                    <div>
-                        <h3 class="font-bold flex items-center mb-1">
-                            <svg class="w-5 h-5 mr-2" style="color: #eab308" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                            Storage Consolidation Utility
-                        </h3>
-                        <p class="text-sm" style="color: var(--text-muted)">Forcefully remove orphaned snapshots across all selected hosts. May cause I/O stun.</p>
-                    </div>
-                    <form action="/cleanup_all_snapshots" method="POST" onsubmit="return confirm('Initiate global snapshot consolidation on all clusters?');">
-                        <button type="submit" class="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap text-yellow-600">Purge Snapshots</button>
-                    </form>
-                </div>
-
-                <!-- Datacenters List -->
-                <div class="card overflow-hidden flex flex-col h-full col-span-1">
-                    <div class="px-5 py-3 border-b font-semibold" style="border-color: var(--border-color); background-color: var(--bg-nav)">Registered Hosts</div>
-                    <ul class="divide-y flex-grow font-mono" style="border-color: var(--border-color)">
-                        {% for host in esxi_hosts %}
-                        <li class="px-5 py-3 flex justify-between items-center text-sm">
-                            <div>
-                                <span class="font-medium block">{{ host.name }}</span>
-                                <span class="text-xs" style="color: var(--brand)">{{ host.host_ip }} ({{ host.username }})</span>
-                            </div>
-                            <form action="/delete_esxi_host" method="POST" onsubmit="return confirm('Remove Host Setup?');">
-                                <input type="hidden" name="host_id" value="{{ host.id }}">
-                                <button type="submit" class="text-gray-500 hover:text-red-400 transition-colors" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
-                            </form>
-                        </li>
-                        {% else %}
-                        <li class="p-5 text-center text-sm" style="color: var(--text-muted)">No hosts configured.</li>
-                        {% endfor %}
-                    </ul>
-                    
-                    <div class="p-5 border-t" style="border-color: var(--border-color); background-color: var(--bg-nav)">
-                        <h4 class="font-semibold text-sm mb-3">Add New Host</h4>
-                        <form action="/add_esxi_host" method="POST" class="space-y-3">
-                            <input type="text" name="name" placeholder="Alias (e.g. Cluster-A)" required class="w-full p-2 text-sm font-sans">
-                            <input type="text" name="host_ip" placeholder="IP Address or FQDN" required class="w-full p-2 text-sm font-sans">
-                            <div class="flex space-x-2">
-                                <input type="text" name="username" placeholder="User" required class="w-1/2 p-2 text-sm font-sans">
-                                <input type="password" name="password" placeholder="Pass" required class="w-1/2 p-2 text-sm font-sans">
-                            </div>
-                            <button type="submit" class="w-full btn-secondary py-2 text-sm font-medium">Add Host</button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Storage & Performance -->
-                <form action="/save_config" method="POST" class="col-span-1 lg:col-span-2 flex flex-col gap-6">
-                    <div class="card p-5">
-                        <div class="flex justify-between items-center mb-4 border-b pb-2" style="border-color: var(--border-color)">
-                            <h3 class="font-semibold text-lg">Target Storage</h3>
-                            <button type="button" onclick="testStorage()" class="text-xs font-medium hover:underline mr-4" style="color: var(--brand)">Verify Connection</button>
-                            <div class="flex space-x-3">
-                                <label class="flex items-center space-x-1 cursor-pointer">
-                                    <input type="radio" name="storage_type" value="SMB" onchange="toggleStorageFields()" {% if config.storage_type == 'SMB' or not config.storage_type %}checked{% endif %} class="w-3 h-3">
-                                    <span class="text-xs font-medium">SMB</span>
-                                </label>
-                                <label class="flex items-center space-x-1 cursor-pointer">
-                                    <input type="radio" name="storage_type" value="NFS" onchange="toggleStorageFields()" {% if config.storage_type == 'NFS' %}checked{% endif %} class="w-3 h-3">
-                                    <span class="text-xs font-medium">NFS</span>
-                                </label>
-                                <label class="flex items-center space-x-1 cursor-pointer">
-                                    <input type="radio" name="storage_type" value="S3" onchange="toggleStorageFields()" {% if config.storage_type == 'S3' %}checked{% endif %} class="w-3 h-3">
-                                    <span class="text-xs font-medium">S3</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- SMB Fields -->
-                        <div id="fields-SMB" class="storage-fields {% if config.storage_type != 'SMB' and config.storage_type %}hidden{% endif %}">
-                            <div class="mb-4">
-                                <span class="input-label">UNC Path</span>
-                                <input type="text" name="smb_unc_path" value="{{ config.smb_unc_path }}" placeholder="\\server\share\backups" class="w-full py-2 px-3 font-mono text-sm">
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div><span class="input-label">Username</span><input type="text" name="smb_user" value="{{ config.smb_user }}" class="w-full py-2 px-3 font-mono text-sm"></div>
-                                <div><span class="input-label">Password</span><input type="password" name="smb_password" placeholder="(Unchanged)" class="w-full py-2 px-3 font-mono text-sm"></div>
-                            </div>
-                        </div>
-
-                        <!-- NFS Fields -->
-                        <div id="fields-NFS" class="storage-fields {% if config.storage_type != 'NFS' %}hidden{% endif %}">
-                            <div class="mb-4">
-                                <span class="input-label">NFS Export Path</span>
-                                <input type="text" name="nfs_path" value="{{ config.nfs_path }}" placeholder="\\server\export" class="w-full py-2 px-3 font-mono text-sm">
-                                <p class="text-[10px] opacity-60 mt-1">* Requires "Client for NFS" Windows feature enabled.</p>
-                            </div>
-                        </div>
-
-                        <!-- S3 Fields -->
-                        <div id="fields-S3" class="storage-fields {% if config.storage_type != 'S3' %}hidden{% endif %}">
-                            <div class="grid grid-cols-2 gap-4 mb-4">
-                                <div class="col-span-2">
-                                    <span class="input-label">S3 Endpoint (Optional for AWS)</span>
-                                    <input type="text" name="s3_endpoint" value="{{ config.s3_endpoint }}" placeholder="https://s3.wasabisys.com" class="w-full py-2 px-3 font-mono text-sm">
-                                </div>
-                                <div>
-                                    <span class="input-label">Access Key</span>
-                                    <input type="text" name="s3_access_key" value="{{ config.s3_access_key }}" class="w-full py-2 px-3 font-mono text-sm">
-                                </div>
-                                <div>
-                                    <span class="input-label">Secret Key</span>
-                                    <input type="password" name="s3_secret_key" placeholder="(Unchanged)" class="w-full py-2 px-3 font-mono text-sm">
-                                </div>
-                                <div>
-                                    <span class="input-label">Bucket Name</span>
-                                    <input type="text" name="s3_bucket" value="{{ config.s3_bucket }}" class="w-full py-2 px-3 font-mono text-sm">
-                                </div>
-                                <div>
-                                    <span class="input-label">Region</span>
-                                    <input type="text" name="s3_region" value="{{ config.s3_region }}" placeholder="us-east-1" class="w-full py-2 px-3 font-mono text-sm">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card p-5">
-                        <h3 class="font-semibold text-lg mb-4 border-b pb-2" style="border-color: var(--border-color)">Worker Parameters</h3>
-                        <div class="grid grid-cols-3 gap-4">
-                            <div>
-                                <span class="input-label" title="HTTP Download Threads (0 = Auto)">Parallel Threads</span>
-                                <input type="number" name="perf_parallel_threads" value="{{ config.perf_parallel_threads }}" min="0" max="32" class="w-full py-2 px-3 text-center text-sm">
-                            </div>
-                            <div>
-                                <span class="input-label" title="Compression Level (Currently disabled for Native)">Compression</span>
-                                <input type="number" name="perf_compression_level" value="{{ config.perf_compression_level }}" min="0" max="9" class="w-full py-2 px-3 text-center text-sm disabled:opacity-50" disabled>
-                            </div>
-                            <div>
-                                <span class="input-label" title="Max minutes for ESXi ops">API Timeout (Min)</span>
-                                <input type="number" name="backup_timeout_mins" value="{{ config.backup_timeout_mins }}" min="5" max="1440" class="w-full py-2 px-3 text-center text-sm">
-                            </div>
-                        </div>
-                        
-                        <div class="mt-6 flex justify-end">
-                            <button type="submit" class="btn-primary px-6 py-2">Save Configuration</button>
-                        </div>
-                    </div>
-
-                    <!-- SMTP Email Notifications -->
-                    <div class="card p-5">
-                        <div class="flex justify-between items-center mb-4 border-b pb-2" style="border-color: var(--border-color)">
-                            <h3 class="font-semibold text-lg">Email Notifications (SMTP)</h3>
-                            <button type="button" onclick="testSmtp()" class="text-xs font-medium hover:underline" style="color: var(--brand)">Send Test Email</button>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="col-span-2 md:col-span-1">
-                                <span class="input-label">SMTP Server</span>
-                                <input type="text" name="smtp_server" value="{{ config.smtp_server }}" placeholder="smtp.gmail.com" class="w-full py-2 px-3 font-mono text-sm">
-                            </div>
-                            <div>
-                                <span class="input-label">Port</span>
-                                <input type="number" name="smtp_port" value="{{ config.smtp_port }}" placeholder="587" min="1" max="65535" class="w-full py-2 px-3 text-center font-mono text-sm">
-                            </div>
-                            <div>
-                                <span class="input-label">Username</span>
-                                <input type="text" name="smtp_user" value="{{ config.smtp_user }}" placeholder="user@domain.com" class="w-full py-2 px-3 font-mono text-sm" autocomplete="off">
-                            </div>
-                            <div>
-                                <span class="input-label">Password</span>
-                                <input type="password" name="smtp_password" placeholder="(Unchanged)" class="w-full py-2 px-3 font-mono text-sm" autocomplete="new-password">
-                            </div>
-                            <div class="col-span-2">
-                                <span class="input-label">Recipient Email</span>
-                                <input type="email" name="smtp_to_email" value="{{ config.smtp_to_email }}" placeholder="alerts@yourdomain.com" class="w-full py-2 px-3 font-mono text-sm">
-                            </div>
-                            <div class="col-span-2 flex items-center gap-6 pt-1">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" name="smtp_use_tls" value="True" {% if config.smtp_use_tls %}checked{% endif %} class="w-4 h-4 rounded">
-                                    <span class="text-sm font-medium">Use STARTTLS</span>
-                                    <span class="text-xs opacity-50">(port 587)</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" name="smtp_use_ssl" value="True" {% if config.smtp_use_ssl %}checked{% endif %} class="w-4 h-4 rounded">
-                                    <span class="text-sm font-medium">Use SSL/TLS</span>
-                                    <span class="text-xs opacity-50">(port 465)</span>
-                                </label>
-                            </div>
-                        </div>
-                        <p class="text-[10px] opacity-50 mt-3">Notifications are sent on backup completion or failure. Leave SMTP Server empty to disable.</p>
-                    </div>
-                </form>
-            </div><!-- end settings grid -->
-
-            <!-- MY PROFILE SECTION (visible to all users) -->
-            <div id="profile-saved-msg" class="hidden mt-4 px-4 py-3 rounded text-sm font-medium" style="background:rgba(34,197,94,0.12); color:#4ade80;">
-                ✓ Notification preferences saved.
-            </div>
-            <form action="/profile/update" method="POST" class="mt-6">
-                <input type="hidden" name="notify_subscriptions" id="profile-subs-input" value="{{ current_user.notify_subscriptions or '' }}">
-                <div class="card p-5" style="border-top: 4px solid var(--brand)">
-                    <div class="flex justify-between items-center mb-4 border-b pb-2" style="border-color: var(--border-color)">
-                        <div>
-                            <h3 class="font-semibold text-lg">My Profile &amp; Notification Preferences</h3>
-                            <p class="text-xs mt-0.5" style="color: var(--text-muted)">Logged in as <strong>{{ current_user.username }}</strong> &mdash; {{ current_user.role }}</p>
-                        </div>
-                        <button type="submit" class="btn-primary px-4 py-2 text-sm font-semibold" onclick="buildSubsList()">Save My Preferences</button>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <span class="input-label">My Email Address</span>
-                            <input type="email" name="email" value="{{ current_user.email or '' }}"
-                                   placeholder="you@example.com"
-                                   class="w-full py-2 px-3 font-mono text-sm mt-1">
-                            <p class="text-[10px] opacity-50 mt-1">Notifications will be sent here only &mdash; independent of the global SMTP recipient above.</p>
-                        </div>
-                        <div>
-                            <span class="input-label">Notify me when...</span>
-                            <div class="mt-2 space-y-2">
-                                {% for key, label in notify_events %}
-                                <label class="flex items-center gap-3 cursor-pointer group">
-                                    <input type="checkbox"
-                                           class="notify-event-checkbox w-4 h-4 rounded"
-                                           data-key="{{ key }}"
-                                           {% if current_user.notify_subscriptions and key in current_user.notify_subscriptions.split(',') %}checked{% endif %}>
-                                    <span class="text-sm group-hover:text-[var(--brand)] transition-colors">{{ label }}</span>
-                                    <code class="text-[9px] font-mono opacity-35 ml-auto">{{ key }}</code>
-                                </label>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div><!-- end tab-settings -->
+        {% include 'partials/settings_tab.html' %}
 
         <!-- RESTORE TAB -->
         <div id="tab-restore" class="tab-content hidden">
@@ -879,7 +1847,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Restore Form -->
                 <div class="lg:col-span-1">
-                    <form action="/restore" method="POST" id="restoreForm" class="card p-6" onsubmit="return confirm('Launch restore operation to the target host? Existing VMs with the same name may cause conflicts if running.');">
+                    <form action="/restore" method="POST" id="restoreForm" class="card p-6" data-confirm="Launch restore to the target host? Existing VMs with the same name may conflict if running." data-confirm-title="Launch restore">
                         <div class="flex flex-col gap-5">
 
                             <!-- Step 1: Choose VM -->
@@ -935,9 +1903,22 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                             Active Restores
                         </h3>
-                        <div id="restoreTasksList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- JS populated -->
-                            <p class="text-sm opacity-50 italic col-span-full py-4 text-center">No active or recent restore tasks.</p>
+                        <div id="restoreTasksList" class="overflow-x-auto">
+                            <table class="jobs-table">
+                                <thead>
+                                    <tr>
+                                        <th>VM Name</th>
+                                        <th>Target Host</th>
+                                        <th>Status</th>
+                                        <th class="min-w-[180px]">Progress</th>
+                                        <th>Started</th>
+                                        <th class="text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="restoreTasksBody">
+                                    <tr><td colspan="6" class="py-8 text-center text-sm opacity-50 italic">No active or recent restore tasks.</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -962,19 +1943,211 @@
         </div>
     </footer>
 
+    <!-- App modal (confirm / alert) -->
+    <div id="appModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
+        <div class="modal-backdrop" onclick="closeAppModal(false)"></div>
+        <div class="modal-panel card shadow-2xl">
+            <h3 id="appModalTitle" class="text-lg font-semibold mb-2">Confirm</h3>
+            <p id="appModalMessage" class="text-sm leading-relaxed mb-6" style="color: var(--text-muted)"></p>
+            <div class="flex justify-end gap-3">
+                <button type="button" id="appModalCancel" class="btn-secondary px-4 py-2 text-sm font-medium min-w-[5rem]">Cancel</button>
+                <button type="button" id="appModalConfirm" class="btn-primary px-4 py-2 text-sm font-semibold min-w-[5rem]">OK</button>
+            </div>
+        </div>
+    </div>
+
+    {% include 'partials/setup_wizard.html' %}
+
     <!-- Polling Logic -->
     <script>
+    // Setup wizard state must exist before any hoisted wizard function can run.
+    const wizardState = { step: 1, hosts: [], vms: [], applying: false };
+    const WIZARD_STEP_NAMES = ['Backup storage', 'ESXi hosts', 'Select VMs', 'Schedule', 'Complete'];
+    const WIZARD_TOTAL_STEPS = 5;
+
     async function testStorage() {
-        try { let res = await fetch('/test_storage', {method: 'POST'}); let data = await res.json(); alert(data.message); } 
-        catch(e) { alert("Error testing storage connection."); }
+        try { let res = await fetch('/test_storage', {method: 'POST'}); let data = await res.json(); await showAlert(data.message, { title: 'Storage test' }); }
+        catch(e) { await showAlert('Error testing storage connection.', { title: 'Storage test' }); }
     }
     async function testSmtp() {
         try { 
             let res = await fetch('/api/test_smtp', {method: 'POST'}); 
             let data = await res.json(); 
-            alert(data.message || (data.ok ? "Test email sent successfully!" : "SMTP test failed.")); 
-        } catch(e) { alert("Error: could not reach the server."); }
+            await showAlert(data.message || (data.ok ? 'Test email sent successfully!' : 'SMTP test failed.'), { title: 'SMTP test' }); 
+        } catch(e) { await showAlert('Could not reach the server.', { title: 'SMTP test' }); }
     }
+
+    async function stopVmJob(vmId) {
+        const ok = await showConfirm('Abort this backup?', { title: 'Abort backup', confirmText: 'Abort', danger: true });
+        if (!ok) return;
+        try {
+            const res = await fetch(`/api/v1/vms/${vmId}/stop`, {method: 'POST'});
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        } catch (e) {
+            await showAlert('Could not abort backup: ' + (e.message || 'Unknown error'), { title: 'Abort failed' });
+        }
+    }
+
+    async function removeVmFromTasks(vmId, vmName, skipConfirm = false) {
+        const row = document.getElementById('row-' + vmId);
+        const card = document.getElementById('card-' + vmId);
+        const isRunning = row?.getAttribute('data-running') === 'true' || card?.getAttribute('data-running') === 'true';
+        if (!skipConfirm) {
+            const msg = isRunning
+                ? `${vmName} has a backup running. Remove from tasks anyway? It will no longer appear here or run on schedule.`
+                : `Remove ${vmName} from backup tasks? You can re-enable it from Inventory.`;
+            const ok = await showConfirm(msg, { title: 'Remove from tasks', confirmText: 'Remove', danger: true });
+            if (!ok) return;
+        }
+        try {
+            const res = await fetch(`/api/v1/vms/${vmId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_selected: false, is_job_active: false }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+            document.getElementById('row-' + vmId)?.remove();
+            document.getElementById('card-' + vmId)?.remove();
+
+            const invHidden = document.querySelector(`#tab-inventory input[type="hidden"][name="vm_id"][value="${vmId}"]`);
+            const invCheckbox = invHidden?.closest('form')?.querySelector('input[name="is_selected"]');
+            if (invCheckbox) invCheckbox.checked = false;
+
+            const tbody = document.querySelector('#jobsListView tbody');
+            if (tbody && !tbody.querySelector('.vm-job-row')) {
+                tbody.innerHTML = '<tr><td colspan="8" class="py-10 text-center" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</td></tr>';
+            }
+            const grid = document.getElementById('jobsGridView');
+            if (grid && !grid.querySelector('.vm-job-card')) {
+                grid.innerHTML = '<div class="col-span-full card p-10 text-center border-dashed font-medium" style="color: var(--text-muted)">No target VMs selected. Go to Inventory to select targets.</div>';
+            }
+            if (typeof filterJobs === 'function') filterJobs();
+            if (typeof updateJobsBulkBar === 'function') updateJobsBulkBar();
+        } catch (e) {
+            if (!skipConfirm) {
+                await showAlert('Could not remove task: ' + (e.message || 'Unknown error'), { title: 'Remove failed' });
+            }
+            throw e;
+        }
+    }
+
+    // ─── API Access Tokens (Settings) ─────────────────────────────────────────
+    function formatApiKeyDate(iso) {
+        if (!iso) return '—';
+        try {
+            const d = new Date(iso);
+            return d.toLocaleString();
+        } catch (e) { return iso; }
+    }
+
+    function dismissApiKeyBanner() {
+        document.getElementById('api-key-created-banner').classList.add('hidden');
+        document.getElementById('api-key-new-value').textContent = '';
+    }
+
+    function copyNewApiKey() {
+        const el = document.getElementById('api-key-new-value');
+        const text = el.textContent;
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => showAlert('Token copied to clipboard.', { title: 'Copied' })).catch(() => {
+            showAlert('Copy this token:\n' + text, { title: 'API token' });
+        });
+    }
+
+    function showApiKeysError(msg) {
+        const box = document.getElementById('api-keys-error');
+        if (!box) return;
+        box.textContent = msg;
+        box.classList.remove('hidden');
+    }
+
+    function clearApiKeysError() {
+        const box = document.getElementById('api-keys-error');
+        if (box) box.classList.add('hidden');
+    }
+
+    async function loadApiKeys() {
+        const tbody = document.getElementById('api-keys-table-body');
+        if (!tbody) return;
+        clearApiKeysError();
+        try {
+            const res = await fetch('/api/v1/auth/api-keys');
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || `HTTP ${res.status}`);
+            }
+            const keys = await res.json();
+            if (!keys.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center" style="color: var(--text-muted)">No API tokens yet. Create one above.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = keys.map(k => `
+                <tr class="border-t" style="border-color: var(--border-color)">
+                    <td class="py-3 font-medium">${escapeHtml(k.name)}</td>
+                    <td class="py-3 text-xs" style="color: var(--text-muted)">${formatApiKeyDate(k.created_at)}</td>
+                    <td class="py-3 text-xs" style="color: var(--text-muted)">${formatApiKeyDate(k.last_used_at)}</td>
+                    <td class="py-3 text-right">
+                        <button type="button" onclick="revokeApiKey(${k.id}, ${JSON.stringify(k.name)})" class="text-xs text-red-400 hover:text-red-300 font-medium">Revoke</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-red-400">Failed to load tokens.</td></tr>';
+            showApiKeysError(e.message || 'Failed to load API tokens.');
+        }
+    }
+
+    async function createApiKey() {
+        const nameInput = document.getElementById('api-key-name');
+        const name = (nameInput?.value || '').trim();
+        if (!name) {
+            await showAlert('Enter a name for the token.', { title: 'Create token' });
+            nameInput?.focus();
+            return;
+        }
+        clearApiKeysError();
+        try {
+            const res = await fetch('/api/v1/auth/api-keys', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name}),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+            document.getElementById('api-key-new-value').textContent = data.key;
+            document.getElementById('api-key-created-banner').classList.remove('hidden');
+            if (nameInput) nameInput.value = '';
+            await loadApiKeys();
+        } catch (e) {
+            showApiKeysError(e.message || 'Failed to create token.');
+            await showAlert('Could not create token: ' + (e.message || 'Unknown error'), { title: 'Create token' });
+        }
+    }
+
+    async function revokeApiKey(id, name) {
+        const ok = await showConfirm(`Revoke API token "${name}"? Scripts using it will stop working.`, { title: 'Revoke token', confirmText: 'Revoke', danger: true });
+        if (!ok) return;
+        clearApiKeysError();
+        try {
+            const res = await fetch(`/api/v1/auth/api-keys/${id}`, {method: 'DELETE'});
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.detail || `HTTP ${res.status}`);
+            }
+            await loadApiKeys();
+        } catch (e) {
+            showApiKeysError(e.message || 'Failed to revoke token.');
+            await showAlert('Could not revoke token: ' + (e.message || 'Unknown error'), { title: 'Revoke token' });
+        }
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
     function toggleStorageFields() {
         const type = document.querySelector('input[name="storage_type"]:checked').value;
         document.querySelectorAll('.storage-fields').forEach(el => el.classList.add('hidden'));
@@ -991,68 +2164,161 @@
     // ─── Task Card Auto-Save ─────────────────────────────────────────────────
     const _jobSaveTimers = {};
 
-    async function autoSaveJob(vmId) {
-        const form = document.getElementById('job-form-' + vmId);
+    function getJobForms(vmId) {
+        return [
+            document.getElementById('job-form-' + vmId),
+            document.getElementById('job-form-card-' + vmId),
+        ].filter(Boolean);
+    }
+
+    function getActiveJobForm(vmId) {
+        for (const form of getJobForms(vmId)) {
+            if (form.offsetParent !== null) return form;
+        }
+        return getJobForms(vmId)[0];
+    }
+
+    function getJobScheduleFrequency(form) {
+        const sel = form.querySelector('select[name="schedule_frequency"]');
+        if (sel) return sel.value || 'daily';
+        return form.querySelector('input[name="schedule_frequency"]:checked')?.value || 'daily';
+    }
+
+    function syncJobFormFields(sourceForm, targetForm) {
+        if (!sourceForm || !targetForm || sourceForm === targetForm) return;
+        sourceForm.querySelectorAll('input[name]').forEach(src => {
+            const name = src.name;
+            const tgt = targetForm.querySelector(`[name="${name}"]`);
+            if (!tgt) return;
+            if (src.type === 'checkbox' || src.type === 'radio') {
+                if (src.type === 'radio') {
+                    if (src.checked) {
+                        const match = targetForm.querySelector(`[name="${name}"][value="${src.value}"]`);
+                        if (match) match.checked = true;
+                    }
+                } else {
+                    tgt.checked = src.checked;
+                }
+            } else {
+                tgt.value = src.value;
+            }
+        });
+        sourceForm.querySelectorAll('select[name]').forEach(src => {
+            const tgt = targetForm.querySelector(`select[name="${src.name}"]`);
+            if (tgt) tgt.value = src.value;
+        });
+    }
+
+    function flashJobSaved(vmId) {
+        getJobForms(vmId).forEach(form => {
+            const flash = form.querySelector('.job-save-flash');
+            if (!flash) return;
+            flash.style.opacity = '1';
+            clearTimeout(flash._fadeTimer);
+            flash._fadeTimer = setTimeout(() => { flash.style.opacity = '0'; }, 1800);
+        });
+    }
+
+    async function autoSaveJob(vmId, sourceForm) {
+        const form = sourceForm || getActiveJobForm(vmId);
         if (!form) return;
         const data = new FormData(form);
-        // Ensure is_job_active is included even when unchecked
         if (!data.get('is_job_active')) data.set('is_job_active', '');
+        if (!data.get('power_off_for_backup')) data.set('power_off_for_backup', '');
 
         try {
             const resp = await fetch('/update_job', { method: 'POST', body: data });
             if (resp.ok || resp.redirected) {
-                // Flash the '✓ Saved' badge
-                const flash = document.getElementById('save-flash-' + vmId);
-                if (flash) {
-                    flash.style.opacity = '1';
-                    clearTimeout(flash._fadeTimer);
-                    flash._fadeTimer = setTimeout(() => { flash.style.opacity = '0'; }, 1800);
-                }
+                getJobForms(vmId).forEach(peer => syncJobFormFields(form, peer));
+                showDaysRow(vmId);
+                updatePowerModeLabel(vmId);
+                flashJobSaved(vmId);
             }
         } catch (e) {
             console.warn('autoSaveJob failed for vm', vmId, e);
         }
     }
 
-    function debounceJobSave(vmId) {
-        clearTimeout(_jobSaveTimers[vmId]);
-        _jobSaveTimers[vmId] = setTimeout(() => autoSaveJob(vmId), 900);
+    function debounceJobSave(vmId, sourceForm) {
+        const key = vmId + ':' + (sourceForm?.id || 'default');
+        clearTimeout(_jobSaveTimers[key]);
+        _jobSaveTimers[key] = setTimeout(() => autoSaveJob(vmId, sourceForm), 900);
     }
 
-    function updateDaysHidden(vmId) {
-        const checked = [...document.querySelectorAll(`.day-cb-${vmId}:checked`)].map(el => el.dataset.day);
-        const hidden = document.getElementById('days-hidden-' + vmId);
+    function updateDaysHiddenForForm(form) {
+        const checked = [...form.querySelectorAll('.job-day-cb:checked')].map(el => el.dataset.day);
+        const hidden = form.querySelector('.job-days-hidden');
         if (hidden) hidden.value = checked.length ? checked.join(',') : '0,1,2,3,4,5,6';
     }
 
-    function showDaysRow(vmId) {
-        const freqEl = document.querySelector(`#job-form-${vmId} input[name="schedule_frequency"]:checked`);
-        const freq = freqEl ? freqEl.value : 'daily';
-        const row = document.getElementById('days-row-' + vmId);
-        const hint = document.getElementById('days-hint-' + vmId);
-        const cbs = document.querySelectorAll(`.day-cb-${vmId}`);
+    function updateDaysHidden(vmId) {
+        const active = getActiveJobForm(vmId);
+        if (!active) return;
+        updateDaysHiddenForForm(active);
+        getJobForms(vmId).forEach(form => {
+            if (form !== active) syncJobFormFields(active, form);
+        });
+    }
+
+    function updatePowerModeLabelForForm(form) {
+        const cb = form.querySelector('input[name="power_off_for_backup"]');
+        const el = form.querySelector('.job-power-mode-label');
+        if (!cb || !el) return;
+        if (cb.checked) {
+            el.textContent = 'Power off — faster backup';
+            el.className = 'job-power-mode-label text-[10px] font-medium leading-tight text-orange-500';
+            if (form.classList.contains('job-schedule-inline')) {
+                el.className = 'job-power-mode-label text-xs font-medium whitespace-nowrap text-orange-500';
+            }
+        } else {
+            el.textContent = 'Live — VM stays on';
+            el.className = 'job-power-mode-label text-[10px] font-medium leading-tight text-emerald-600';
+            if (form.classList.contains('job-schedule-inline')) {
+                el.className = 'job-power-mode-label text-xs font-medium whitespace-nowrap text-emerald-600';
+            }
+        }
+    }
+
+    function updatePowerModeLabel(vmId) {
+        getJobForms(vmId).forEach(updatePowerModeLabelForForm);
+    }
+
+    function applyDaysRowVisibility(form) {
+        if (!form) return;
+        const freq = getJobScheduleFrequency(form);
+        const row = form.querySelector('.job-days-row');
+        const seps = form.querySelectorAll('.job-days-sep');
+        const hint = form.querySelector('.job-days-hint');
+        const cbs = form.querySelectorAll('.job-day-cb');
+        const isInline = form.classList.contains('job-schedule-inline');
+        const rowDisplay = isInline ? 'flex' : 'block';
 
         if (freq === 'daily') {
-            // Daily = every day, day picker irrelevant
-            if (row) row.style.opacity = '0.35';
-            cbs.forEach(cb => cb.disabled = true);
-            if (hint) hint.textContent = 'runs every day';
-        } else if (freq === 'weekly') {
-            if (row) row.style.opacity = '1';
-            cbs.forEach(cb => cb.disabled = false);
-            if (hint) hint.textContent = 'pick which days';
-        } else if (freq === 'monthly') {
-            if (row) row.style.opacity = '1';
-            cbs.forEach(cb => cb.disabled = false);
-            if (hint) hint.textContent = 'first occurrence in month';
+            if (row) row.style.display = 'none';
+            seps.forEach(sep => { sep.style.display = 'none'; });
+            cbs.forEach(cb => { cb.disabled = true; cb.checked = true; });
+            updateDaysHiddenForForm(form);
+        } else {
+            if (row) row.style.display = rowDisplay;
+            seps.forEach(sep => { sep.style.display = isInline ? 'block' : 'none'; });
+            cbs.forEach(cb => { cb.disabled = false; });
+            if (hint) hint.textContent = '';
         }
+    }
+
+    function showDaysRow(vmId) {
+        getJobForms(vmId).forEach(applyDaysRowVisibility);
     }
 
     // On page load: init visibility for all job forms
     document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('[id^="job-form-"]').forEach(form => {
-            const vmId = form.id.replace('job-form-', '');
+        const seen = new Set();
+        document.querySelectorAll('[id^="job-form"]').forEach(form => {
+            const vmId = form.querySelector('input[name="vm_id"]')?.value;
+            if (!vmId || seen.has(vmId)) return;
+            seen.add(vmId);
             showDaysRow(vmId);
+            updatePowerModeLabel(vmId);
         });
     });
 
@@ -1170,28 +2436,16 @@
             // Main Job Progress
             let res = await fetch('/job_progress');
             let data = await res.json();
-            document.querySelectorAll('.vm-job-card').forEach(card => {
-                const vm_id = card.id.split('-').pop(); const info = data[vm_id];
-                let runBtn = document.getElementById('form-run-' + vm_id);
-                let stopBtn = document.getElementById('form-stop-' + vm_id);
-                let progWrap = document.getElementById('prog-wrap-' + vm_id);
-                if (info && (info.current_action !== "" || (info.progress > 0 && info.progress < 100))) {
-                    progWrap.classList.remove('hidden'); progWrap.classList.add('block');
-                    document.getElementById('prog-pct-' + vm_id).innerText = info.progress + '%';
-                    document.getElementById('prog-bar-' + vm_id).style.width = info.progress + '%';
-                    const speedBadge = info.speed_mbps > 0 ? ` <span style="color:var(--brand);font-size:9px;font-weight:600;">${info.speed_mbps} MB/s</span>` : '';
-                    document.getElementById('prog-text-' + vm_id).innerHTML = (info.current_action || 'Processing...') + speedBadge;
-                    if (runBtn) runBtn.classList.add('hidden');
-                    if (stopBtn) stopBtn.classList.remove('hidden');
-                    card.setAttribute('data-running', 'true');
-                } else {
-                    progWrap.classList.remove('block'); progWrap.classList.add('hidden');
-                    if (runBtn) runBtn.classList.remove('hidden');
-                    if (stopBtn) stopBtn.classList.add('hidden');
-                    card.setAttribute('data-running', 'false');
-                }
-            });
+            Object.keys(data).forEach(vm_id => updateJobProgressUI(vm_id, data[vm_id]));
             if(document.getElementById('tab-jobs').classList.contains('hidden') === false) filterJobs();
+            if (typeof refreshOverviewLiveOnly === 'function') refreshOverviewLiveOnly();
+
+            // Overview full refresh (every ~30s when tab visible)
+            if (document.getElementById('tab-overview') && !document.getElementById('tab-overview').classList.contains('hidden')) {
+                if (!window._overviewPollTick) window._overviewPollTick = 0;
+                window._overviewPollTick++;
+                if (window._overviewPollTick % 15 === 0 && typeof refreshOverview === 'function') refreshOverview(false);
+            }
 
             // System Logs Polling
             if(document.getElementById('tab-syslogs').classList.contains('hidden') === false) {
@@ -1220,78 +2474,69 @@
             if(document.getElementById('tab-restore').classList.contains('hidden') === false) {
                 let restRes = await fetch('/api/restores');
                 let restores = await restRes.json();
-                const list = document.getElementById('restoreTasksList');
+                const tbody = document.getElementById('restoreTasksBody');
+                if (!tbody) return;
                 if (restores.length === 0) {
-                    list.innerHTML = '<p class="text-sm opacity-50 italic col-span-full py-4 text-center">No active or recent restore tasks.</p>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-sm opacity-50 italic">No active or recent restore tasks.</td></tr>';
                 } else {
-                    list.innerHTML = restores.map(r => `
-                        <div class="card p-4 border relative" style="border-color: var(--border-color); background: rgba(255,255,255,0.03)">
-                            <div class="flex justify-between items-start mb-2">
-                                <div>
-                                    <h4 class="font-bold text-sm truncate w-32" title="${r.target_name}">${r.target_name}</h4>
-                                    <p class="text-[10px] opacity-60">To: ${r.target_esxi}</p>
-                                </div>
-                                <div class="flex flex-col items-end gap-1">
-                                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded ${r.status === 'Success' ? 'bg-green-500/20 text-green-400' : r.status === 'Failed' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}">
-                                        ${r.status}
-                                    </span>
-                                    <div class="flex gap-1 mt-1">
-                                        ${r.status === 'In Progress' ? `
-                                            <button onclick="stopRestore(${r.id})" class="text-[9px] text-red-500 hover:text-red-400 flex items-center gap-1 bg-red-500/10 px-1 py-0.5 rounded">
-                                                <svg class="w-2 h-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"/></svg>
-                                                Stop
-                                            </button>
-                                        ` : ''}
-                                        <button onclick="deleteRestore(${r.id})" class="text-[9px] text-gray-400 hover:text-red-400 flex items-center gap-1 bg-gray-500/10 hover:bg-red-500/10 px-1 py-0.5 rounded" title="Remove Job">
-                                            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                        </button>
+                    tbody.innerHTML = restores.map(r => {
+                        const statusClass = r.status === 'Success' ? 'status-success'
+                            : r.status === 'Failed' ? 'status-error'
+                            : r.status === 'In Progress' ? 'status-running'
+                            : 'status-neutral';
+                        const actions = `
+                            <div class="inline-flex gap-1 justify-end">
+                                ${r.status === 'In Progress' ? `
+                                    <button type="button" onclick="stopRestore(${r.id})" class="btn-danger px-2 py-1 text-xs font-medium rounded">Stop</button>
+                                ` : ''}
+                                <button type="button" onclick="deleteRestore(${r.id})" class="btn-secondary p-1.5 rounded hover:text-red-400" title="Remove">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            </div>`;
+                        const errorRow = r.error ? `
+                            <tr><td colspan="6" class="px-4 py-2 text-xs text-red-400 italic" style="background:rgba(239,68,68,0.06); border-bottom:1px solid var(--border-color)">${escapeHtml(r.error)}</td></tr>` : '';
+                        return `
+                            <tr>
+                                <td>
+                                    <div class="font-semibold truncate max-w-[200px]" title="${escapeHtml(r.target_name)}">${escapeHtml(r.target_name)}</div>
+                                </td>
+                                <td class="text-xs font-mono" style="color: var(--brand)">${escapeHtml(r.target_esxi)}</td>
+                                <td><span class="status-badge ${statusClass}">${escapeHtml(r.status)}</span></td>
+                                <td>
+                                    <div class="flex justify-between text-[10px] mb-0.5">
+                                        <span class="truncate max-w-[140px]" style="color: var(--brand)">${escapeHtml(r.action || '')}</span>
+                                        <span class="font-mono">${r.progress || 0}%</span>
                                     </div>
-                                </div>
-                            </div>
-                            <div class="space-y-1.5">
-                                <div class="flex justify-between text-[10px]">
-                                    <span class="truncate w-40 opacity-80">${r.action}</span>
-                                    <span>${r.progress}%</span>
-                                </div>
-                                <div class="w-full bg-black/30 rounded-full h-1 my-1">
-                                    <div class="bg-blue-500 h-1 rounded-full transition-all duration-500" style="width: ${r.progress}%"></div>
-                                </div>
-                            </div>
-                            ${r.error ? `<p class="text-[9px] text-red-500 mt-2 italic break-words leading-tight bg-red-950/20 p-1 rounded border border-red-900/30">${r.error}</p>` : ''}
-                            <div class="flex justify-between items-center mt-3 text-[9px] opacity-40">
-                                 <span>Started: ${r.start}</span>
-                            </div>
-                        </div>
-                    `).join('');
+                                    <div class="prog-container active"><div class="prog-bar" style="width: ${r.progress || 0}%"></div></div>
+                                </td>
+                                <td class="text-xs font-mono whitespace-nowrap" style="color: var(--text-muted)">${escapeHtml(r.start || '—')}</td>
+                                <td class="text-right whitespace-nowrap">${actions}</td>
+                            </tr>${errorRow}`;
+                    }).join('');
                 }
             }
         } catch(e) { console.error(e); }
     }, 2000);
 
     async function stopRestore(id) {
-        if (!confirm('Stop this restore process?')) return;
+        const ok = await showConfirm('Stop this restore process?', { title: 'Stop restore', confirmText: 'Stop', danger: true });
+        if (!ok) return;
         try {
             await fetch(`/api/stop_restore/${id}`, {method: 'POST'});
         } catch(e) { console.error("Stop error:", e); }
     }
 
     async function deleteRestore(id) {
-        if (!confirm('Remove this restore task from the dashboard?')) return;
+        const ok = await showConfirm('Remove this restore task from the dashboard?', { title: 'Remove restore', confirmText: 'Remove', danger: true });
+        if (!ok) return;
         try {
             await fetch(`/api/delete_restore/${id}`, {method: 'POST'});
         } catch(e) { console.error("Delete error:", e); }
     }
 
-    // ─── Handle query param redirects (tab switching + password feedback) ─────
+    // ─── Handle query param redirects (password feedback, etc.) ─────
     (function() {
         const params = new URLSearchParams(window.location.search);
-        const tab = params.get('tab');
-        if (tab) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById('tab-' + tab)?.classList.remove('hidden');
-        }
-
-        // Password change feedback
         const pwOk = params.get('pw_ok');
         const pwErr = params.get('pw_error');
         const msgEl = document.getElementById('pw-msg');
@@ -1344,19 +2589,426 @@
             }
         }
 
-        if (tab || pwOk || pwErr || params.get('new_user') || params.get('reset_user') || params.get('user_ok') || params.get('user_error')) {
+        if (params.get('tab') || pwOk || pwErr || params.get('new_user') || params.get('reset_user') || params.get('user_ok') || params.get('user_error')) {
             window.history.replaceState({}, '', window.location.pathname);
         }
 
         // Profile saved feedback
         if (params.get('profile_saved')) {
             switchTab('tab-settings');
+            if (typeof showSettingsPanel === 'function') showSettingsPanel('profile');
             const msg = document.getElementById('profile-saved-msg');
+            if (msg) msg.classList.remove('hidden');
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+
+        if (params.get('purge_started')) {
+            switchTab('tab-settings');
+            if (typeof showSettingsPanel === 'function') showSettingsPanel('maintenance');
+            const msg = document.getElementById('purge-started-msg');
             if (msg) msg.classList.remove('hidden');
             window.history.replaceState({}, '', window.location.pathname);
         }
     })();
 
+    // ─── Setup wizard ─────────────────────────────────────────────────────────
+    async function wizardApi(method, path, body) {
+        const opts = { method, headers: {} };
+        if (body !== undefined) {
+            opts.headers['Content-Type'] = 'application/json';
+            opts.body = JSON.stringify(body);
+        }
+        const res = await fetch('/api/v1' + path, opts);
+        let data = {};
+        try { data = await res.json(); } catch (_) {}
+        if (!res.ok) {
+            const detail = data.detail;
+            const msg = typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail.map(d => d.msg || d).join(', ') : res.statusText);
+            throw new Error(msg || 'Request failed');
+        }
+        return data;
+    }
+
+    function wizardShowError(msg) {
+        const el = document.getElementById('wizardError');
+        if (!el) return;
+        if (msg) { el.textContent = msg; el.classList.remove('hidden'); }
+        else { el.textContent = ''; el.classList.add('hidden'); }
+    }
+
+    function wizardHostLabel(hostId) {
+        const h = wizardState.hosts.find(x => x.id === hostId);
+        return h ? h.name : ('Host #' + hostId);
+    }
+
+    function wizardShouldProtect(name) {
+        const lower = (name || '').toLowerCase();
+        if (lower.startsWith('tpl-') || lower.startsWith('template')) return false;
+        if (lower.includes('novabak')) return false;
+        if (lower.startsWith('vcls')) return false;
+        return true;
+    }
+
+    function wizardUpdateStepUi() {
+        const step = wizardState.step;
+        document.querySelectorAll('.wizard-step').forEach(el => {
+            el.classList.toggle('hidden', parseInt(el.dataset.wizardStep, 10) !== step);
+        });
+        document.querySelectorAll('.wizard-nav-item').forEach(item => {
+            const n = parseInt(item.dataset.step, 10);
+            item.classList.toggle('active', n === step);
+            item.classList.toggle('done', n < step);
+        });
+        const stepName = WIZARD_STEP_NAMES[step - 1] || '';
+        const counterText = `Step ${step} of ${WIZARD_TOTAL_STEPS}`;
+        const counterEl = document.getElementById('wizard-step-counter');
+        const nameEl = document.getElementById('wizard-step-current-name');
+        if (counterEl) counterEl.textContent = counterText;
+        if (nameEl) nameEl.textContent = stepName;
+        const backBtn = document.getElementById('wizard-back-btn');
+        const nextBtn = document.getElementById('wizard-next-btn');
+        if (backBtn) backBtn.classList.toggle('hidden', step <= 1 || step >= WIZARD_TOTAL_STEPS);
+        if (nextBtn) {
+            nextBtn.classList.remove('hidden');
+            nextBtn.textContent = step === 4 ? 'Apply & Finish' : (step === WIZARD_TOTAL_STEPS ? 'Go to Tasks' : 'Continue');
+        }
+        if (step === 4) wizardShowDaysRow();
+    }
+
+    function wizardGoToStep(n) {
+        wizardState.step = n;
+        wizardUpdateStepUi();
+    }
+
+    async function openSetupWizard() {
+        const el = document.getElementById('setupWizard');
+        if (!el) {
+            if (typeof showAlert === 'function') {
+                await showAlert('Setup wizard could not be loaded. Please refresh the page and try again.', { title: 'Setup wizard' });
+            }
+            return;
+        }
+        wizardState.step = 1;
+        wizardState.hosts = [];
+        wizardState.vms = [];
+        wizardState.applying = false;
+        wizardShowError('');
+        el.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        try {
+            const existing = await wizardApi('GET', '/hosts');
+            wizardState.hosts = existing;
+        } catch (_) {}
+        wizardRefreshHostList();
+        wizardInitStorageSelection();
+        wizardShowDaysRow();
+        wizardUpdateStepUi();
+    }
+    window.openSetupWizard = openSetupWizard;
+
+    function wizardInitStorageSelection() {
+        if (!document.querySelector('input[name="wizard_storage_type"]:checked')) {
+            const nfs = document.querySelector('input[name="wizard_storage_type"][value="NFS"]');
+            if (nfs) nfs.checked = true;
+        }
+        wizardToggleStorageFields();
+    }
+
+    function wizardToggleStorageFields() {
+        const type = document.querySelector('input[name="wizard_storage_type"]:checked')?.value || 'NFS';
+        document.querySelectorAll('.wizard-storage-fields').forEach(el => el.classList.add('hidden'));
+        const target = document.getElementById('wizard-fields-' + type);
+        if (target) target.classList.remove('hidden');
+    }
+
+    function wizardUpdateDaysHidden() {
+        const checked = [...document.querySelectorAll('.wizard-day-cb:checked')].map(el => el.dataset.day);
+        const hidden = document.getElementById('wizard-schedule-days');
+        if (hidden) hidden.value = checked.length ? checked.join(',') : '0,1,2,3,4,5,6';
+    }
+
+    function wizardShowDaysRow() {
+        const freqEl = document.querySelector('input[name="wizard_schedule_frequency"]:checked');
+        const freq = freqEl ? freqEl.value : 'daily';
+        const row = document.getElementById('wizard-days-row');
+        const hint = document.getElementById('wizard-days-hint');
+        const cbs = document.querySelectorAll('.wizard-day-cb');
+
+        if (freq === 'daily') {
+            if (row) row.style.opacity = '0.35';
+            cbs.forEach(cb => { cb.disabled = true; cb.checked = true; });
+            if (hint) hint.textContent = 'runs every day';
+            wizardUpdateDaysHidden();
+        } else if (freq === 'weekly') {
+            if (row) row.style.opacity = '1';
+            cbs.forEach(cb => { cb.disabled = false; });
+            if (hint) hint.textContent = 'pick which days';
+        } else if (freq === 'monthly') {
+            if (row) row.style.opacity = '1';
+            cbs.forEach(cb => { cb.disabled = false; });
+            if (hint) hint.textContent = 'first occurrence in month';
+        }
+    }
+
+    function wizardGetStoragePayload() {
+        const type = document.querySelector('input[name="wizard_storage_type"]:checked')?.value || 'NFS';
+        const body = { storage_type: type };
+        if (type === 'SMB') {
+            body.smb_unc_path = document.getElementById('wizard-smb-path')?.value?.trim() || '';
+            body.smb_user = document.getElementById('wizard-smb-user')?.value?.trim() || '';
+            const pass = document.getElementById('wizard-smb-password')?.value;
+            if (pass) body.smb_password = pass;
+        } else if (type === 'NFS') {
+            body.nfs_path = document.getElementById('wizard-nfs-path')?.value?.trim() || '/mnt/backups';
+        } else if (type === 'S3') {
+            body.s3_endpoint = document.getElementById('wizard-s3-endpoint')?.value?.trim() || '';
+            body.s3_access_key = document.getElementById('wizard-s3-access-key')?.value?.trim() || '';
+            const sk = document.getElementById('wizard-s3-secret-key')?.value;
+            if (sk) body.s3_secret_key = sk;
+            body.s3_bucket = document.getElementById('wizard-s3-bucket')?.value?.trim() || '';
+            body.s3_region = document.getElementById('wizard-s3-region')?.value?.trim() || '';
+        }
+        return body;
+    }
+
+    function closeSetupWizard(skipReload) {
+        const el = document.getElementById('setupWizard');
+        if (el) el.classList.add('hidden');
+        document.body.style.overflow = '';
+        if (!skipReload && wizardState.step >= WIZARD_TOTAL_STEPS) {
+            localStorage.setItem('setup_wizard_done', '1');
+            window.location.reload();
+        }
+    }
+    window.closeSetupWizard = closeSetupWizard;
+
+    function wizardBack() {
+        if (wizardState.step > 1 && wizardState.step < WIZARD_TOTAL_STEPS) wizardGoToStep(wizardState.step - 1);
+    }
+
+    function wizardSetNextBusy(busy, label) {
+        const nextBtn = document.getElementById('wizard-next-btn');
+        if (!nextBtn) return;
+        nextBtn.disabled = busy;
+        if (busy && label) nextBtn.textContent = label;
+        else wizardUpdateStepUi();
+    }
+
+    async function wizardNext() {
+        wizardShowError('');
+        try {
+            if (wizardState.step === 1) {
+                await wizardSaveStorage();
+                wizardGoToStep(2);
+            } else if (wizardState.step === 2) {
+                await wizardEnsureHosts();
+                wizardSetNextBusy(true, 'Discovering VMs…');
+                const warnings = await wizardDiscoverVms();
+                await wizardLoadVms();
+                wizardGoToStep(3);
+                if (warnings.length) wizardShowError('Some hosts could not be synced: ' + warnings.join('; '));
+            } else if (wizardState.step === 3) {
+                wizardGoToStep(4);
+            } else if (wizardState.step === 4) {
+                await wizardApply();
+                wizardGoToStep(5);
+            } else if (wizardState.step === 5) {
+                localStorage.setItem('setup_wizard_done', '1');
+                closeSetupWizard(true);
+                switchTab('tab-jobs');
+                return;
+            }
+        } catch (e) {
+            wizardShowError(e.message || String(e));
+        } finally {
+            wizardSetNextBusy(false);
+        }
+    }
+
+    async function wizardSaveStorage() {
+        const status = document.getElementById('wizard-storage-status');
+        if (status) {
+            status.classList.remove('hidden');
+            status.textContent = 'Testing storage connection…';
+            status.style.background = 'rgba(59,130,246,0.08)';
+            status.style.color = 'var(--text-muted)';
+        }
+        await wizardApi('PUT', '/config/storage', wizardGetStoragePayload());
+        const test = await wizardApi('POST', '/config/storage/test');
+        if (!test.ok) throw new Error(test.message || 'Storage test failed');
+        if (status) {
+            status.textContent = '✓ ' + test.message;
+            status.style.background = 'rgba(34,197,94,0.12)';
+            status.style.color = '#4ade80';
+        }
+    }
+
+    function wizardRefreshHostList() {
+        const ul = document.getElementById('wizard-host-list');
+        if (!ul) return;
+        if (!wizardState.hosts.length) {
+            ul.innerHTML = '<li class="px-4 py-3 text-center text-sm" style="color:var(--text-muted)">No hosts added yet.</li>';
+            return;
+        }
+        ul.innerHTML = wizardState.hosts.map(h =>
+            `<li class="px-4 py-3 flex justify-between items-center gap-3">
+                <div>
+                    <span class="font-medium block">${escapeHtml(h.name)}</span>
+                    <span class="text-xs font-mono" style="color:var(--brand)">${escapeHtml(h.host_ip)}</span>
+                </div>
+                <button type="button" onclick="wizardDeleteHost(${h.id})" class="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0" title="Remove host">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+            </li>`
+        ).join('');
+    }
+
+    async function wizardDeleteHost(hostId) {
+        const host = wizardState.hosts.find(h => h.id === hostId);
+        const label = host ? host.name : 'this host';
+        const ok = await showConfirm(`Remove ${label} from NovaBak?`, { title: 'Remove host', confirmText: 'Remove', danger: true });
+        if (!ok) return;
+        wizardShowError('');
+        try {
+            await wizardApi('DELETE', `/hosts/${hostId}`);
+            wizardState.hosts = wizardState.hosts.filter(h => h.id !== hostId);
+            wizardRefreshHostList();
+        } catch (e) {
+            wizardShowError(e.message || String(e));
+        }
+    }
+
+    async function wizardAddHost() {
+        wizardShowError('');
+        const name = document.getElementById('wizard-host-name')?.value?.trim();
+        const host_ip = document.getElementById('wizard-host-ip')?.value?.trim();
+        const username = document.getElementById('wizard-host-user')?.value?.trim();
+        const password = document.getElementById('wizard-host-pass')?.value || '';
+        if (!name || !host_ip || !username || !password) {
+            wizardShowError('Fill in alias, host, username, and password.');
+            return;
+        }
+        try {
+            const host = await wizardApi('POST', '/hosts', { name, host_ip, username, password });
+            if (!wizardState.hosts.some(h => h.id === host.id)) wizardState.hosts.push(host);
+            wizardRefreshHostList();
+            document.getElementById('wizard-host-pass').value = '';
+        } catch (e) {
+            wizardShowError(e.message);
+        }
+    }
+
+    async function wizardEnsureHosts() {
+        const existing = await wizardApi('GET', '/hosts');
+        existing.forEach(h => {
+            if (!wizardState.hosts.some(x => x.id === h.id)) wizardState.hosts.push(h);
+        });
+        wizardRefreshHostList();
+        if (!wizardState.hosts.length) throw new Error('Add at least one ESXi host.');
+    }
+
+    async function wizardDiscoverVms() {
+        const errors = [];
+        for (const h of wizardState.hosts) {
+            try {
+                await wizardApi('POST', `/hosts/${h.id}/sync-vms`);
+            } catch (e) {
+                errors.push(`${h.name}: ${e.message}`);
+            }
+        }
+        if (errors.length === wizardState.hosts.length) {
+            throw new Error('Could not discover VMs from any host. ' + errors.join('; '));
+        }
+        return errors;
+    }
+
+    async function wizardLoadVms() {
+        wizardState.vms = await wizardApi('GET', '/vms');
+        wizardState.vms.forEach(v => { v._selected = wizardShouldProtect(v.vm_name); });
+        wizardRenderVmTable();
+    }
+
+    function wizardRenderVmTable() {
+        const tbody = document.getElementById('wizard-vm-table');
+        if (!tbody) return;
+        if (!wizardState.vms.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-sm" style="color:var(--text-muted)">No VMs found on registered hosts.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = wizardState.vms.map(v => `
+            <tr>
+                <td class="text-center"><input type="checkbox" data-vm-id="${v.id}" ${v._selected ? 'checked' : ''} onchange="wizardToggleVm(${v.id}, this.checked)"></td>
+                <td class="font-mono text-xs">${escapeHtml(v.vm_name)}</td>
+                <td class="text-xs" style="color:var(--text-muted)">${escapeHtml(wizardHostLabel(v.esxi_host_id))}</td>
+                <td class="text-right text-xs">${v.storage_gb ? v.storage_gb.toFixed(1) + ' GB' : '—'}</td>
+            </tr>`).join('');
+    }
+
+    function wizardToggleVm(id, checked) {
+        const v = wizardState.vms.find(x => x.id === id);
+        if (v) v._selected = checked;
+    }
+
+    function wizardSelectAllVms(on) {
+        wizardState.vms.forEach(v => { v._selected = on; });
+        wizardRenderVmTable();
+    }
+
+    function wizardSelectRecommended() {
+        wizardState.vms.forEach(v => { v._selected = wizardShouldProtect(v.vm_name); });
+        wizardRenderVmTable();
+    }
+
+    async function wizardApply() {
+        const hour = parseInt(document.getElementById('wizard-schedule-hour')?.value || '2', 10);
+        const minute = parseInt(document.getElementById('wizard-schedule-minute')?.value || '0', 10);
+        const retention = parseInt(document.getElementById('wizard-retention')?.value || '7', 10);
+        const stagger = document.getElementById('wizard-stagger-hosts')?.checked ?? true;
+        const jobActive = document.getElementById('wizard-job-active')?.checked ?? true;
+        const frequency = document.querySelector('input[name="wizard_schedule_frequency"]:checked')?.value || 'daily';
+        wizardUpdateDaysHidden();
+        const scheduleDays = document.getElementById('wizard-schedule-days')?.value || '0,1,2,3,4,5,6';
+
+        const selected = wizardState.vms.filter(v => v._selected);
+        if (!selected.length) throw new Error('Select at least one VM to protect.');
+        if (frequency === 'weekly' && !document.querySelectorAll('.wizard-day-cb:checked').length) {
+            throw new Error('Pick at least one day for a weekly schedule.');
+        }
+
+        const hostIds = [...new Set(selected.map(v => v.esxi_host_id).filter(Boolean))].sort((a, b) => a - b);
+        const hostHour = {};
+        hostIds.forEach((hid, i) => { hostHour[hid] = (hour + (stagger ? i : 0)) % 24; });
+
+        let updated = 0;
+        for (const v of wizardState.vms) {
+            const body = v._selected ? {
+                is_selected: true,
+                is_job_active: jobActive,
+                schedule_hour: hostHour[v.esxi_host_id] ?? hour,
+                schedule_minute: minute,
+                retention_count: retention,
+                schedule_frequency: frequency,
+                schedule_days: scheduleDays,
+                power_off_for_backup: false,
+            } : { is_selected: false, is_job_active: false };
+            await wizardApi('PATCH', `/vms/${v.id}`, body);
+            if (v._selected) updated++;
+        }
+
+        const summary = document.getElementById('wizard-summary');
+        if (summary) {
+            summary.innerHTML = `
+                <p><strong>${updated}</strong> VM(s) scheduled (${frequency})${jobActive ? '' : ' — inactive until enabled'}.</p>
+                <p class="mt-1 opacity-80">${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')} UTC${stagger && hostIds.length > 1 ? ' · staggered by host' : ''} · Keep ${retention}</p>`;
+        }
+        localStorage.setItem('setup_wizard_done', '1');
+    }
+
+    document.getElementById('setupWizard')?.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeSetupWizard(true);
+    });
+
+    if (typeof initSetupWizardTriggers === 'function') initSetupWizardTriggers();
 
     </script>
 

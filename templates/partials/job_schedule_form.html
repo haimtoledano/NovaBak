@@ -1,0 +1,96 @@
+<form id="job-form-{{ vm.id }}" action="/update_job" method="POST" class="job-schedule-inline">
+    <input type="hidden" name="vm_id" value="{{ vm.id }}">
+
+    <div class="flex items-center gap-3 flex-nowrap overflow-x-auto py-1 min-h-[2.75rem]">
+        <select name="schedule_frequency"
+                class="px-2 py-1 text-xs font-semibold rounded border shrink-0"
+                style="border-color: var(--border-color); background: var(--bg-card); color: var(--text-main)"
+                onchange="showDaysRow({{ vm.id }}); autoSaveJob({{ vm.id }}, this.form)"
+                title="Backup frequency">
+            {% for freq_val, freq_label in [('daily','Daily'),('weekly','Weekly'),('monthly','Monthly')] %}
+            <option value="{{ freq_val }}" {% if (vm.schedule_frequency or 'daily') == freq_val %}selected{% endif %}>{{ freq_label }}</option>
+            {% endfor %}
+        </select>
+
+        <div class="w-px h-6 shrink-0 job-days-sep" style="background: var(--border-color)"></div>
+
+        <div class="flex items-center gap-1 shrink-0 job-days-row" id="days-row-{{ vm.id }}">
+            <input type="hidden" name="schedule_days" class="job-days-hidden" id="days-hidden-{{ vm.id }}" value="{{ vm.schedule_days or '0,1,2,3,4,5,6' }}">
+            {% set cur_days = (vm.schedule_days or '0,1,2,3,4,5,6').split(',') %}
+            {% for day_num, day_lbl in [(0,'Mo'),(1,'Tu'),(2,'We'),(3,'Th'),(4,'Fr'),(5,'Sa'),(6,'Su')] %}
+            <label class="relative cursor-pointer">
+                <input type="checkbox"
+                       class="job-day-cb day-cb-{{ vm.id }} sr-only peer"
+                       data-day="{{ day_num }}"
+                       {% if day_num|string in cur_days %}checked{% endif %}
+                       onchange="updateDaysHidden({{ vm.id }}); autoSaveJob({{ vm.id }}, this.form)">
+                <div class="w-7 text-center text-[11px] font-bold py-1 rounded border transition-all
+                            peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)] peer-checked:bg-blue-500/10
+                            border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--brand)]/50">
+                    {{ day_lbl }}
+                </div>
+            </label>
+            {% endfor %}
+            <span class="job-days-hint text-[10px] opacity-40 whitespace-nowrap ml-1" id="days-hint-{{ vm.id }}"></span>
+        </div>
+
+        <div class="w-px h-6 shrink-0 job-days-sep" style="background: var(--border-color)"></div>
+
+        <div class="flex items-center gap-1 shrink-0">
+            <input type="number" name="schedule_hour" value="{{ vm.schedule_hour }}" min="0" max="23"
+                   class="w-12 px-2 py-1 text-center font-mono text-sm rounded border"
+                   style="border-color: var(--border-color); background: var(--bg-main)"
+                   oninput="debounceJobSave({{ vm.id }}, this.form)" title="Hour (UTC)">
+            <span class="text-sm opacity-40">:</span>
+            <input type="number" name="schedule_minute" value="{{ vm.schedule_minute }}" min="0" max="59"
+                   class="w-12 px-2 py-1 text-center font-mono text-sm rounded border"
+                   style="border-color: var(--border-color); background: var(--bg-main)"
+                   oninput="debounceJobSave({{ vm.id }}, this.form)" title="Minute">
+        </div>
+
+        <div class="flex items-center gap-1.5 shrink-0">
+            <span class="text-[11px] font-semibold uppercase opacity-50 whitespace-nowrap">Keep</span>
+            <input type="number" name="retention_count" value="{{ vm.retention_count }}" min="1" max="60"
+                   class="w-12 px-2 py-1 text-center font-mono text-sm rounded border"
+                   style="border-color: var(--border-color); background: var(--bg-main)"
+                   oninput="debounceJobSave({{ vm.id }}, this.form)">
+        </div>
+
+        <div class="flex items-center gap-1.5 shrink-0">
+            <span class="text-[11px] font-semibold uppercase opacity-50 whitespace-nowrap">Active</span>
+            <label class="relative w-10 h-5 cursor-pointer shrink-0" title="Enable scheduled backups">
+                <input type="checkbox" name="is_job_active" value="True"
+                       {% if vm.is_job_active %}checked{% endif %}
+                       class="sr-only peer"
+                       onchange="autoSaveJob({{ vm.id }}, this.form)">
+                <div class="absolute inset-0 rounded-full bg-gray-600 peer-checked:bg-[var(--brand)] transition-colors"></div>
+                <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform"></div>
+            </label>
+        </div>
+
+        <div class="w-px h-6 shrink-0" style="background: var(--border-color)"></div>
+
+        <div class="flex items-center gap-1.5 shrink-0">
+            <span class="text-[11px] font-semibold uppercase opacity-50 whitespace-nowrap">Mode</span>
+            <label class="flex items-center gap-1.5 cursor-pointer shrink-0" title="Power off shuts down the VM before backup for faster transfer, then powers it back on.">
+                <div class="relative w-10 h-5">
+                    <input type="checkbox" name="power_off_for_backup" value="True"
+                           {% if vm.power_off_for_backup %}checked{% endif %}
+                           class="sr-only peer"
+                           onchange="updatePowerModeLabel({{ vm.id }}); autoSaveJob({{ vm.id }}, this.form)">
+                    <div class="absolute inset-0 rounded-full bg-gray-600 peer-checked:bg-orange-500 transition-colors"></div>
+                    <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform"></div>
+                </div>
+                <span class="job-power-mode-label text-xs font-medium whitespace-nowrap {% if vm.power_off_for_backup %}text-orange-500{% else %}text-emerald-600{% endif %}" id="power-mode-label-{{ vm.id }}">
+                    {% if vm.power_off_for_backup %}Power off — faster backup{% else %}Live — VM stays on{% endif %}
+                </span>
+            </label>
+        </div>
+
+        <span class="job-save-flash ml-auto text-xs font-semibold text-green-400 opacity-0 transition-opacity duration-500 shrink-0" id="save-flash-{{ vm.id }}">✓ Saved</span>
+
+        <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary p-1.5 rounded shrink-0 hover:text-red-400 hover:border-red-400/50" title="Remove from tasks">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+        </button>
+    </div>
+</form>

@@ -1,0 +1,267 @@
+    <!-- Setup Wizard (admin) -->
+    <div id="setupWizard" class="wizard-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="wizardTitle">
+        <div class="wizard-backdrop" onclick="closeSetupWizard(true)"></div>
+        <div class="wizard-panel card">
+
+            <div class="wizard-topbar">
+                <div>
+                    <h2 id="wizardTitle" class="text-xl font-bold tracking-wide uppercase">Setup Wizard</h2>
+                    <p class="text-xs mt-0.5" style="color: var(--text-muted)">
+                        <span id="wizard-step-counter">Step 1 of 5</span>
+                        <span class="mx-1.5 opacity-40">·</span>
+                        <span id="wizard-step-current-name">Backup storage</span>
+                    </p>
+                </div>
+                <button type="button" onclick="closeSetupWizard(true)" class="wizard-close" aria-label="Close">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="wizard-layout">
+
+                <nav class="wizard-nav" id="wizardStepIndicators" aria-label="Setup steps">
+                    <div class="wizard-nav-item active" data-step="1">
+                        <span class="wizard-nav-num">1</span>
+                        <span class="wizard-nav-label">Storage</span>
+                    </div>
+                    <div class="wizard-nav-item" data-step="2">
+                        <span class="wizard-nav-num">2</span>
+                        <span class="wizard-nav-label">ESXi Hosts</span>
+                    </div>
+                    <div class="wizard-nav-item" data-step="3">
+                        <span class="wizard-nav-num">3</span>
+                        <span class="wizard-nav-label">Select VMs</span>
+                    </div>
+                    <div class="wizard-nav-item" data-step="4">
+                        <span class="wizard-nav-num">4</span>
+                        <span class="wizard-nav-label">Schedule</span>
+                    </div>
+                    <div class="wizard-nav-item" data-step="5">
+                        <span class="wizard-nav-num">5</span>
+                        <span class="wizard-nav-label">Complete</span>
+                    </div>
+                </nav>
+
+                <div class="wizard-content">
+                    <div id="wizardError" class="hidden absolute top-3 left-4 right-4 z-10 px-4 py-3 rounded text-sm font-medium" style="background:rgba(239,68,68,0.12); color:#f87171;"></div>
+
+                    <!-- Step 1: Storage -->
+                    {% set wizard_st = (config.storage_type or 'NFS')|upper %}
+                    <div class="wizard-step" data-wizard-step="1">
+                        <div class="flex flex-wrap justify-between items-center gap-3 mb-4 border-b pb-3 max-w-3xl" style="border-color:var(--border-color)">
+                            <h3 class="font-semibold text-base">Backup storage</h3>
+                            <div class="flex space-x-3">
+                                <label class="flex items-center space-x-1 cursor-pointer">
+                                    <input type="radio" name="wizard_storage_type" value="SMB" onchange="wizardToggleStorageFields()" {% if wizard_st == 'SMB' %}checked{% endif %} class="w-3 h-3">
+                                    <span class="text-xs font-medium">SMB</span>
+                                </label>
+                                <label class="flex items-center space-x-1 cursor-pointer">
+                                    <input type="radio" name="wizard_storage_type" value="NFS" onchange="wizardToggleStorageFields()" {% if wizard_st != 'SMB' and wizard_st != 'S3' %}checked{% endif %} class="w-3 h-3">
+                                    <span class="text-xs font-medium">NFS</span>
+                                </label>
+                                <label class="flex items-center space-x-1 cursor-pointer">
+                                    <input type="radio" name="wizard_storage_type" value="S3" onchange="wizardToggleStorageFields()" {% if wizard_st == 'S3' %}checked{% endif %} class="w-3 h-3">
+                                    <span class="text-xs font-medium">S3</span>
+                                </label>
+                            </div>
+                        </div>
+                        <p class="text-sm mb-4 max-w-3xl" style="color: var(--text-muted)">Choose where NovaBak writes backup files — same options as Settings → Target Storage.</p>
+
+                        <div id="wizard-fields-SMB" class="wizard-storage-fields max-w-3xl {% if wizard_st != 'SMB' %}hidden{% endif %}">
+                            <div class="mb-4">
+                                <span class="input-label">UNC Path</span>
+                                <input type="text" id="wizard-smb-path" value="{{ config.smb_unc_path or '' }}" placeholder="\\server\share\backups" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div><span class="input-label">Username</span><input type="text" id="wizard-smb-user" value="{{ config.smb_user or '' }}" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
+                                <div><span class="input-label">Password</span><input type="password" id="wizard-smb-password" placeholder="{% if config.smb_password %}(Unchanged){% endif %}" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
+                            </div>
+                        </div>
+
+                        <div id="wizard-fields-NFS" class="wizard-storage-fields max-w-3xl {% if wizard_st != 'NFS' %}hidden{% endif %}">
+                            <span class="input-label">NFS Export Path</span>
+                            <input type="text" id="wizard-nfs-path" value="{{ config.nfs_path or '/mnt/backups' }}" placeholder="/mnt/backups" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                            <p class="text-[10px] opacity-60 mt-1">Local path or mount point on this server (e.g. <code class="font-mono">/mnt/backups</code> in Docker).</p>
+                        </div>
+
+                        <div id="wizard-fields-S3" class="wizard-storage-fields max-w-3xl {% if wizard_st != 'S3' %}hidden{% endif %}">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="sm:col-span-2">
+                                    <span class="input-label">S3 Endpoint (optional for AWS)</span>
+                                    <input type="text" id="wizard-s3-endpoint" value="{{ config.s3_endpoint or '' }}" placeholder="https://s3.wasabisys.com" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                </div>
+                                <div>
+                                    <span class="input-label">Access Key</span>
+                                    <input type="text" id="wizard-s3-access-key" value="{{ config.s3_access_key or '' }}" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                </div>
+                                <div>
+                                    <span class="input-label">Secret Key</span>
+                                    <input type="password" id="wizard-s3-secret-key" placeholder="{% if config.s3_secret_key %}(Unchanged){% endif %}" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                </div>
+                                <div>
+                                    <span class="input-label">Bucket Name</span>
+                                    <input type="text" id="wizard-s3-bucket" value="{{ config.s3_bucket or '' }}" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                </div>
+                                <div>
+                                    <span class="input-label">Region</span>
+                                    <input type="text" id="wizard-s3-region" value="{{ config.s3_region or '' }}" placeholder="us-east-1" class="w-full py-2 px-3 font-mono text-sm mt-1">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="wizard-storage-status" class="hidden mt-4 px-4 py-3 rounded text-sm font-medium max-w-3xl"></div>
+                    </div>
+
+                    <!-- Step 2: Hosts -->
+                    <div class="wizard-step hidden" data-wizard-step="2">
+                        <div class="wizard-step-inner">
+                            <h3 class="font-semibold text-base mb-1 flex-shrink-0">ESXi hosts</h3>
+                            <p class="text-sm mb-5 flex-shrink-0" style="color: var(--text-muted)">Register ESXi hosts using direct host credentials (typically <code class="text-xs font-mono px-1 rounded" style="background:var(--bg-nav)">root</code>). VM inventory is discovered automatically when you continue.</p>
+                            <div class="flex flex-wrap items-end gap-2 mb-4 flex-shrink-0">
+                                <div class="flex-1 min-w-[5.5rem]"><span class="input-label">Alias</span><input type="text" id="wizard-host-name" placeholder="esxi-01" class="w-full py-2 px-3 text-sm mt-1"></div>
+                                <div class="flex-[1.4] min-w-[7rem]"><span class="input-label">IP / FQDN</span><input type="text" id="wizard-host-ip" placeholder="esxi.example.com" class="w-full py-2 px-3 font-mono text-sm mt-1"></div>
+                                <div class="w-24 min-w-[5rem]"><span class="input-label">Username</span><input type="text" id="wizard-host-user" value="root" class="w-full py-2 px-3 text-sm mt-1"></div>
+                                <div class="w-28 min-w-[5.5rem]"><span class="input-label">Password</span><input type="password" id="wizard-host-pass" class="w-full py-2 px-3 text-sm mt-1"></div>
+                                <button type="button" onclick="wizardAddHost()" class="btn-secondary px-4 py-2 text-sm font-medium whitespace-nowrap mb-0.5">Add Host</button>
+                            </div>
+                            <div class="card overflow-hidden wizard-step-scroll flex flex-col min-h-0">
+                                <div class="px-4 py-2.5 border-b font-semibold text-sm flex-shrink-0" style="border-color:var(--border-color); background:var(--bg-nav)">Registered Hosts</div>
+                                <ul id="wizard-host-list" class="divide-y text-sm overflow-y-auto flex-1 min-h-0" style="border-color:var(--border-color)"></ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: VMs -->
+                    <div class="wizard-step hidden" data-wizard-step="3">
+                        <div class="wizard-step-inner">
+                            <div class="flex flex-wrap justify-between items-start gap-3 mb-4 flex-shrink-0">
+                                <div>
+                                    <h3 class="font-semibold text-base mb-1">Select VMs to protect</h3>
+                                    <p class="text-sm" style="color: var(--text-muted)">Recommended selection excludes templates, vCLS, and this backup server.</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="wizardSelectRecommended()" class="btn-secondary px-3 py-1.5 text-xs font-medium">Recommended</button>
+                                    <button type="button" onclick="wizardSelectAllVms(true)" class="btn-secondary px-3 py-1.5 text-xs font-medium">All</button>
+                                    <button type="button" onclick="wizardSelectAllVms(false)" class="btn-secondary px-3 py-1.5 text-xs font-medium">None</button>
+                                </div>
+                            </div>
+                            <div class="wizard-step-scroll card overflow-hidden">
+                                <table class="jobs-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="w-10"></th>
+                                            <th>VM Name</th>
+                                            <th>Host</th>
+                                            <th class="text-right">Disk</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="wizard-vm-table"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Schedule -->
+                    <div class="wizard-step hidden" data-wizard-step="4">
+                        <h3 class="font-semibold text-base mb-1">Default schedule</h3>
+                        <p class="text-sm mb-4" style="color: var(--text-muted)">Applied to all selected VMs. Adjust per VM later under Tasks.</p>
+
+                        <div class="max-w-md">
+                            <div class="mb-2">
+                                <span class="input-label text-[10px]">Frequency</span>
+                                <div class="grid grid-cols-3 gap-1 max-w-md">
+                                    {% for freq_val, freq_label in [('daily','Daily'),('weekly','Weekly'),('monthly','Monthly')] %}
+                                    <label class="relative cursor-pointer">
+                                        <input type="radio" name="wizard_schedule_frequency" value="{{ freq_val }}"
+                                               {% if freq_val == 'daily' %}checked{% endif %}
+                                               class="sr-only peer"
+                                               onchange="wizardShowDaysRow()">
+                                        <div class="text-center text-[10px] font-semibold py-1 rounded border transition-all
+                                                    peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)] peer-checked:bg-blue-500/10
+                                                    border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--brand)]/50">
+                                            {{ freq_label }}
+                                        </div>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="mb-2" id="wizard-days-row">
+                                <div class="flex items-center justify-between">
+                                    <span class="input-label text-[10px]">Days</span>
+                                    <span class="text-[9px] opacity-50" id="wizard-days-hint"></span>
+                                </div>
+                                <input type="hidden" id="wizard-schedule-days" value="0,1,2,3,4,5,6">
+                                <div class="grid grid-cols-7 gap-0.5 mt-1 max-w-md">
+                                    {% for day_num, day_lbl in [(0,'Mo'),(1,'Tu'),(2,'We'),(3,'Th'),(4,'Fr'),(5,'Sa'),(6,'Su')] %}
+                                    <label class="relative cursor-pointer">
+                                        <input type="checkbox" class="wizard-day-cb sr-only peer" data-day="{{ day_num }}"
+                                               {% if day_num < 5 %}checked{% endif %}
+                                               onchange="wizardUpdateDaysHidden()">
+                                        <div class="text-center text-[9px] font-bold py-1 rounded border transition-all
+                                                    peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)] peer-checked:bg-blue-500/10
+                                                    border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--brand)]/50">
+                                            {{ day_lbl }}
+                                        </div>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end mb-2 max-w-md">
+                                <div>
+                                    <span class="input-label text-[10px]">Hour</span>
+                                    <input type="number" id="wizard-schedule-hour" value="2" min="0" max="23"
+                                           class="w-full px-2 py-1 text-center font-mono text-sm">
+                                </div>
+                                <div>
+                                    <span class="input-label text-[10px]">Min</span>
+                                    <input type="number" id="wizard-schedule-minute" value="0" min="0" max="59"
+                                           class="w-full px-2 py-1 text-center font-mono text-sm">
+                                </div>
+                                <div>
+                                    <span class="input-label text-[10px]">Keep</span>
+                                    <input type="number" id="wizard-retention" value="7" min="1" max="60"
+                                           class="w-full px-2 py-1 text-center font-mono text-sm">
+                                </div>
+                                <div class="flex flex-col items-center gap-1 pb-0.5">
+                                    <span class="input-label text-[10px]">Active</span>
+                                    <label class="relative w-9 h-5 cursor-pointer">
+                                        <input type="checkbox" id="wizard-job-active" checked class="sr-only peer">
+                                        <div class="absolute inset-0 rounded-full bg-gray-600 peer-checked:bg-[var(--brand)] transition-colors"></div>
+                                        <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="pt-2 max-w-md" style="border-top: 1px dashed var(--border-color)">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <div class="relative flex-shrink-0 w-8 h-4">
+                                        <input type="checkbox" id="wizard-stagger-hosts" checked class="sr-only peer">
+                                        <div class="absolute inset-0 rounded-full bg-gray-600 peer-checked:bg-[var(--brand)] transition-colors"></div>
+                                        <div class="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
+                                    </div>
+                                    <span class="text-[10px] font-semibold leading-tight text-[var(--text-muted)]">Stagger by host (+1 hour per host)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Complete -->
+                    <div class="wizard-step hidden" data-wizard-step="5">
+                        <h3 class="font-semibold text-base mb-1">Setup complete</h3>
+                        <p class="text-sm mb-4" style="color: var(--text-muted)">Your backup environment is ready.</p>
+                        <div id="wizard-summary" class="px-4 py-3 rounded text-sm font-medium max-w-2xl" style="background:rgba(34,197,94,0.12); color:#4ade80;"></div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="wizard-footer">
+                <button type="button" id="wizard-back-btn" onclick="wizardBack()" class="btn-secondary px-4 py-2 text-sm font-medium hidden">Back</button>
+                <div class="flex-1"></div>
+                <button type="button" id="wizard-next-btn" onclick="wizardNext()" class="btn-primary px-5 py-2 text-sm font-semibold">Continue</button>
+            </div>
+
+        </div>
+    </div>

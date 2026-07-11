@@ -3,6 +3,8 @@ import pyotp
 import qrcode
 import io
 import base64
+import hashlib
+import secrets
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -29,6 +31,7 @@ def generate_qr_code(uri):
     img = qr.make_image(fill_color="black", back_color="white")
     
     buffered = io.BytesIO()
+    img.save(buffered)
     try:
         img.save(buffered, format="PNG")  # Pillow backend
     except TypeError:
@@ -52,3 +55,30 @@ def decode_access_token(token: str):
         return payload.get("sub")
     except JWTError:
         return None
+
+
+def _hash_api_key(raw_key: str) -> str:
+    return hashlib.sha256(raw_key.encode()).hexdigest()
+
+
+def create_api_key(db, user_id: int, name: str):
+    from models import ApiKey
+
+    raw_key = f"nbak_{secrets.token_urlsafe(32)}"
+    api_key = ApiKey(user_id=user_id, name=name, key_hash=_hash_api_key(raw_key))
+    db.add(api_key)
+    db.commit()
+    db.refresh(api_key)
+    return raw_key, api_key
+
+
+def verify_api_key(db, raw_key: str):
+    from models import ApiKey
+
+    if not raw_key or not raw_key.startswith("nbak_"):
+        return None
+    api_key = db.query(ApiKey).filter(ApiKey.key_hash == _hash_api_key(raw_key)).first()
+    if api_key:
+        api_key.last_used_at = datetime.utcnow()
+        db.commit()
+    return api_key
