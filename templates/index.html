@@ -1374,6 +1374,7 @@
                             {% endif %}
                             <button type="button" class="nav-user-item" data-tab="tab-syslogs" onclick="switchTab('tab-syslogs')">System Logs</button>
                             <button type="button" class="nav-user-item" data-tab="tab-settings" onclick="switchTab('tab-settings')">Settings</button>
+                            <button type="button" class="nav-user-item" onclick="openChangePasswordModal()">Change Password</button>
                             {% if current_user and current_user.role == 'admin' %}
                             <button type="button" class="nav-user-item" data-tab="tab-users" onclick="switchTab('tab-users')">Users</button>
                             <button type="button" class="nav-user-item" data-open-setup-wizard>Setup wizard</button>
@@ -1394,6 +1395,7 @@
                 <div class="nav-mobile-section">Account</div>
                 <button type="button" class="nav-mobile-item" data-tab="tab-syslogs" onclick="switchTab('tab-syslogs')">System Logs</button>
                 <button type="button" class="nav-mobile-item" data-tab="tab-settings" onclick="switchTab('tab-settings')">Settings</button>
+                <button type="button" class="nav-mobile-item" onclick="openChangePasswordModal()">Change Password</button>
                 {% if current_user and current_user.role == 'admin' %}
                 <button type="button" class="nav-mobile-item" data-tab="tab-users" onclick="switchTab('tab-users')">Users</button>
                 <button type="button" class="nav-mobile-item" data-open-setup-wizard>Setup wizard</button>
@@ -1965,6 +1967,36 @@
                 <button type="button" id="appModalCancel" class="btn-secondary px-4 py-2 text-sm font-medium min-w-[5rem]">Cancel</button>
                 <button type="button" id="appModalConfirm" class="btn-primary px-4 py-2 text-sm font-semibold min-w-[5rem]">OK</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="changePasswordModalTitle">
+        <div class="modal-backdrop" onclick="closeChangePasswordModal()"></div>
+        <div class="modal-panel card shadow-2xl">
+            <h3 id="changePasswordModalTitle" class="text-lg font-semibold mb-4">Change Password</h3>
+            <form id="changePasswordForm" onsubmit="submitChangePassword(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="form-label">Current Password</label>
+                        <input type="password" id="cp_current" name="current_password" class="form-input" required autocomplete="current-password">
+                    </div>
+                    <div>
+                        <label class="form-label">New Password</label>
+                        <input type="password" id="cp_new" name="new_password" class="form-input" required autocomplete="new-password">
+                        <p class="text-[11px] mt-1" style="color: var(--text-muted)">Must be at least 8 characters, 1 uppercase, 1 lowercase, 1 number.</p>
+                    </div>
+                    <div>
+                        <label class="form-label">Confirm New Password</label>
+                        <input type="password" id="cp_confirm" name="confirm_password" class="form-input" required autocomplete="new-password">
+                    </div>
+                    <div id="cp_error" class="hidden rounded-md bg-red-500/10 p-3 mt-2 text-sm text-red-500 border border-red-500/20"></div>
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" class="btn-secondary px-4 py-2" onclick="closeChangePasswordModal()">Cancel</button>
+                    <button type="submit" id="cp_submit_btn" class="btn-primary px-4 py-2">Update Password</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -3021,6 +3053,59 @@
     });
 
     if (typeof initSetupWizardTriggers === 'function') initSetupWizardTriggers();
+
+    // Change Password Logic
+    function openChangePasswordModal() {
+        // close menus
+        document.getElementById('nav-user-menu')?.classList.add('hidden');
+        document.getElementById('nav-mobile-menu')?.classList.add('hidden');
+        
+        document.getElementById('changePasswordForm').reset();
+        const err = document.getElementById('cp_error');
+        err.classList.add('hidden');
+        err.textContent = '';
+        document.getElementById('changePasswordModal').classList.remove('hidden');
+        document.getElementById('cp_current').focus();
+    }
+
+    function closeChangePasswordModal() {
+        document.getElementById('changePasswordModal').classList.add('hidden');
+    }
+
+    async function submitChangePassword(e) {
+        e.preventDefault();
+        const current = document.getElementById('cp_current').value;
+        const newPw = document.getElementById('cp_new').value;
+        const confirmPw = document.getElementById('cp_confirm').value;
+        const err = document.getElementById('cp_error');
+        const btn = document.getElementById('cp_submit_btn');
+
+        if (newPw !== confirmPw) {
+            err.textContent = "New passwords do not match";
+            err.classList.remove('hidden');
+            return;
+        }
+
+        err.classList.add('hidden');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="inline-block animate-spin mr-2">⟳</span>Updating...';
+
+        try {
+            const res = await apiCall('/profile/password', 'POST', {
+                current_password: current,
+                new_password: newPw
+            });
+            closeChangePasswordModal();
+            await showAlert("Password updated successfully. Please sign in again.", { title: "Success" });
+            window.location.href = "/logout";
+        } catch (error) {
+            err.textContent = error.message;
+            err.classList.remove('hidden');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Update Password';
+        }
+    }
 
     </script>
 

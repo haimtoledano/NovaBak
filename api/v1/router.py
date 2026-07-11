@@ -21,12 +21,34 @@ router = APIRouter(tags=["api-v1"])
 
 
 def _authenticate_login(db: Session, username: str, password: str, mfa_code: Optional[str] = None) -> User:
+    import datetime
+    from logger_util import log_audit
+    
     user = db.query(User).filter(User.username == username).first()
-    if not user or not auth.verify_password(password, user.hashed_password):
+    if not user:
         raise HTTPException(status_code=401, detail="Incorrect username or password")
+
+    if user.locked_until and user.locked_until > datetime.datetime.utcnow():
+        raise HTTPException(status_code=423, detail="Account is locked due to too many failed attempts. Try again later.")
+        
+    if not auth.verify_password(password, user.hashed_password):
+        user.failed_login_attempts += 1
+        if user.failed_login_attempts >= 5:
+            user.locked_until = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+            log_audit(db, username, "account_locked", "Account locked due to 5 failed login attempts")
+        db.commit()
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+
     if user.is_mfa_enabled:
         if not mfa_code or not auth.verify_totp(user.mfa_secret, mfa_code):
             raise HTTPException(status_code=401, detail="MFA code required or invalid")
+            
+    # Reset failed attempts on success
+    if user.failed_login_attempts > 0 or user.locked_until is not None:
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        db.commit()
+        
     return user
 
 
