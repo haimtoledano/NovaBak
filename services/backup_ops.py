@@ -57,65 +57,57 @@ def config_to_dict(config):
     }
 
 
-def update_storage_config(db, data):
-    config = get_or_create_config(db)
-    if "storage_type" in data and data["storage_type"] is not None:
-        config.storage_type = data["storage_type"]
-    if "nfs_path" in data and data["nfs_path"] is not None:
-        config.nfs_path = data["nfs_path"]
-    if "smb_unc_path" in data and data["smb_unc_path"] is not None:
-        config.smb_unc_path = data["smb_unc_path"]
-    if "smb_user" in data and data["smb_user"] is not None:
-        config.smb_user = data["smb_user"]
-    if data.get("smb_password"):
-        config.smb_password = data["smb_password"]
-    if "s3_endpoint" in data and data["s3_endpoint"] is not None:
-        config.s3_endpoint = data["s3_endpoint"]
-    if "s3_bucket" in data and data["s3_bucket"] is not None:
-        config.s3_bucket = data["s3_bucket"]
-    if "s3_region" in data and data["s3_region"] is not None:
-        config.s3_region = data["s3_region"]
-    if data.get("s3_access_key"):
-        config.s3_access_key = data["s3_access_key"]
-    if data.get("s3_secret_key"):
-        config.s3_secret_key = data["s3_secret_key"]
-    if "perf_parallel_threads" in data and data["perf_parallel_threads"] is not None:
-        config.perf_parallel_threads = data["perf_parallel_threads"]
-    if "perf_compression_level" in data and data["perf_compression_level"] is not None:
-        config.perf_compression_level = data["perf_compression_level"]
-    if "backup_timeout_mins" in data and data["backup_timeout_mins"] is not None:
-        config.backup_timeout_mins = data["backup_timeout_mins"]
-    if "max_global_backups" in data and data["max_global_backups"] is not None:
-        config.max_global_backups = data["max_global_backups"]
-    if "max_backups_per_host" in data and data["max_backups_per_host"] is not None:
-        config.max_backups_per_host = data["max_backups_per_host"]
-    if "datastore_min_free_pct" in data and data["datastore_min_free_pct"] is not None:
-        config.datastore_min_free_pct = data["datastore_min_free_pct"]
-    if "datastore_headroom_gb" in data and data["datastore_headroom_gb"] is not None:
-        config.datastore_headroom_gb = data["datastore_headroom_gb"]
-    if "datastore_est_multiplier" in data and data["datastore_est_multiplier"] is not None:
-        config.datastore_est_multiplier = data["datastore_est_multiplier"]
-    if "webhook_url" in data and data["webhook_url"] is not None:
-        config.webhook_url = data["webhook_url"]
-    if "daily_report_time" in data and data["daily_report_time"] is not None:
-        config.daily_report_time = data["daily_report_time"]
-    db.commit()
-    db.refresh(config)
-    return config
+def list_storage_targets(db):
+    from models import StorageTarget
+    return db.query(StorageTarget).all()
 
+def create_storage_target(db, data):
+    from models import StorageTarget
+    target = StorageTarget(**data)
+    db.add(target)
+    db.commit()
+    db.refresh(target)
+    return target
+
+def update_storage_target(db, target_id, data):
+    from models import StorageTarget
+    target = db.query(StorageTarget).filter(StorageTarget.id == target_id).first()
+    if not target:
+        raise ValueError("Storage target not found")
+    for key, value in data.items():
+        if value is not None:
+            setattr(target, key, value)
+    db.commit()
+    db.refresh(target)
+    return target
+
+def delete_storage_target(db, target_id):
+    from models import StorageTarget
+    target = db.query(StorageTarget).filter(StorageTarget.id == target_id).first()
+    if not target:
+        raise ValueError("Storage target not found")
+    db.delete(target)
+    db.commit()
+    return True
+
+def get_default_storage_target(db):
+    from models import StorageTarget
+    target = db.query(StorageTarget).filter(StorageTarget.is_default == True).first()
+    if not target:
+        target = db.query(StorageTarget).first()
+    return target
 
 def update_full_config(db, data):
     config = get_or_create_config(db)
     storage_fields = {
-        "storage_type", "nfs_path", "smb_unc_path", "smb_user", "s3_endpoint",
-        "s3_bucket", "s3_region", "perf_parallel_threads", "perf_compression_level",
-        "backup_timeout_mins",
+        "perf_parallel_threads", "perf_compression_level",
+        "backup_timeout_mins", "encryption_key"
     }
     email_fields = {
         "smtp_server", "smtp_port", "smtp_user", "smtp_to_email", "smtp_use_tls",
         "smtp_use_ssl", "imap_server", "imap_port", "imap_user", "imap_use_ssl",
     }
-    secret_fields = {"smb_password", "smtp_password", "imap_password", "s3_access_key", "s3_secret_key"}
+    secret_fields = {"smtp_password", "imap_password", "encryption_key"}
 
     for key, value in data.items():
         if value is None:
@@ -257,6 +249,7 @@ def vm_to_dict(vm):
         "id": vm.id,
         "vm_name": vm.vm_name,
         "esxi_host_id": vm.esxi_host_id,
+        "storage_target_id": vm.storage_target_id,
         "is_selected": vm.is_selected,
         "cpu_count": vm.cpu_count,
         "memory_mb": vm.memory_mb,
@@ -282,7 +275,7 @@ def update_vm_job(db, vm_id, data):
         raise ValueError("VM not found")
     for field in (
         "is_selected", "schedule_hour", "schedule_minute", "retention_count",
-        "is_job_active", "power_off_for_backup", "schedule_frequency",
+        "is_job_active", "power_off_for_backup", "schedule_frequency", "storage_target_id"
     ):
         if field in data and data[field] is not None:
             setattr(vm, field, data[field])
@@ -541,18 +534,18 @@ def _vm_is_running(vm):
     return 0 < progress < 100
 
 
-def _storage_path_label(config):
-    if not config:
+def _storage_path_label(target):
+    if not target:
         return "SMB", ""
-    stype = config.storage_type or "SMB"
+    stype = target.storage_type or "SMB"
     if stype == "S3":
-        bucket = config.s3_bucket or "—"
-        region = config.s3_region or ""
+        bucket = target.s3_bucket or "—"
+        region = target.s3_region or ""
         path = f"s3://{bucket}" + (f" ({region})" if region else "")
     elif stype == "NFS":
-        path = config.nfs_path or "—"
+        path = target.nfs_path or "—"
     else:
-        path = config.smb_unc_path or "—"
+        path = target.smb_unc_path or "—"
     return stype, path
 
 
@@ -576,13 +569,13 @@ def _disk_usage_for_path(path):
     return None
 
 
-def _cached_storage_scan(config):
+def _cached_storage_scan(target):
     global _overview_storage_cache
     now = time.time()
     if _overview_storage_cache["data"] and (now - _overview_storage_cache["ts"]) < _OVERVIEW_STORAGE_TTL:
         return _overview_storage_cache["data"]
 
-    stype, path = _storage_path_label(config)
+    stype, path = _storage_path_label(target)
     result = {
         "type": stype,
         "path": path,
@@ -597,9 +590,9 @@ def _cached_storage_scan(config):
         result.update(disk)
 
     try:
-        if config.storage_type == "SMB":
-            worker.authenticate_smb(config)
-        backups = worker.get_available_backups(config)
+        if target and target.storage_type == "SMB":
+            worker.authenticate_smb(target)
+        backups = worker.get_available_backups(target)
         total_bytes = sum(_parse_backup_size_bytes(b.get("size")) for b in backups)
         vm_names = {b["vm_name"] for b in backups}
         result["total_bytes"] = total_bytes
@@ -711,7 +704,8 @@ def get_overview(db):
     active_restores = [r for r in restores if r.get("status") == "In Progress"]
 
     worker_online, worker_age = _worker_health()
-    storage = _cached_storage_scan(config)
+    default_target = get_default_storage_target(db)
+    storage = _cached_storage_scan(default_target)
     setup_incomplete = len(esxi_hosts) == 0 or len(selected) == 0
 
     return {

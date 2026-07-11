@@ -220,16 +220,20 @@ class S3MultipartWriter:
     def truncate(self, size):
         pass
 
-def get_storage(config):
-    if config.storage_type == "S3":
+def get_storage(target):
+    if not target:
+        # Fallback to a local path if no target is provided
+        return LocalStorageProvider("C:\\VMBackups")
+        
+    if target.storage_type == "S3":
         return S3StorageProvider(
-            config.s3_endpoint,
-            config.s3_access_key,
-            config.s3_secret_key,
-            config.s3_bucket,
-            config.s3_region
+            target.s3_endpoint,
+            target.s3_access_key,
+            target.s3_secret_key,
+            target.s3_bucket,
+            target.s3_region
         )
-    elif config.storage_type == "NFS":
-        return LocalStorageProvider(config.nfs_path)
+    elif target.storage_type == "NFS":
+        return LocalStorageProvider(target.nfs_path)
     else: # Default to SMB
-        return LocalStorageProvider(config.smb_unc_path)
+        return LocalStorageProvider(target.smb_unc_path)

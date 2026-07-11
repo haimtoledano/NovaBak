@@ -430,44 +430,54 @@ def poweron_vm(si, vm_name, timeout_mins=3):
 
 
 def register_vm(si, datastore_name, vmx_rel_path, vm_name):
-
     """
     Registers a VM in the ESXi inventory from an existing VMX file on a datastore.
     """
     import time
     content = si.RetrieveContent()
 
-    # Find datacenter robustly
-    dc = None
-    for child in content.rootFolder.childEntity:
-        if isinstance(child, vim.Datacenter):
-            dc = child
+    # Find the target datastore to trace its datacenter and host
+    containerView = content.viewManager.CreateContainerView(content.rootFolder, [vim.Datastore], True)
+    target_ds = None
+    for ds in containerView.view:
+        if ds.name == datastore_name:
+            target_ds = ds
             break
+            
+    if not target_ds:
+        raise Exception(f"Datastore {datastore_name} not found")
+        
+    # Traverse to find the Datacenter
+    dc = None
+    obj = target_ds.parent
+    while obj:
+        if isinstance(obj, vim.Datacenter):
+            dc = obj
+            break
+        if hasattr(obj, 'parent'):
+            obj = obj.parent
+        else:
+            break
+            
     if not dc:
         dc = content.rootFolder.childEntity[0]
 
     folder = dc.vmFolder
 
-    # Find the default resource pool (required by RegisterVM_Task on standalone ESXi)
-    # On standalone ESXi, the resource pool is available under the ComputeResource/HostSystem
     resource_pool = None
     try:
         for child in dc.hostFolder.childEntity:
-            # child is a ComputeResource or ClusterComputeResource
             if hasattr(child, 'resourcePool') and child.resourcePool:
                 resource_pool = child.resourcePool
                 break
     except Exception:
         pass
 
-    # Fallback: if still none, find the host and get its parent's resource pool
-    if resource_pool is None:
+    if resource_pool is None and target_ds.host:
         try:
-            container = content.viewManager.CreateContainerView(
-                content.rootFolder, [vim.HostSystem], True)
-            if container.view:
-                host = container.view[0]
-                resource_pool = host.parent.resourcePool
+            host_mount = target_ds.host[0]
+            host = host_mount.key
+            resource_pool = host.parent.resourcePool
         except Exception:
             pass
 
@@ -493,17 +503,14 @@ def register_vm(si, datastore_name, vmx_rel_path, vm_name):
     except Exception as e:
         return False, str(e)
 
+
 # --- CBT (Changed Block Tracking) Helpers ---
 import time
 
 def enable_cbt(vm):
     """Enables Changed Block Tracking (CBT) on a VM if not already enabled."""
-    if vm.config and vm.config.changeTrackingEnabled:
-        return True
-    
     log_info(f"Enabling CBT on VM {vm.name}...")
     spec = vim.vm.ConfigSpec()
-    spec.changeTrackingEnabled = True
     task = vm.Reconfigure(spec)
     
     # Wait for task

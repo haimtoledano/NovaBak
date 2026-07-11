@@ -128,11 +128,37 @@ def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, p
     speed_window_start = time.time()
     hasher = hashlib.sha256()
 
+    # Initialize encryption if needed
+    from security import SecretManager
+    from db import SessionLocal
+    from models import Config
+
+    encryptor = None
+    encryption_iv = None
+
+    db = SessionLocal()
+    try:
+        config = db.query(Config).first()
+        if config and config.encryption_key:
+            import os
+            encryption_iv = os.urandom(16)
+            encryptor, _ = SecretManager.get_stream_cipher(config.encryption_key, encryption_iv)
+    except Exception as e:
+        log_warn(f"Failed to check encryption config: {e}")
+    finally:
+        db.close()
+
     storage.makedirs(os.path.dirname(dest_rel_path))
 
     # We use a context manager for the storage writer
     with storage.open_write(dest_rel_path) as f:
-        # Optimization for local files (sparse support)
+        # Write IV at the beginning of the file if encrypting
+        if encryptor and encryption_iv:
+            f.write(b'ENC1')
+            f.write(encryption_iv)
+            bytes_written += 20
+            
+        # Optimization for local files (sparse support) only if not encrypting
         is_local = hasattr(storage, 'base_path')
         zero_chunk = b'\x00' * CHUNK_SIZE if is_local else None
 
@@ -140,27 +166,33 @@ def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, p
             if is_cancelled_func and is_cancelled_func():
                 raise Exception("Backup cancelled by user")
             if chunk:
-                # Update hash
+                # Update hash (hash the original unencrypted chunk for integrity checking!)
                 hasher.update(chunk)
                 
-                # Thin provisioning stream optimization (only for local files with seek support)
-                if is_local and len(chunk) == CHUNK_SIZE and chunk == zero_chunk:
+                # Encrypt if needed
+                if encryptor:
+                    write_chunk = encryptor.update(chunk)
+                else:
+                    write_chunk = chunk
+                
+                # Thin provisioning stream optimization (only for local files with seek support AND no encryption)
+                if not encryptor and is_local and len(chunk) == CHUNK_SIZE and chunk == zero_chunk:
                     if hasattr(f, 'seek'):
                         f.seek(CHUNK_SIZE, os.SEEK_CUR)
                         bytes_written += CHUNK_SIZE
                     else:
-                        f.write(chunk)
-                        bytes_written += len(chunk)
-                elif is_local and not chunk.strip(b'\x00'):
+                        f.write(write_chunk)
+                        bytes_written += len(write_chunk)
+                elif not encryptor and is_local and not chunk.strip(b'\x00'):
                     if hasattr(f, 'seek'):
                         f.seek(len(chunk), os.SEEK_CUR)
                         bytes_written += len(chunk)
                     else:
-                        f.write(chunk)
-                        bytes_written += len(chunk)
+                        f.write(write_chunk)
+                        bytes_written += len(write_chunk)
                 else:
-                    f.write(chunk)
-                    bytes_written += len(chunk)
+                    f.write(write_chunk)
+                    bytes_written += len(write_chunk)
                     
                 # Update progress and speed every chunk
                 now = time.time()
@@ -608,22 +640,75 @@ def _upload_file_http(si, datastore_name, dest_rel_path, storage, source_rel_pat
 
     log_info(f"[UPLOAD] {source_rel_path} to [{datastore_name}] {dest_rel_path}")
 
+    # Check encryption config
+    from security import SecretManager
+    from db import SessionLocal
+    from models import Config
+    
+    db = SessionLocal()
+    encryption_key = None
+    try:
+        config = db.query(Config).first()
+        if config:
+            encryption_key = config.encryption_key
+    finally:
+        db.close()
+
     with storage.open_read(source_rel_path) as f:
         f_size = storage.get_size(source_rel_path)
+        decryptor = None
         
+        # Check for ENC1 marker
+        header = f.read(4)
+        if header == b'ENC1':
+            if not encryption_key:
+                raise Exception("File is encrypted but no encryption key is configured!")
+            iv = f.read(16)
+            _, decryptor = SecretManager.get_stream_cipher(encryption_key, iv)
+            f_size -= 20
+        else:
+            # Not encrypted, rewind if local or handle S3 gracefully
+            if hasattr(f, 'seek'):
+                f.seek(0)
+            else:
+                # S3 object stream, we'll need to prepend the header back in the wrapper
+                pass
+
         class CancelableStreamWrapper:
-            def __init__(self, stream, size, is_cancelled_func):
+            def __init__(self, stream, size, is_cancelled_func, decryptor, prefetched_header=None):
                 self._stream = stream
                 self._size = size
                 self._is_cancelled = is_cancelled_func
                 self._read_so_far = 0
                 self._last_pct = -1
+                self._decryptor = decryptor
+                self._prefetched = prefetched_header
 
             def read(self, size=-1):
                 if self._is_cancelled and self._is_cancelled():
                     raise Exception("CancellationRequested")
                 
-                chunk = self._stream.read(size)
+                chunk = b''
+                if self._prefetched:
+                    if size > 0 and len(self._prefetched) > size:
+                        chunk = self._prefetched[:size]
+                        self._prefetched = self._prefetched[size:]
+                        return chunk
+                    else:
+                        chunk = self._prefetched
+                        self._prefetched = None
+                        if size > 0:
+                            size -= len(chunk)
+                
+                read_chunk = self._stream.read(size)
+                if not read_chunk and not chunk:
+                    return b''
+                    
+                if self._decryptor and read_chunk:
+                    read_chunk = self._decryptor.update(read_chunk)
+                    
+                chunk += read_chunk
+                
                 if chunk and self._size > 0 and progress_callback:
                     self._read_so_far += len(chunk)
                     file_pct = self._read_so_far / self._size
@@ -637,9 +722,13 @@ def _upload_file_http(si, datastore_name, dest_rel_path, storage, source_rel_pat
             def __len__(self):
                 return self._size
                 
-        wrapped_stream = CancelableStreamWrapper(f, f_size, is_cancelled_func)
+        # Only pass header to wrapper if it wasn't ENC1 and stream couldn't seek
+        prefetched = header if (header != b'ENC1' and not hasattr(f, 'seek')) else None
+        wrapped_stream = CancelableStreamWrapper(f, f_size, is_cancelled_func, decryptor, prefetched)
 
         try:
+            # We must use chunked transfer encoding because requests requires an exact Content-Length matching the body
+            # We provide Content-Length = f_size
             headers = {'Content-Length': str(f_size)}
             resp = requests.put(url, data=wrapped_stream, cookies=cookies, verify=False, timeout=7200, headers=headers)
             if resp.status_code not in [200, 201]:

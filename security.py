@@ -1,5 +1,8 @@
 import os
+import base64
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 from config_env import DATA_DIR
 
 class SecretManager:
@@ -51,3 +54,26 @@ class SecretManager:
         except Exception:
             # If decryption fails, it may have been corrupted or key changed. Return original.
             return ciphertext
+
+    @staticmethod
+    def get_stream_cipher(key_b64: str, iv: bytes):
+        """
+        Returns a (encryptor, decryptor) tuple for AES-CTR mode.
+        key_b64 must be a base64 encoded 32-byte key.
+        iv must be a 16-byte initialization vector (nonce).
+        CTR mode requires the exact same IV for decryption.
+        """
+        if not key_b64:
+            return None, None
+            
+        try:
+            key = base64.b64decode(key_b64)
+            if len(key) != 32:
+                raise ValueError("Key must be 32 bytes for AES-256")
+                
+            cipher = Cipher(algorithms.AES(key), modes.CTR(iv), backend=default_backend())
+            return cipher.encryptor(), cipher.decryptor()
+        except Exception as e:
+            from logger_util import log_error
+            log_error(f"Failed to initialize stream cipher: {e}")
+            return None, None

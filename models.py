@@ -56,13 +56,39 @@ class ESXiHost(Base):
     # Establish a relationship with VMs
     vms = relationship("VM", back_populates="esxi_host", cascade="all, delete-orphan")
 
-class Config(Base):
-    __tablename__ = "config"
+class StorageTarget(Base):
+    __tablename__ = "storage_targets"
     id = Column(Integer, primary_key=True, index=True)
-    # TrueNAS SMB Config
+    name = Column(String, unique=True, index=True) # User-friendly name
+    is_default = Column(Boolean, default=False)
+    
+    storage_type = Column(String, default="SMB") # SMB, NFS, S3
+    
+    # SMB Fields
     smb_unc_path = Column(String, default="")
     smb_user = Column(String, default="")
     smb_password = Column(String, default="")
+    
+    # NFS Fields
+    nfs_path = Column(String, default="")
+    
+    # S3 Fields
+    s3_endpoint = Column(String, default="")
+    s3_access_key = Column(String, default="")
+    s3_secret_key = Column(String, default="")
+    s3_bucket = Column(String, default="")
+    s3_region = Column(String, default="us-east-1")
+    
+    # Relationships
+    vms = relationship("VM", back_populates="storage_target")
+
+class Config(Base):
+    __tablename__ = "config"
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Global Backup Encryption Key (AES-256 base64 encoded)
+    encryption_key = Column(String, nullable=True)
+    
     # Email Settings
     smtp_server = Column(String, default="")
     smtp_port = Column(Integer, default=587)
@@ -96,15 +122,6 @@ class Config(Base):
     datastore_est_multiplier = Column(Float, default=2.0)
     scheduler_paused = Column(Boolean, default=False)
 
-    # Storage Settings
-    storage_type = Column(String, default="SMB") # SMB, NFS, S3
-    nfs_path = Column(String, default="")
-    s3_endpoint = Column(String, default="")
-    s3_access_key = Column(String, default="")
-    s3_secret_key = Column(String, default="")
-    s3_bucket = Column(String, default="")
-    s3_region = Column(String, default="us-east-1")
-
 class VM(Base):
     """List of VMs fetched from ESXi and marked for backup"""
     __tablename__ = "vms"
@@ -113,6 +130,10 @@ class VM(Base):
     # Foreign Key associating VM with a specific ESXi Host
     esxi_host_id = Column(Integer, ForeignKey("esxi_hosts.id"))
     esxi_host = relationship("ESXiHost", back_populates="vms")
+
+    # Foreign Key associating VM with a specific Storage Target (nullable means use default)
+    storage_target_id = Column(Integer, ForeignKey("storage_targets.id"), nullable=True)
+    storage_target = relationship("StorageTarget", back_populates="vms")
     
     vm_name = Column(String, unique=True)
     is_selected = Column(Boolean, default=False)

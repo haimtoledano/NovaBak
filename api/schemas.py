@@ -38,35 +38,54 @@ class ApiKeyInfo(BaseModel):
     last_used_at: Optional[str] = None
 
 
-class StorageConfigUpdate(BaseModel):
+class StorageTargetCreate(BaseModel):
+    name: str
+    is_default: Optional[bool] = False
+    storage_type: str = "SMB"
+    smb_unc_path: Optional[str] = ""
+    smb_user: Optional[str] = ""
+    smb_password: Optional[str] = ""
+    nfs_path: Optional[str] = ""
+    s3_endpoint: Optional[str] = ""
+    s3_access_key: Optional[str] = ""
+    s3_secret_key: Optional[str] = ""
+    s3_bucket: Optional[str] = ""
+    s3_region: Optional[str] = "us-east-1"
+
+
+class StorageTargetUpdate(BaseModel):
+    name: Optional[str] = None
+    is_default: Optional[bool] = None
     storage_type: Optional[str] = None
-    nfs_path: Optional[str] = None
     smb_unc_path: Optional[str] = None
     smb_user: Optional[str] = None
     smb_password: Optional[str] = None
+    nfs_path: Optional[str] = None
     s3_endpoint: Optional[str] = None
     s3_access_key: Optional[str] = None
     s3_secret_key: Optional[str] = None
     s3_bucket: Optional[str] = None
     s3_region: Optional[str] = None
-    perf_parallel_threads: Optional[int] = None
-    perf_compression_level: Optional[int] = None
-    backup_timeout_mins: Optional[int] = None
-    max_global_backups: Optional[int] = None
-    max_backups_per_host: Optional[int] = None
-    datastore_min_free_pct: Optional[int] = None
-    datastore_headroom_gb: Optional[int] = None
-    datastore_est_multiplier: Optional[float] = None
 
 
-class ConfigResponse(BaseModel):
+class StorageTargetResponse(BaseModel):
+    id: int
+    name: str
+    is_default: bool
     storage_type: str
-    nfs_path: str
     smb_unc_path: str
     smb_user: str
+    nfs_path: str
     s3_endpoint: str
     s3_bucket: str
     s3_region: str
+    
+    class Config:
+        from_attributes = True
+
+
+class ConfigResponse(BaseModel):
+    encryption_key: Optional[str] = None
     perf_parallel_threads: int
     perf_compression_level: int
     backup_timeout_mins: int
@@ -88,16 +107,7 @@ class ConfigResponse(BaseModel):
 
 
 class ConfigUpdate(BaseModel):
-    storage_type: Optional[str] = None
-    nfs_path: Optional[str] = None
-    smb_unc_path: Optional[str] = None
-    smb_user: Optional[str] = None
-    smb_password: Optional[str] = None
-    s3_endpoint: Optional[str] = None
-    s3_access_key: Optional[str] = None
-    s3_secret_key: Optional[str] = None
-    s3_bucket: Optional[str] = None
-    s3_region: Optional[str] = None
+    encryption_key: Optional[str] = None
     perf_parallel_threads: Optional[int] = None
     perf_compression_level: Optional[int] = None
     backup_timeout_mins: Optional[int] = None
@@ -141,21 +151,23 @@ class ESXiHostResponse(BaseModel):
     host_type: str
 
 
-class VmUpdate(BaseModel):
+class VMUpdateRequest(BaseModel):
     is_selected: Optional[bool] = None
     schedule_hour: Optional[int] = None
     schedule_minute: Optional[int] = None
     retention_count: Optional[int] = None
+    storage_target_id: Optional[int] = None
     is_job_active: Optional[bool] = None
     power_off_for_backup: Optional[bool] = None
     schedule_frequency: Optional[str] = None
     schedule_days: Optional[str] = None
 
 
-class VmResponse(BaseModel):
+class VMResponse(BaseModel):
     id: int
+    esxi_host_id: int
+    storage_target_id: Optional[int] = None
     vm_name: str
-    esxi_host_id: Optional[int]
     is_selected: bool
     cpu_count: int
     memory_mb: int

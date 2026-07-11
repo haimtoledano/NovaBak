@@ -7,11 +7,12 @@ import auth
 from api.deps import get_db, get_api_user, require_api_role, bearer_scheme, _user_from_token, cookie_sec
 from api.schemas import (
     LoginRequest, TokenResponse, ApiKeyCreateRequest, ApiKeyCreateResponse, ApiKeyInfo,
-    StorageConfigUpdate, ConfigResponse, ConfigUpdate, TestResult,
-    ESXiHostCreate, ESXiHostResponse, VmUpdate, VmResponse, SyncResult,
+    ConfigResponse, ConfigUpdate, TestResult,
+    ESXiHostCreate, ESXiHostResponse, VMUpdateRequest, VMResponse, SyncResult,
     UserResponse, UserCreateRequest, UserCreateResponse, UserRoleUpdate,
     PasswordResetResponse, ProfileUpdate, PasswordChangeRequest, BackupLogEntry, SystemLogsResponse,
     RestoreCreateRequest, RestoreResponse, OverviewResponse,
+    StorageTargetCreate, StorageTargetUpdate, StorageTargetResponse
 )
 from models import User, ApiKey
 from services import backup_ops
@@ -155,14 +156,43 @@ def update_config(
     return ConfigResponse(**backup_ops.config_to_dict(config))
 
 
-@router.put("/config/storage", response_model=ConfigResponse)
-def update_storage(
-    body: StorageConfigUpdate,
+# ─── Storage Targets ──────────────────────────────────────────────────────────
+
+@router.get("/storage-targets", response_model=List[StorageTargetResponse])
+def list_storage_targets(db: Session = Depends(get_db), user: User = Depends(require_api_role("admin", "operator"))):
+    return backup_ops.list_storage_targets(db)
+
+@router.post("/storage-targets", response_model=StorageTargetResponse)
+def create_storage_target(
+    body: StorageTargetCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_api_role("admin")),
+    user: User = Depends(require_api_role("admin"))
 ):
-    config = backup_ops.update_storage_config(db, body.model_dump(exclude_unset=True))
-    return ConfigResponse(**backup_ops.config_to_dict(config))
+    return backup_ops.create_storage_target(db, body.model_dump())
+
+@router.put("/storage-targets/{target_id}", response_model=StorageTargetResponse)
+def update_storage_target(
+    target_id: int,
+    body: StorageTargetUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin"))
+):
+    try:
+        return backup_ops.update_storage_target(db, target_id, body.model_dump(exclude_unset=True))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.delete("/storage-targets/{target_id}")
+def delete_storage_target(
+    target_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_api_role("admin"))
+):
+    try:
+        backup_ops.delete_storage_target(db, target_id)
+        return {"ok": True}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.post("/config/storage/test", response_model=TestResult)
@@ -343,17 +373,17 @@ def sync_vms(
 
 # ─── VMs ──────────────────────────────────────────────────────────────────────
 
-@router.get("/vms", response_model=List[VmResponse])
+@router.get("/vms", response_model=List[VMResponse])
 def list_vms(db: Session = Depends(get_db), user: User = Depends(get_api_user)):
     from models import VM
     vms = db.query(VM).order_by(VM.vm_name).all()
-    return [VmResponse(**backup_ops.vm_to_dict(v)) for v in vms]
+    return [VMResponse(**backup_ops.vm_to_dict(v)) for v in vms]
 
 
-@router.patch("/vms/{vm_id}", response_model=VmResponse)
+@router.patch("/vms/{vm_id}", response_model=VMResponse)
 def patch_vm(
     vm_id: int,
-    body: VmUpdate,
+    body: VMUpdateRequest,
     db: Session = Depends(get_db),
     user: User = Depends(require_api_role("admin", "operator")),
 ):
@@ -361,7 +391,7 @@ def patch_vm(
         vm = backup_ops.update_vm_job(db, vm_id, body.model_dump(exclude_unset=True))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return VmResponse(**backup_ops.vm_to_dict(vm))
+    return VMResponse(**backup_ops.vm_to_dict(vm))
 
 
 @router.post("/vms/{vm_id}/run")
