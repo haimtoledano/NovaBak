@@ -45,13 +45,29 @@ from config_env import SECRET_KEY
 ALGORITHM = "HS256"
 
 def create_access_token(username: str):
+    expire = datetime.utcnow() + timedelta(minutes=30)
+    to_encode = {"sub": username, "exp": expire, "type": "access"}
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_refresh_token(username: str):
     expire = datetime.utcnow() + timedelta(days=7)
-    to_encode = {"sub": username, "exp": expire}
+    to_encode = {"sub": username, "exp": expire, "type": "refresh"}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def decode_access_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "access" and "type" in payload:
+            return None
+        return payload.get("sub")
+    except JWTError:
+        return None
+
+def decode_refresh_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "refresh":
+            return None
         return payload.get("sub")
     except JWTError:
         return None

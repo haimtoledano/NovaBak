@@ -79,11 +79,16 @@ def test_reset_mfa(db_session):
 
 def test_change_password(db_session):
     user, temp_pwd = create_user(db_session, "pwduser", "admin", "system")
-
-    target = change_password(db_session, user.username, temp_pwd, "NewPassword123")
-
+    
+    # Test failure due to complexity
+    with pytest.raises(ValueError, match="uppercase letter"):
+        change_password(db_session, user.username, temp_pwd, "newpassword123")
+        
+    # Test success
+    target = change_password(db_session, user.username, temp_pwd, "NewPassword123!")
+    
     db_user = db_session.query(User).filter(User.id == user.id).first()
-    assert auth.verify_password("NewPassword123", db_user.hashed_password) is True
+    assert auth.verify_password("NewPassword123!", db_user.hashed_password) is True
 
 
 def test_update_role(db_session):

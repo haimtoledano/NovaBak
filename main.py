@@ -26,6 +26,15 @@ app = FastAPI(title="NovaBak")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
 from api.v1.router import router as v1_router
 v1_app = FastAPI(
     title="NovaBak API v1",
@@ -109,16 +118,33 @@ def login_page(request: Request, error: str = None):
 @app.post("/login")
 @limiter.limit("5/minute")
 def login_post(request: Request, username: str = Form(...), password: str = Form(...), mfa_code: str = Form(None), db: Session = Depends(get_db)):
+    from datetime import datetime, timedelta
     user = db.query(User).filter(User.username == username).first()
+    
+    if user and user.locked_until and user.locked_until > datetime.utcnow():
+        return templates.TemplateResponse("login.html", {"request": request, "error": f"Account locked until {user.locked_until.strftime('%H:%M:%S UTC')}"})
+        
     if not user or not auth.verify_password(password, user.hashed_password):
+        if user:
+            user.failed_login_attempts += 1
+            if user.failed_login_attempts >= 5:
+                user.locked_until = datetime.utcnow() + timedelta(minutes=15)
+            db.commit()
         return templates.TemplateResponse("login.html", {"request": request, "error": "Incorrect username or password"})
         
     if user.is_mfa_enabled:
         if not mfa_code or not auth.verify_totp(user.mfa_secret, mfa_code):
             return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid MFA Code"})
             
+    # Reset failed attempts
+    if user.failed_login_attempts > 0:
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        db.commit()
+            
     # Login success
     token = auth.create_access_token(username)
+    refresh_token = auth.create_refresh_token(username)
     
     # If MFA not enabled, force setup
     if not user.is_mfa_enabled:
@@ -131,12 +157,28 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
         
         response = templates.TemplateResponse("mfa_setup.html", {"request": request, "qr_code": qr_b64, "secret": secret})
         response.set_cookie(key="session_token", value=token, httponly=True)
+        response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, path="/refresh")
         return response
 
     from logger_util import log_audit
     log_audit(db, username, "login", "User logged in", request.client.host)
     response = RedirectResponse(url="/", status_code=303)
     response.set_cookie(key="session_token", value=token, httponly=True)
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, path="/refresh")
+    return response
+
+@app.post("/refresh")
+def refresh_token(request: Request):
+    refresh_cookie = request.cookies.get("refresh_token")
+    if not refresh_cookie:
+        raise HTTPException(status_code=401, detail="No refresh token")
+    username = auth.decode_refresh_token(refresh_cookie)
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    
+    new_access_token = auth.create_access_token(username)
+    response = JSONResponse({"status": "ok"})
+    response.set_cookie(key="session_token", value=new_access_token, httponly=True, path="/")
     return response
 
 @app.post("/mfa_verify")

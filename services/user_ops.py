@@ -117,8 +117,16 @@ def change_password(db, username, current_password, new_password, ip_address=Non
         raise ValueError("User not found")
     if not auth.verify_password(current_password, user.hashed_password):
         raise ValueError("Incorrect current password")
-    if len(new_password) < 6:
-        raise ValueError("New password must be at least 6 characters")
+    
+    # Password complexity requirements
+    if len(new_password) < 8:
+        raise ValueError("New password must be at least 8 characters")
+    if not any(c.isupper() for c in new_password):
+        raise ValueError("New password must contain at least one uppercase letter")
+    if not any(c.islower() for c in new_password):
+        raise ValueError("New password must contain at least one lowercase letter")
+    if not any(c.isdigit() for c in new_password):
+        raise ValueError("New password must contain at least one number")
         
     user.hashed_password = auth.get_password_hash(new_password)
     db.commit()

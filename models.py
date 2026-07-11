@@ -29,6 +29,8 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     email = Column(String, default="")  # Personal email for notifications
     notify_subscriptions = Column(String, default="")  # Comma-separated event keys
+    failed_login_attempts = Column(Integer, default=0)
+    locked_until = Column(DateTime, nullable=True)
     api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
 
 
