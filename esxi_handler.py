@@ -461,3 +461,106 @@ def register_vm(si, datastore_name, vmx_rel_path, vm_name):
     except Exception as e:
         return False, str(e)
 
+# --- CBT (Changed Block Tracking) Helpers ---
+import time
+
+def enable_cbt(vm):
+    """Enables Changed Block Tracking (CBT) on a VM if not already enabled."""
+    if vm.config and vm.config.changeTrackingEnabled:
+        return True
+    
+    log_info(f"Enabling CBT on VM {vm.name}...")
+    spec = vim.vm.ConfigSpec()
+    spec.changeTrackingEnabled = True
+    task = vm.Reconfigure(spec)
+    
+    # Wait for task
+    while task.info.state not in [vim.TaskInfo.State.success, vim.TaskInfo.State.error]:
+        time.sleep(1)
+        
+    if task.info.state == vim.TaskInfo.State.success:
+        log_info(f"Successfully enabled CBT on VM {vm.name}.")
+        return True
+    else:
+        log_error(f"Failed to enable CBT on VM {vm.name}: {task.info.error}")
+        return False
+
+def query_changed_blocks(vm, snapshot, change_id="*"):
+    """
+    Queries changed disk areas for a VM against a snapshot.
+    change_id='*' gets all allocated blocks (Full backup CBT).
+    Otherwise pass a previous change_id for Incremental.
+    Returns a dict mapping disk_key -> list of (offset, length).
+    """
+    if not vm.config.changeTrackingEnabled:
+        raise ValueError(f"CBT is not enabled on VM {vm.name}")
+        
+    disk_changes = {}
+    for device in vm.config.hardware.device:
+        if isinstance(device, vim.vm.device.VirtualDisk):
+            try:
+                # Query changed blocks
+                changes = vm.QueryChangedDiskAreas(snapshot=snapshot, deviceKey=device.key, offset=0, changeId=change_id)
+                blocks = []
+                if changes.diskArea:
+                    for area in changes.diskArea:
+                        blocks.append((area.start, area.length))
+                disk_changes[device.key] = blocks
+            except Exception as e:
+                log_warn(f"Failed to query changed blocks for disk {device.key}: {e}")
+                
+    return disk_changes
+
+
+def disconnect_vnics(si, vm_name):
+    """Disconnects all virtual network adapters for a VM (useful for Test Restores)."""
+    vm = _get_vm(si, vm_name)
+    if not vm:
+        return False, "VM not found"
+
+    specs = []
+    for device in vm.config.hardware.device:
+        if isinstance(device, vim.vm.device.VirtualEthernetCard):
+            device.connectable.connected = False
+            device.connectable.startConnected = False
+            
+            spec = vim.vm.device.VirtualDeviceSpec()
+            spec.operation = vim.vm.device.VirtualDeviceSpec.Operation.edit
+            spec.device = device
+            specs.append(spec)
+
+    if specs:
+        config_spec = vim.vm.ConfigSpec(deviceChange=specs)
+        task = vm.Reconfigure(config_spec)
+        while task.info.state not in [vim.TaskInfo.State.success, vim.TaskInfo.State.error]:
+            time.sleep(1)
+        if task.info.state == vim.TaskInfo.State.success:
+            return True, "vNICs disconnected"
+        else:
+            return False, f"Failed to disconnect vNICs: {task.info.error}"
+    return True, "No vNICs found"
+
+def unregister_and_delete_vm(si, vm_name):
+    """Unregisters and securely deletes a VM and its files from the datastore."""
+    vm = _get_vm(si, vm_name)
+    if not vm:
+        return False, "VM not found"
+        
+    try:
+        # First ensure powered off
+        if vm.runtime.powerState == vim.VirtualMachine.PowerState.poweredOn:
+            task = vm.PowerOffVM_Task()
+            while task.info.state not in [vim.TaskInfo.State.success, vim.TaskInfo.State.error]:
+                time.sleep(1)
+                
+        # Destroy VM (removes from inventory AND deletes files)
+        task = vm.Destroy_Task()
+        while task.info.state not in [vim.TaskInfo.State.success, vim.TaskInfo.State.error]:
+            time.sleep(2)
+            
+        if task.info.state == vim.TaskInfo.State.success:
+            return True, "VM destroyed successfully"
+        else:
+            return False, f"Destroy task failed: {task.info.error}"
+    except Exception as e:
+        return False, str(e)

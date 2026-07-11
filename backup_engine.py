@@ -11,6 +11,7 @@ import ssl
 import time
 import datetime
 import requests
+import hashlib
 from pyVmomi import vim
 from urllib.parse import quote as url_quote
 from logger_util import log_info, log_warn, log_error
@@ -122,6 +123,7 @@ def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, p
     bytes_written = 0
     speed_window_bytes = 0
     speed_window_start = time.time()
+    hasher = hashlib.sha256()
 
     storage.makedirs(os.path.dirname(dest_rel_path))
 
@@ -135,6 +137,9 @@ def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, p
             if is_cancelled_func and is_cancelled_func():
                 raise Exception("Backup cancelled by user")
             if chunk:
+                # Update hash
+                hasher.update(chunk)
+                
                 # Thin provisioning stream optimization (only for local files with seek support)
                 if is_local and len(chunk) == CHUNK_SIZE and chunk == zero_chunk:
                     if hasattr(f, 'seek'):
@@ -178,9 +183,10 @@ def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, p
                 log_warn(f"[DOWNLOAD] Warning: Truncate skipped: {e}")
 
     size_mb = bytes_written / (1024 * 1024)
-    log_info(f"[DOWNLOAD] Complete: {size_mb:.1f} MB processed for {os.path.basename(dest_rel_path)}")
+    final_hash = hasher.hexdigest()
+    log_info(f"[DOWNLOAD] Complete: {size_mb:.1f} MB processed for {os.path.basename(dest_rel_path)}. SHA-256: {final_hash}")
 
-    return bytes_written
+    return bytes_written, final_hash
 
 
 # ---------------------------------------------------------------------------
@@ -804,21 +810,21 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
                     flat_end  = 5  + (85 * (idx * 2 + 2) // (total_disks * 2))
 
                     log_info(f"[BACKUP] [DIRECT] Streaming descriptor ({idx+1}/{total_disks}): {disk_basename}")
-                    _download_file_http(
+                    _, desc_hash = _download_file_http(
                         si, disk['ds_name'], disk['rel_path'], storage, f"{dest_rel_dir}/{disk_basename}",
                         progress_callback=progress_callback, progress_base=desc_base, progress_total=2,
                         speed_callback=speed_callback, is_cancelled_func=is_cancelled_func
                     )
-                    files_downloaded.append(disk_basename)
+                    files_downloaded.append((disk_basename, desc_hash))
 
                     log_info(f"[BACKUP] [DIRECT] Streaming flat disk ({idx+1}/{total_disks}): {flat_basename}")
-                    _download_file_http(
+                    _, flat_hash = _download_file_http(
                         si, disk['ds_name'], flat_rel_path, storage, f"{dest_rel_dir}/{flat_basename}",
                         progress_callback=progress_callback, progress_base=flat_base,
                         progress_total=flat_end - flat_base, speed_callback=speed_callback,
                         is_cancelled_func=is_cancelled_func
                     )
-                    files_downloaded.append(flat_basename)
+                    files_downloaded.append((flat_basename, flat_hash))
 
             # ==============================================================
             #  PATH B: POWERED ON — Snapshot + CopyVirtualDisk (safe)
@@ -887,19 +893,20 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
                     dl_mid   = dl_start + 2
                     dl_end   = 50 + (38 * (idx + 1) // len(copied_disks))
 
-                    _download_file_http(
+                    _, desc_hash = _download_file_http(
                         si, ds_name, temp_rel_path, storage, f"{dest_rel_dir}/{disk_basename}",
                         progress_callback=progress_callback, progress_base=dl_start, progress_total=2,
                         speed_callback=speed_callback, is_cancelled_func=is_cancelled_func
                     )
-                    files_downloaded.append(disk_basename)
-                    _download_file_http(
+                    files_downloaded.append((disk_basename, desc_hash))
+                    
+                    _, flat_hash = _download_file_http(
                         si, ds_name, flat_rel_path, storage, f"{dest_rel_dir}/{flat_basename}",
                         progress_callback=progress_callback, progress_base=dl_mid,
                         progress_total=dl_end - dl_mid, speed_callback=speed_callback,
                         is_cancelled_func=is_cancelled_func
                     )
-                    files_downloaded.append(flat_basename)
+                    files_downloaded.append((flat_basename, flat_hash))
 
                 # Step B4: Cleanup temp dir
                 if progress_callback: progress_callback(90)
@@ -922,39 +929,41 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
             if vmx_ds_name and vmx_rel_path:
                 vmx_filename = os.path.basename(vmx_rel_path)
                 try:
-                    _download_file_http(si, vmx_ds_name, vmx_rel_path, storage, f"{dest_rel_dir}/{vmx_filename}")
-                    files_downloaded.append(vmx_filename)
+                    _, vmx_hash = _download_file_http(si, vmx_ds_name, vmx_rel_path, storage, f"{dest_rel_dir}/{vmx_filename}")
+                    files_downloaded.append((vmx_filename, vmx_hash))
                     log_info(f"[BACKUP] VMX saved: {vmx_filename}")
                 except Exception as e:
                     log_warn(f"[BACKUP] VMX warning: {e}")
 
             if progress_callback: progress_callback(100)
             method = "direct" if is_off else "snapshot+copy"
-            return True, f"Backup completed [{method}]: {len(files_downloaded)} file(s) saved to storage"
+            
+            # Create a combined JSON string of checksums to store in DB
+            import json
+            checksum_data = {f: h for f, h in files_downloaded}
+            checksum_json = json.dumps(checksum_data)
+            
+            return True, f"Backup completed [{method}]: {len(files_downloaded)} file(s) saved to storage", checksum_json
 
 
         except Exception as e:
             if (is_cancelled_func and is_cancelled_func()) or "cancelled" in str(e).lower():
-                return False, "Backup cancelled by user"
+                return False, "Backup cancelled by user", None
             last_error = str(e)
             log_error(f"[BACKUP] Attempt {attempt} failed: {last_error}")
 
             if snap_name:
                 try: _remove_backup_snapshot(si, vm_name, snap_name, timeout_mins=30)
                 except Exception as ce: log_error(f"[BACKUP] Snapshot cleanup error: {ce}")
-                snap_name = None
 
-            if temp_ds_dir:
-                try:
-                    c2 = si.RetrieveContent()
-                    dc2 = c2.rootFolder.childEntity[0]
-                    c2.fileManager.DeleteDatastoreFile_Task(name=temp_ds_dir, datacenter=dc2)
-                except Exception: pass
-                temp_ds_dir = None
+            try:
+                if temp_ds_dir and 'fm' in locals() and 'datacenter' in locals():
+                    fm.DeleteDatastoreFile_Task(name=temp_ds_dir, datacenter=datacenter)
+            except Exception as ce:
+                log_error(f"[BACKUP] Temp cleanup error: {ce}")
 
             if attempt < max_retries:
-                log_info(f"[BACKUP] Waiting 15s before retry...")
-                time.sleep(15)
+                log_warn(f"[BACKUP] Retrying in 10s... (Attempt {attempt+1}/{max_retries})")
+                time.sleep(10)
 
-    return False, f"Backup failed after {max_retries} attempts. Last error: {last_error}"
-
+    return False, f"Backup failed after 3 attempts. Last error: {last_error}", None

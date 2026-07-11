@@ -783,6 +783,7 @@
                             <div class="text-sm font-medium truncate">${l.vm_name}</div>
                             <div class="text-[11px] truncate" style="color: var(--text-muted)">${l.message || ''}</div>
                             <div class="text-[10px] font-mono mt-0.5 opacity-50">${overviewFormatTs(l.timestamp)}</div>
+                            ${l.checksum ? `<div class="text-[9px] font-mono mt-1 px-1.5 py-0.5 rounded opacity-60 truncate" style="background: var(--bg-card)">SHA-256: ${l.checksum}</div>` : ''}
                         </div>
                     </div>`).join('') : '<div class="text-sm py-6 text-center opacity-50 italic">No recent activity</div>';
             }
@@ -1890,6 +1891,17 @@
                                 <span class="input-label">New VM Name</span>
                                 <input type="text" name="target_name" id="restoreTargetName" placeholder="e.g. MyVM_Restored" required class="w-full py-2.5 px-3 mt-1 text-sm">
                             </div>
+                            
+                            <div class="flex items-start gap-2 mt-2">
+                                <input type="checkbox" name="is_test_restore" value="True" id="isTestRestore" class="mt-1">
+                                <label for="isTestRestore" class="text-sm">
+                                    <span class="font-medium">Run as Test Restore</span>
+                                    <p class="text-[11px] opacity-70 leading-tight mt-0.5">
+                                        The cloned VM will be booted with its network disconnected to avoid IP conflicts, verified, and then deleted automatically.
+                                    </p>
+                                </label>
+                            </div>
+
                             <button type="submit" class="btn-primary py-3 font-semibold mt-1">Deploy Image</button>
                         </div>
                     </form>

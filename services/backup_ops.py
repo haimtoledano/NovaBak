@@ -52,6 +52,8 @@ def config_to_dict(config):
         "imap_port": config.imap_port,
         "imap_user": config.imap_user,
         "imap_use_ssl": config.imap_use_ssl,
+        "webhook_url": config.webhook_url,
+        "daily_report_time": config.daily_report_time,
     }
 
 
@@ -93,6 +95,10 @@ def update_storage_config(db, data):
         config.datastore_headroom_gb = data["datastore_headroom_gb"]
     if "datastore_est_multiplier" in data and data["datastore_est_multiplier"] is not None:
         config.datastore_est_multiplier = data["datastore_est_multiplier"]
+    if "webhook_url" in data and data["webhook_url"] is not None:
+        config.webhook_url = data["webhook_url"]
+    if "daily_report_time" in data and data["daily_report_time"] is not None:
+        config.daily_report_time = data["daily_report_time"]
     db.commit()
     db.refresh(config)
     return config
@@ -381,6 +387,7 @@ def list_backup_logs(db, limit=100):
             "timestamp": log.timestamp.isoformat() if log.timestamp else None,
             "status": log.status,
             "message": log.message,
+            "checksum": getattr(log, 'checksum', None),
         }
         for log in logs
     ]

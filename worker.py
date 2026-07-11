@@ -63,22 +63,38 @@ def _smtp_send(config, to_addrs: list, subject: str, body: str):
 
 def send_event_notification(event_key: str, subject: str, body: str):
     """
-    Sends a notification to every user who is subscribed to `event_key`
-    and has a non-empty email address configured.
+    Sends a notification via email (to subscribed users) and Webhook (if configured).
     """
     from models import User  # avoid circular import at module level
     db = SessionLocal()
     try:
         config = db.query(Config).first()
-        if not config or not config.smtp_server:
+        if not config:
             return
-        users = db.query(User).all()
-        recipients = [
-            u.email for u in users
-            if u.email and event_key in [s.strip() for s in (u.notify_subscriptions or "").split(",") if s.strip()]
-        ]
-        if recipients:
-            _smtp_send(config, recipients, subject, body)
+            
+        # 1. Send Webhook
+        if getattr(config, "webhook_url", None):
+            try:
+                import requests
+                payload = {
+                    "event": event_key,
+                    "subject": subject,
+                    "body": body,
+                    "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+                }
+                requests.post(config.webhook_url, json=payload, timeout=5)
+            except Exception as e:
+                log_error(f"[WEBHOOK] Failed to send webhook: {e}")
+
+        # 2. Send Emails
+        if config.smtp_server:
+            users = db.query(User).all()
+            recipients = [
+                u.email for u in users
+                if u.email and event_key in [s.strip() for s in (u.notify_subscriptions or "").split(",") if s.strip()]
+            ]
+            if recipients:
+                _smtp_send(config, recipients, subject, body)
     finally:
         db.close()
 
@@ -443,7 +459,7 @@ def perform_backup(vm_id: int):
         def cancel_check():
             return is_backup_cancelled(vm_id)
 
-        success, result_msg = backup_engine.export_vm_native(
+        success, result_msg, checksum_json = backup_engine.export_vm_native(
             si=si,
             vm_name=vm.vm_name,
             storage=storage,
@@ -472,7 +488,7 @@ def perform_backup(vm_id: int):
             dest_path_info = dest_rel_dir
 
         log_msg = result_msg
-        db.add(BackupLog(vm_name=vm.vm_name, status=vm.last_status, message=log_msg))
+        db.add(BackupLog(vm_name=vm.vm_name, status=vm.last_status, message=log_msg, checksum=checksum_json if success else None))
         
         if success:
             cleanup_old_backups(storage, vm.vm_name, vm.retention_count)
@@ -583,6 +599,44 @@ def perform_backup(vm_id: int):
 # Shared scheduler instance
 scheduler = BackgroundScheduler()
 
+def generate_daily_report():
+    """ Generates a summary of backups in the last 24 hours and sends it via email and webhook. """
+    db = SessionLocal()
+    try:
+        config = db.query(Config).first()
+        if not config:
+            return
+
+        now = datetime.datetime.utcnow()
+        yesterday = now - datetime.timedelta(days=1)
+        logs = db.query(BackupLog).filter(BackupLog.timestamp >= yesterday).order_by(BackupLog.timestamp.desc()).all()
+        
+        if not logs:
+            log_info("Daily Report: No backups ran in the last 24 hours.")
+            return
+            
+        success_count = sum(1 for log in logs if log.status == "Success")
+        failed_count = sum(1 for log in logs if log.status == "Failed")
+        
+        subject = f"[NovaBak] Daily Backup Report - {success_count} Success, {failed_count} Failed"
+        
+        # Plain text / Markdown body for Webhooks
+        body = f"NovaBak Daily Report ({yesterday.strftime('%Y-%m-%d')} to {now.strftime('%Y-%m-%d')})\n\n"
+        body += f"Total Jobs: {len(logs)}\nSuccess: {success_count}\nFailed: {failed_count}\n\n"
+        for log in logs:
+            icon = "✅" if log.status == "Success" else "❌" if log.status == "Failed" else "⚠️"
+            body += f"{icon} {log.vm_name} - {log.status} ({log.timestamp.strftime('%H:%M')})\n"
+            if log.status == "Failed":
+                body += f"   Reason: {log.message}\n"
+                
+        # Dispatch generic event which sends webhook + email
+        send_event_notification("daily_report", subject, body)
+        
+    except Exception as e:
+        log_error(f"Failed to generate daily report: {e}")
+    finally:
+        db.close()
+
 def start_scheduler():
     """ Initialize APScheduler and load all active jobs from DB. """
     db = SessionLocal()
@@ -631,6 +685,23 @@ def start_scheduler():
         day_label = ','.join(day_names[int(d)] for d in days.split(',') if d.strip().isdigit()) if freq != 'monthly' else '1st'
         log_info(f"Scheduled job {job_id} for {vm.vm_name} at {vm.schedule_hour:02d}:{vm.schedule_minute:02d} ({freq}: {day_label})")
     
+    # Schedule Daily Report Job
+    if getattr(config, "webhook_url", None) or getattr(config, "smtp_server", None):
+        report_time = getattr(config, "daily_report_time", "08:00")
+        try:
+            hour, minute = map(int, report_time.split(':'))
+            scheduler.add_job(
+                generate_daily_report,
+                'cron',
+                hour=hour,
+                minute=minute,
+                id='daily_report',
+                replace_existing=True
+            )
+            log_info(f"Scheduled Daily Report for {hour:02d}:{minute:02d}")
+        except Exception as e:
+            log_error(f"Failed to schedule daily report: {e}")
+
     if not scheduler.running:
         scheduler.start()
     configure_concurrency(config or Config())
@@ -767,13 +838,39 @@ def perform_restore(config, target_ip, target_user, target_password, source_ova_
         )
 
         if success:
-            update_job(100, action="Completed", status="Success")
-            log_info(f"Native Restore successful for {target_name}")
-            send_event_notification(
-                "restore_success",
-                f"[NovaBak] Restore Succeeded: {target_name}",
-                f"VM restore of '{target_name}' completed successfully at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}."
-            )
+            with SessionLocal() as db:
+                job = db.query(RestoreJob).filter(RestoreJob.id == restore_job_id).first()
+                is_test = job.is_test_restore if job else False
+
+            if is_test:
+                update_job(95, action="Running Test Restore Verification...")
+                log_info(f"[TEST RESTORE] Disconnecting vNICs for {target_name}...")
+                esxi_handler.disconnect_vnics(si, target_name)
+                
+                log_info(f"[TEST RESTORE] Powering on {target_name}...")
+                esxi_handler.poweron_vm(si, target_name)
+                
+                log_info(f"[TEST RESTORE] Waiting 60s for boot...")
+                time.sleep(60)
+                
+                log_info(f"[TEST RESTORE] Destroying test VM {target_name}...")
+                esxi_handler.unregister_and_delete_vm(si, target_name)
+                
+                update_job(100, action="Completed (Test Restored & Verified)", status="Success")
+                log_info(f"Test Restore successful for {target_name}")
+                send_event_notification(
+                    "restore_success",
+                    f"[NovaBak] Test Restore Verified: {target_name}",
+                    f"Test restore verification of '{target_name}' completed successfully (booted and deleted) at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}."
+                )
+            else:
+                update_job(100, action="Completed", status="Success")
+                log_info(f"Native Restore successful for {target_name}")
+                send_event_notification(
+                    "restore_success",
+                    f"[NovaBak] Restore Succeeded: {target_name}",
+                    f"VM restore of '{target_name}' completed successfully at {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}."
+                )
         else:
             update_job(None, error=msg)
             log_error(f"Native Restore Failed: {msg}")

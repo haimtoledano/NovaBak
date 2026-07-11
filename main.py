@@ -646,6 +646,7 @@ async def restore(
     source_ova: str = Form(...),
     target_name: str = Form(...),
     datastore: str = Form(...),
+    is_test_restore: bool = Form(False),
     db: Session = Depends(get_db)
 ):
     require_auth(request)
@@ -665,7 +666,8 @@ async def restore(
         source_path=source_ova,
         status="In Progress",
         progress=0,
-        current_action="Initializing..."
+        current_action="Initializing...",
+        is_test_restore=is_test_restore
     )
     db.add(restore_job)
     db.commit()

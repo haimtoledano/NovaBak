@@ -51,6 +51,7 @@ class ESXiHost(Base):
     host_ip = Column(String)
     username = Column(String)
     password = Column(String) # For production this should ideally be encrypted
+    host_type = Column(String, default="esxi") # "esxi" or "vcenter"
     
     # Establish a relationship with VMs
     vms = relationship("VM", back_populates="esxi_host", cascade="all, delete-orphan")
@@ -76,7 +77,12 @@ class Config(Base):
     imap_user = Column(String, default="")
     imap_password = Column(String, default="")
     imap_use_ssl = Column(Boolean, default=True)
-    # Performance Tuning
+    
+    # Webhooks & Reporting
+    webhook_url = Column(String, default="")
+    daily_report_time = Column(String, default="08:00")
+    
+    # Performance & Concurrency Tuning
     perf_parallel_threads = Column(Integer, default=0) # 0 = default
     perf_compression_level = Column(Integer, default=0) # 0 = default
     backup_timeout_mins = Column(Integer, default=15) # Default wait for idle/consolidation
@@ -136,6 +142,15 @@ class BackupLog(Base):
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
     status = Column(String) # Success / Failed
     message = Column(String)
+
+    # CBT / Incremental Backup Fields
+    change_id = Column(String, nullable=True)
+    is_incremental = Column(Boolean, default=False)
+    parent_backup_id = Column(Integer, ForeignKey("backup_logs.id"), nullable=True)
+
+    # Verification
+    checksum = Column(String, nullable=True)
+
 class RestoreJob(Base):
     __tablename__ = "restore_jobs"
     id = Column(Integer, primary_key=True, index=True)
@@ -150,6 +165,7 @@ class RestoreJob(Base):
     start_time = Column(DateTime, default=datetime.datetime.utcnow)
     end_time = Column(DateTime, nullable=True)
     error_message = Column(String, nullable=True)
+    is_test_restore = Column(Boolean, default=False)
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
