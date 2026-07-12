@@ -369,14 +369,33 @@ def perform_backup(vm_id: int):
     log_info(f"[PID {pid}] Starting parallel backup for {vm.vm_name} on host {host.name}")
     clear_backup_cancel(vm_id)
 
-    storage = storage_util.get_storage(config)
+    from models import StorageTarget
+    target = vm.storage_target
+    if not target:
+        target = db.query(StorageTarget).filter(StorageTarget.is_default == True).first()
+    if not target:
+        msg = f"Failed: No storage target configured for {vm.vm_name}"
+        log_error(f"[PID {pid}] {msg}")
+        db.add(BackupLog(vm_name=vm.vm_name, status="Failed", message=msg))
+        vm.current_action = ""
+        vm.progress = 0
+        vm.last_status = "Failed"
+        db.commit()
+        db.close()
+        _release_and_drain(host_id)
+        return
+
+    storage = storage_util.get_storage(target)
 
     # SMB Authentication (only relevant for SMB storage type)
-    if config.storage_type == "SMB":
-        authenticate_smb(config)
+    if target.storage_type == "SMB":
+        authenticate_smb(target)
 
     try:
-        update_job(10, action="Connecting to ESXi...", status="Running")
+        vm.current_action = "Connecting to ESXi..."
+        vm.progress = 10
+        vm.status = "Running"
+        db.commit()
         host_pass = SecretManager.decrypt(host.password)
         si = esxi_handler.connect_esxi(host.host_ip, host.username, host_pass)
         if not si:
@@ -602,6 +621,9 @@ def perform_backup(vm_id: int):
                 log_error(f"[PID {pid}] Power-on step failed for {vm.vm_name}: {e}")
         
         clear_backup_cancel(vm_id)
+        vm.status = "Idle"
+        vm.is_job_active = False
+        db.commit()
         esxi_handler.Disconnect(si)
         db.close()
         _release_and_drain(host_id)

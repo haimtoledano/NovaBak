@@ -71,6 +71,20 @@
         </div>
     </div>
 
+    
+    <div class="mb-2 pt-2" style="border-top: 1px dashed var(--border-color)">
+        <span class="input-label text-[10px]">Storage Target</span>
+        <select name="storage_target_id"
+                class="w-full py-1.5 px-2 text-xs font-semibold rounded border"
+                style="border-color: var(--border-color); background: var(--bg-card); color: var(--text-main)"
+                onchange="autoSaveJob({{ vm.id }}, this.form)">
+            <option value="" {% if not vm.storage_target_id %}selected{% endif %}>Default</option>
+            {% for target in storage_targets %}
+            <option value="{{ target.id }}" {% if vm.storage_target_id == target.id %}selected{% endif %}>{{ target.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
     <div class="pt-2 mb-2" style="border-top: 1px dashed var(--border-color)">
         <div class="flex items-center gap-2">
             <span class="input-label text-[10px] shrink-0">Mode</span>

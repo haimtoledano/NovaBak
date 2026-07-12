@@ -130,7 +130,7 @@ def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, p
 
     # Initialize encryption if needed
     from security import SecretManager
-    from db import SessionLocal
+    from models import SessionLocal
     from models import Config
 
     encryptor = None
@@ -140,7 +140,6 @@ def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, p
     try:
         config = db.query(Config).first()
         if config and config.encryption_key:
-            import os
             encryption_iv = os.urandom(16)
             encryptor, _ = SecretManager.get_stream_cipher(config.encryption_key, encryption_iv)
     except Exception as e:
@@ -642,7 +641,7 @@ def _upload_file_http(si, datastore_name, dest_rel_path, storage, source_rel_pat
 
     # Check encryption config
     from security import SecretManager
-    from db import SessionLocal
+    from models import SessionLocal
     from models import Config
     
     db = SessionLocal()

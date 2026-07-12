@@ -1,10 +1,11 @@
 import os
 import sys
 import uvicorn
+from typing import Optional
 from fastapi import FastAPI, Depends, Request, Form, status, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from models import SessionLocal, init_db, Config, VM, BackupLog, User, ESXiHost, RestoreJob, StorageTarget
 import esxi_handler
@@ -542,9 +543,18 @@ def update_job(
     power_off_for_backup: bool = Form(False),
     schedule_frequency: str = Form("daily"),
     schedule_days: str = Form("0,1,2,3,4,5,6"),
+    storage_target_id: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     require_auth(request)
+    
+    target_id = None
+    if storage_target_id and storage_target_id.strip():
+        try:
+            target_id = int(storage_target_id)
+        except ValueError:
+            pass
+
     try:
         backup_ops.update_vm_job(db, vm_id, {
             "schedule_hour": schedule_hour,
@@ -553,7 +563,8 @@ def update_job(
             "is_job_active": is_job_active,
             "power_off_for_backup": power_off_for_backup,
             "schedule_frequency": schedule_frequency,
-            "schedule_days": schedule_days
+            "schedule_days": schedule_days,
+            "storage_target_id": target_id
         })
     except ValueError:
         pass
@@ -829,6 +840,17 @@ def stop_job(request: Request, vm_id: int = Form(...), db: Session = Depends(get
     except ValueError:
         pass
     return RedirectResponse(url="/", status_code=303)
+
+@app.post("/api/v1/vms/{vm_id}/stop")
+def stop_vm_job_api(request: Request, vm_id: int, db: Session = Depends(get_db)):
+    username = require_auth(request)
+    from services import backup_ops
+    try:
+        backup_ops.stop_backup(db, vm_id, username, request.client.host)
+    except ValueError as e:
+        return JSONResponse({"detail": str(e)}, status_code=400)
+    return JSONResponse({"ok": True})
+
 @app.get("/job_progress")
 def get_job_progress(request: Request, db: Session = Depends(get_db)):
     try:
