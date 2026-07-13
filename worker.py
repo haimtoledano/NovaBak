@@ -15,27 +15,77 @@ from security import SecretManager
 from config_env import DATA_DIR
 from logger_util import log_info, log_warn, log_error, log_debug
 
-def cleanup_old_backups(storage, vm_name, retention_count):
-    """ Deletes backup folders for the specific VM, keeping only the newest `retention_count` folders. """
+def cleanup_old_backups(storage, vm_name, retention_count, backup_type='full'):
+    """Deletes backup folders for the specific VM.
+    
+    For full-only VMs: keeps the newest `retention_count` folders.
+    For incremental VMs: keeps the newest `retention_count` complete chains.
+    A chain = one full backup + all its subsequent incrementals.
+    """
     vm_dir = vm_name
     if not storage.exists(vm_dir):
         return
         
     folders = storage.list_dirs(vm_dir)
-    # prepend VM name to get relative paths
     full_folders = [f"{vm_name}/{d}" for d in folders]
-            
-    # Sort folders alphabetically descending (since name is YYYY-MM-DD, this is newest first)
-    full_folders.sort(reverse=True)
+    full_folders.sort()  # oldest first (YYYY-MM-DD sorting)
     
-    # Keep the first `retention_count` folders, delete the rest
     if retention_count < 1:
-        retention_count = 1 # Safety net
+        retention_count = 1
+
+    if backup_type != 'incremental':
+        # Simple mode: keep newest N folders
+        full_folders.sort(reverse=True)
+        folders_to_delete = full_folders[retention_count:]
+        for f in folders_to_delete:
+            log_info(f"Retention: Removing old backup directory {f}")
+            storage.delete_dir(f)
+        return
+
+    # Chain-aware mode for incremental VMs
+    # Read backup.json from each folder to determine type
+    chains = []  # list of lists: [[full, incr1, incr2], [full2, incr3, incr4], ...]
+    current_chain = []
+    
+    for folder in full_folders:
+        try:
+            import backup_engine_cbt as cbt
+            meta = cbt.read_backup_metadata(storage, folder)
+        except Exception:
+            meta = None
+
+        btype = (meta or {}).get('type', 'full')
         
-    folders_to_delete = full_folders[retention_count:]
-    for f in folders_to_delete:
-        log_info(f"Retention: Removing old backup directory {f}")
-        storage.delete_dir(f)
+        if btype == 'full':
+            # Start a new chain
+            if current_chain:
+                chains.append(current_chain)
+            current_chain = [folder]
+        else:
+            # Incremental — append to current chain
+            if not current_chain:
+                # Orphan incremental (no parent full found) — treat as its own chain
+                current_chain = [folder]
+            else:
+                current_chain.append(folder)
+    
+    # Don't forget the last chain
+    if current_chain:
+        chains.append(current_chain)
+
+    if not chains:
+        return
+
+    # Keep the newest `retention_count` chains, delete the rest
+    chains_to_delete = chains[:-retention_count] if len(chains) > retention_count else []
+    
+    for chain in chains_to_delete:
+        chain_size = len(chain)
+        chain_type = "chain" if chain_size > 1 else "backup"
+        log_info(f"Retention: Removing old {chain_type} ({chain_size} folder{'s' if chain_size > 1 else ''}): {chain[0]} → {chain[-1]}")
+        for folder in chain:
+            log_info(f"Retention: Removing old backup directory {folder}")
+            storage.delete_dir(folder)
 
 def _smtp_send(config, to_addrs: list, subject: str, body: str):
     """Low-level helper — sends one email to a list of recipients."""
@@ -602,7 +652,7 @@ def perform_backup(vm_id: int):
             backup_log.parent_backup_id = vm.last_full_backup_id
         
         if success:
-            cleanup_old_backups(storage, vm.vm_name, vm.retention_count)
+            cleanup_old_backups(storage, vm.vm_name, vm.retention_count, getattr(vm, 'backup_type', 'full'))
             rich_body = (
                 f"Backup Report — {vm.vm_name}\n"
                 f"{'=' * 50}\n"
