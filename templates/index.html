@@ -698,29 +698,50 @@
             set('ov-storage-used-label', st.total_human || '—');
             set('ov-storage-meta', `${st.version_count ?? 0} versions · ${st.vm_count ?? 0} VMs in repo`);
 
+            // Update donut chart
+            const donutFill = document.getElementById('ov-donut-fill');
+            const donutLabel = document.getElementById('ov-donut-label');
+            const repoBar = document.getElementById('ov-storage-bar');
+
             const diskSection = document.getElementById('ov-disk-section');
-            const barWrap = document.getElementById('ov-storage-bar-wrap');
             if (st.disk_total_gb != null && st.disk_free_gb != null) {
                 diskSection?.classList.remove('hidden');
                 const usedPct = Math.min(100, Math.round(100 * (st.disk_used_gb / st.disk_total_gb)));
                 const freePct = st.disk_free_pct ?? 0;
-                set('ov-disk-free-label', `${st.disk_free_gb} GB free (${freePct}%)`);
-                set('ov-disk-meta', `${st.disk_used_gb} GB used of ${st.disk_total_gb} GB total`);
+                set('ov-disk-free-label', `${st.disk_used_gb} GB used (${usedPct}%)`);
+                set('ov-disk-meta', `${st.disk_free_gb} GB free of ${st.disk_total_gb} GB total`);
                 const diskBar = document.getElementById('ov-disk-bar');
                 if (diskBar) {
-                    diskBar.style.width = `${freePct}%`;
-                    diskBar.classList.toggle('overview-bar-danger', freePct < 15);
-                    diskBar.classList.toggle('overview-bar-warn', freePct >= 15 && freePct < 25);
+                    diskBar.style.width = `${usedPct}%`;
+                    // Red when >85% used, orange >70%, green otherwise
+                    if (usedPct > 85) {
+                        diskBar.style.background = '#ef4444';
+                    } else if (usedPct > 70) {
+                        diskBar.style.background = '#f59e0b';
+                    } else {
+                        diskBar.style.background = '#10b981';
+                    }
                 }
-                if (barWrap && st.total_bytes) {
-                    barWrap.classList.remove('hidden');
+                // Donut shows repo usage of total disk
+                if (st.total_bytes) {
                     const repoPct = Math.min(100, Math.round(100 * (st.total_bytes / (1024 ** 3)) / st.disk_total_gb));
-                    const repoBar = document.getElementById('ov-storage-bar');
+                    if (donutFill) donutFill.setAttribute('stroke-dasharray', `${repoPct} ${100 - repoPct}`);
+                    if (donutLabel) donutLabel.textContent = `${repoPct}%`;
                     if (repoBar) repoBar.style.width = `${Math.max(repoPct, 2)}%`;
+                    // Color code the donut
+                    if (donutFill) {
+                        if (repoPct > 85) donutFill.style.stroke = '#ef4444';
+                        else if (repoPct > 70) donutFill.style.stroke = '#f59e0b';
+                        else donutFill.style.stroke = 'var(--brand)';
+                    }
                 }
             } else {
                 diskSection?.classList.add('hidden');
-                barWrap?.classList.add('hidden');
+                // Still show donut with version count
+                const vCount = st.version_count ?? 0;
+                if (donutLabel) donutLabel.textContent = vCount > 0 ? `${vCount}` : '—';
+                if (donutFill && vCount > 0) donutFill.setAttribute('stroke-dasharray', '75 25');
+                if (repoBar && st.total_human) repoBar.style.width = '60%';
             }
 
             const errEl = document.getElementById('ov-storage-error');
@@ -1790,21 +1811,58 @@
                     <button type="submit" class="btn-primary px-4 py-2 text-sm font-medium">Scan</button>
                 </form>
             </div>
+
+            <!-- Search & Filter Bar -->
+            <div class="flex items-center gap-3 mb-4">
+                <div class="relative flex-1 max-w-md">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input type="text" id="inv-search" placeholder="Search VMs by name..." oninput="filterInventory()"
+                        class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border"
+                        style="border-color: var(--border-color); background: var(--bg-card); color: var(--text-main)">
+                </div>
+                <select id="inv-filter-status" onchange="filterInventory()" class="py-2 px-3 text-sm rounded-lg border"
+                    style="border-color: var(--border-color); background: var(--bg-card); color: var(--text-main)">
+                    <option value="all">All Status</option>
+                    <option value="on">ON only</option>
+                    <option value="off">OFF only</option>
+                </select>
+                <select id="inv-filter-backup" onchange="filterInventory()" class="py-2 px-3 text-sm rounded-lg border"
+                    style="border-color: var(--border-color); background: var(--bg-card); color: var(--text-main)">
+                    <option value="all">All VMs</option>
+                    <option value="selected">Backup Enabled</option>
+                    <option value="unselected">Backup Disabled</option>
+                </select>
+                <span id="inv-count" class="text-xs font-medium px-3 py-1 rounded-full" style="background: var(--bg-nav); color: var(--text-muted)"></span>
+            </div>
             
             <div class="card overflow-hidden">
-                <table class="min-w-full text-left text-sm">
+                <table id="inv-table" class="min-w-full text-left text-sm">
                     <thead style="background-color: var(--bg-nav); border-bottom: 2px solid var(--border-color)">
                         <tr>
                             <th class="px-6 py-3 font-semibold w-16 text-center">Backup</th>
-                            <th class="px-6 py-3 font-semibold w-24 text-center">Status</th>
-                            <th class="px-6 py-3 font-semibold">Virtual Machine</th>
-                            <th class="px-6 py-3 font-semibold">Resources</th>
-                            <th class="px-6 py-3 font-semibold">Host Cluster</th>
+                            <th class="px-6 py-3 font-semibold w-24 text-center cursor-pointer select-none hover:opacity-70" onclick="sortInventory('status')">
+                                Status <span id="inv-sort-status" class="text-xs opacity-50"></span>
+                            </th>
+                            <th class="px-6 py-3 font-semibold cursor-pointer select-none hover:opacity-70" onclick="sortInventory('name')">
+                                Virtual Machine <span id="inv-sort-name" class="text-xs opacity-50"></span>
+                            </th>
+                            <th class="px-6 py-3 font-semibold cursor-pointer select-none hover:opacity-70" onclick="sortInventory('resources')">
+                                Resources <span id="inv-sort-resources" class="text-xs opacity-50"></span>
+                            </th>
+                            <th class="px-6 py-3 font-semibold cursor-pointer select-none hover:opacity-70" onclick="sortInventory('host')">
+                                Host Cluster <span id="inv-sort-host" class="text-xs opacity-50"></span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y" style="border-color: var(--border-color)">
                         {% for vm in vms %}
-                        <tr>
+                        <tr data-vm-name="{{ vm.vm_name|lower }}" 
+                            data-vm-status="{{ 'on' if vm.power_state == 'poweredOn' else 'off' }}"
+                            data-vm-backup="{{ 'selected' if vm.is_selected else 'unselected' }}"
+                            data-vm-cpu="{{ vm.cpu_count }}"
+                            data-vm-host="{{ vm.esxi_host.name|lower }}">
                             <td class="px-6 py-3 text-center">
                                 <form action="/toggle_vm" method="POST">
                                     <input type="hidden" name="vm_id" value="{{ vm.id }}">
@@ -1834,7 +1892,7 @@
                             <td class="px-6 py-3" style="color: var(--text-muted)">{{ vm.esxi_host.name }}</td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="3" class="px-6 py-10 text-center font-medium" style="color: var(--text-muted)">No Inventory Data. Execute a Datacenter Scan.</td></tr>
+                        <tr><td colspan="5" class="px-6 py-10 text-center font-medium" style="color: var(--text-muted)">No Inventory Data. Execute a Datacenter Scan.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -1871,6 +1929,15 @@
                                 <div id="versionList" class="grid grid-cols-1 gap-2 mt-1" style="max-height: 160px; overflow-y: auto;"></div>
                                 <input type="hidden" name="source_ova" id="selectedOvaPath" required>
                                 <p id="selectedVersionLabel" class="text-[10px] mt-1 font-mono truncate opacity-60"></p>
+                                
+                                <!-- Encryption status indicator -->
+                                <div id="encryptionStatus" class="hidden mt-2 px-3 py-2 rounded-lg text-xs flex items-center gap-2" style="border: 1px solid var(--border-color)">
+                                    <span id="encryptionIcon" class="text-base"></span>
+                                    <span id="encryptionText"></span>
+                                </div>
+                                <div id="encryptionWarning" class="hidden mt-2 px-3 py-2 rounded-lg text-xs border border-red-400/50 bg-red-500/10 text-red-400">
+                                    ⚠️ This backup is encrypted but no decryption key is configured. Restore will fail unless you provide a key below.
+                                </div>
                             </div>
 
                             <!-- Step 3: Target Config -->
@@ -2453,6 +2520,70 @@
             el.classList.remove('border-blue-500', 'bg-blue-500/10');
         });
         event?.target?.closest('.version-card')?.classList.add('border-blue-500', 'bg-blue-500/10');
+
+        // Check encryption status
+        checkEncryptionStatus(path);
+    }
+
+    async function checkEncryptionStatus(path) {
+        const statusEl = document.getElementById('encryptionStatus');
+        const iconEl = document.getElementById('encryptionIcon');
+        const textEl = document.getElementById('encryptionText');
+        const warnEl = document.getElementById('encryptionWarning');
+
+        statusEl.classList.remove('hidden');
+        warnEl.classList.add('hidden');
+        iconEl.textContent = '⏳';
+        textEl.textContent = 'Checking backup info...';
+        statusEl.style.borderColor = 'var(--border-color)';
+        statusEl.style.background = 'transparent';
+
+        try {
+            const res = await fetch(`/api/check_encryption?path=${encodeURIComponent(path)}`);
+            const data = await res.json();
+
+            let parts = [];
+            let hasIssue = false;
+
+            // Encryption status
+            if (data.encrypted) {
+                if (data.has_key) {
+                    parts.push('🔒 Encrypted ✓');
+                } else {
+                    parts.push('🔒 Encrypted — no key!');
+                    hasIssue = true;
+                    warnEl.classList.remove('hidden');
+                }
+            } else {
+                parts.push('🔓 Not encrypted');
+            }
+
+            // Compression status
+            if (data.compressed) {
+                parts.push(`🗜️ Compressed (${data.compression_algo} L${data.compression_level})`);
+            }
+
+            iconEl.textContent = '';
+            textEl.innerHTML = parts.join(' &nbsp;·&nbsp; ');
+
+            if (hasIssue) {
+                textEl.style.color = '#ef4444';
+                statusEl.style.borderColor = 'rgba(239,68,68,0.5)';
+                statusEl.style.background = 'rgba(239,68,68,0.08)';
+            } else if (data.encrypted || data.compressed) {
+                textEl.style.color = '#10b981';
+                statusEl.style.borderColor = 'rgba(16,185,129,0.3)';
+                statusEl.style.background = 'rgba(16,185,129,0.06)';
+            } else {
+                textEl.style.color = 'var(--text-muted)';
+                statusEl.style.borderColor = 'var(--border-color)';
+                statusEl.style.background = 'transparent';
+            }
+        } catch (e) {
+            iconEl.textContent = '❓';
+            textEl.textContent = 'Could not verify backup status';
+            textEl.style.color = 'var(--text-muted)';
+        }
     }
 
     // Legacy flat loader (kept for compatibility)
@@ -3102,10 +3233,18 @@
         btn.innerHTML = '<span class="inline-block animate-spin mr-2">⟳</span>Updating...';
 
         try {
-            const res = await apiCall('/profile/password', 'POST', {
-                current_password: current,
-                new_password: newPw
+            const res = await fetch('/profile/password', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({
+                    current_password: current,
+                    new_password: newPw
+                })
             });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.detail || 'Failed to update password');
+            }
             closeChangePasswordModal();
             await showAlert("Password updated successfully. Please sign in again.", { title: "Success" });
             window.location.href = "/logout";
@@ -3117,6 +3256,90 @@
             btn.textContent = 'Update Password';
         }
     }
+
+    /* ── Inventory Search, Filter & Sort ── */
+    let invSortCol = null;
+    let invSortAsc = true;
+
+    function filterInventory() {
+        const query = (document.getElementById('inv-search')?.value || '').toLowerCase();
+        const statusFilter = document.getElementById('inv-filter-status')?.value || 'all';
+        const backupFilter = document.getElementById('inv-filter-backup')?.value || 'all';
+        const tbody = document.querySelector('#inv-table tbody');
+        if (!tbody) return;
+        const rows = tbody.querySelectorAll('tr[data-vm-name]');
+        let visible = 0;
+
+        rows.forEach(row => {
+            const name = row.dataset.vmName || '';
+            const status = row.dataset.vmStatus || '';
+            const backup = row.dataset.vmBackup || '';
+
+            const matchName = !query || name.includes(query);
+            const matchStatus = statusFilter === 'all' || status === statusFilter;
+            const matchBackup = backupFilter === 'all' || backup === backupFilter;
+
+            if (matchName && matchStatus && matchBackup) {
+                row.style.display = '';
+                visible++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        const counter = document.getElementById('inv-count');
+        if (counter) counter.textContent = visible + ' / ' + rows.length + ' VMs';
+    }
+
+    function sortInventory(col) {
+        if (invSortCol === col) {
+            invSortAsc = !invSortAsc;
+        } else {
+            invSortCol = col;
+            invSortAsc = true;
+        }
+
+        // Update sort indicators
+        ['status','name','resources','host'].forEach(c => {
+            const el = document.getElementById('inv-sort-' + c);
+            if (el) el.textContent = c === col ? (invSortAsc ? '▲' : '▼') : '';
+        });
+
+        const tbody = document.querySelector('#inv-table tbody');
+        if (!tbody) return;
+        const rows = Array.from(tbody.querySelectorAll('tr[data-vm-name]'));
+
+        rows.sort((a, b) => {
+            let va, vb;
+            switch (col) {
+                case 'name':
+                    va = a.dataset.vmName || '';
+                    vb = b.dataset.vmName || '';
+                    break;
+                case 'status':
+                    va = a.dataset.vmStatus || '';
+                    vb = b.dataset.vmStatus || '';
+                    break;
+                case 'resources':
+                    va = parseInt(a.dataset.vmCpu) || 0;
+                    vb = parseInt(b.dataset.vmCpu) || 0;
+                    return invSortAsc ? va - vb : vb - va;
+                case 'host':
+                    va = a.dataset.vmHost || '';
+                    vb = b.dataset.vmHost || '';
+                    break;
+                default:
+                    return 0;
+            }
+            const cmp = va.localeCompare(vb);
+            return invSortAsc ? cmp : -cmp;
+        });
+
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // Initialize counter on page load
+    document.addEventListener('DOMContentLoaded', () => { filterInventory(); });
 
     </script>
 

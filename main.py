@@ -716,6 +716,61 @@ def get_backups_grouped(request: Request, db: Session = Depends(get_db)):
         log_error(f"GET_BACKUPS_GROUPED CRASH: {traceback.format_exc()}")
         return {"error": f"System Error: {str(e)}"}
 
+@app.get("/api/check_encryption")
+def check_encryption(request: Request, path: str = "", db: Session = Depends(get_db)):
+    """Checks if a backup path contains encrypted/compressed files by reading headers."""
+    try:
+        require_auth(request)
+    except HTTPException:
+        return {"error": "Authentication required"}
+    try:
+        import struct
+        from storage_util import get_storage
+        targets = db.query(StorageTarget).all()
+        config = db.query(Config).first()
+        has_key = bool(config and config.encryption_key)
+        
+        for t in targets:
+            storage = get_storage(t)
+            if t.storage_type == "SMB":
+                worker.authenticate_smb(t)
+            try:
+                files = storage.list_files(path)
+                vmdk_files = [f for f in files if f.endswith('.vmdk')]
+                if not vmdk_files:
+                    continue
+                # Read first 24 bytes of the first vmdk to detect header
+                with storage.open_read(f"{path}/{vmdk_files[0]}") as f:
+                    header = f.read(24)
+                
+                is_encrypted = False
+                is_compressed = False
+                comp_algo = ""
+                comp_level = 0
+                
+                if header[:4] == b'NB01' and len(header) >= 8:
+                    flags = header[4]
+                    is_encrypted = bool(flags & 0x01)
+                    is_compressed = bool(flags & 0x02)
+                    comp_algo = "zstd" if header[5] == 1 else "unknown"
+                    comp_level = header[6]
+                elif header[:4] == b'ENC1':
+                    is_encrypted = True
+                
+                return {
+                    "encrypted": is_encrypted,
+                    "compressed": is_compressed,
+                    "compression_algo": comp_algo if is_compressed else "",
+                    "compression_level": comp_level if is_compressed else 0,
+                    "has_key": has_key,
+                    "file_checked": vmdk_files[0]
+                }
+            except Exception:
+                continue
+        return {"encrypted": False, "compressed": False, "has_key": has_key, "file_checked": None}
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.post("/restore")
 async def restore(
     request: Request,
