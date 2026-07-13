@@ -62,8 +62,8 @@ NovaBak is a self-hosted, web-based backup and disaster recovery platform for **
 ### Option A — Docker (recommended)
 
 ```bash
-git clone https://github.com/haimtoledano/VMBackup.git
-cd VMBackup
+git clone https://github.com/haimtoledano/NovaBak.git
+cd NovaBak
 
 # Initialize a clean database with default admin/admin credentials
 python init_db.py

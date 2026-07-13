@@ -3,7 +3,7 @@
 :: This script is designed to be executed by the Windows Task Scheduler on boot.
 
 :: Navigate to the application directory
-cd /d "C:\Users\haim\Documents\AG\VMBackup"
+cd /d "%~dp0"
 
 :: Ensure the data directory exists for logs
 if not exist "data" mkdir "data"

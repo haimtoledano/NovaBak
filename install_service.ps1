@@ -3,8 +3,8 @@
 $WebTaskName = "VMBackup_Web"
 $WorkerTaskName = "VMBackup_Worker"
 
-$WebScriptPath = "C:\VMBackup\VMBackup\start_web.bat"
-$WorkerScriptPath = "C:\VMBackup\VMBackup\start_worker.bat"
+$WebScriptPath = Join-Path $PSScriptRoot "start_web.bat"
+$WorkerScriptPath = Join-Path $PSScriptRoot "start_worker.bat"
 
 # Task 1: Web Server
 $webAction = New-ScheduledTaskAction -Execute $WebScriptPath

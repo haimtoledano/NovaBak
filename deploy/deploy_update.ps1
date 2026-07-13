@@ -8,8 +8,8 @@
 #>
 
 param(
-    [string]$TargetDir = "C:\VMBackup\VMBackup",
-    [string]$VenvPython = "C:\VMBackup\VMBackup\.venv\Scripts\python.exe",
+    [string]$TargetDir = (Split-Path -Parent $PSScriptRoot),
+    [string]$VenvPython = (Join-Path (Split-Path -Parent $PSScriptRoot) ".venv\Scripts\python.exe"),
     [switch]$NoRestart,
     [switch]$Force
 )
