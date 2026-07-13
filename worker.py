@@ -520,10 +520,21 @@ def perform_backup(vm_id: int):
                         # Extract dir from log message or construct from convention
                         pass
 
+        # Auto-enable CBT if VM is configured for incremental
+        if getattr(vm, 'backup_type', 'full') == 'incremental':
+            try:
+                import backup_engine_cbt as cbt
+                cbt.enable_cbt(si, vm.vm_name)
+            except Exception as cbt_err:
+                log_warn(f"[BACKUP] Failed to auto-enable CBT: {cbt_err}")
+
         if backup_mode == "incremental":
             log_info(f"[BACKUP] Starting INCREMENTAL backup for {vm.vm_name}")
         else:
-            log_info(f"[BACKUP] Starting FULL backup for {vm.vm_name}")
+            if getattr(vm, 'backup_type', 'full') == 'incremental':
+                log_info(f"[BACKUP] Starting FULL backup for {vm.vm_name} (first run / full backup day — CBT changeId will be captured)")
+            else:
+                log_info(f"[BACKUP] Starting FULL backup for {vm.vm_name}")
 
         result = backup_engine.export_vm_native(
             si=si,
