@@ -128,13 +128,16 @@ def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, p
     speed_window_start = time.time()
     hasher = hashlib.sha256()
 
-    # Initialize encryption if needed
+    # Initialize encryption and compression from config
     from security import SecretManager
     from models import SessionLocal
     from models import Config
+    import struct
 
     encryptor = None
     encryption_iv = None
+    compressor = None
+    compression_level = 0
 
     db = SessionLocal()
     try:
@@ -142,47 +145,70 @@ def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, p
         if config and config.encryption_key:
             encryption_iv = os.urandom(16)
             encryptor, _ = SecretManager.get_stream_cipher(config.encryption_key, encryption_iv)
+        if config and getattr(config, 'perf_compression_level', 0) > 0:
+            compression_level = config.perf_compression_level
+            try:
+                import zstandard
+                compressor = zstandard.ZstdCompressor(level=compression_level)
+                log_info(f"[DOWNLOAD] Compression enabled: zstd level {compression_level}")
+            except ImportError:
+                log_warn("[DOWNLOAD] zstandard not installed — compression disabled")
+                compression_level = 0
     except Exception as e:
-        log_warn(f"Failed to check encryption config: {e}")
+        log_warn(f"Failed to check encryption/compression config: {e}")
     finally:
         db.close()
+
+    use_nb01 = bool(encryptor or compressor)
 
     storage.makedirs(os.path.dirname(dest_rel_path))
 
     # We use a context manager for the storage writer
     with storage.open_write(dest_rel_path) as f:
-        # Write IV at the beginning of the file if encrypting
-        if encryptor and encryption_iv:
-            f.write(b'ENC1')
-            f.write(encryption_iv)
-            bytes_written += 20
+        # Write NB01 header if encryption or compression is active
+        if use_nb01:
+            flags = 0
+            if encryptor: flags |= 0x01  # bit 0 = encrypted
+            if compressor: flags |= 0x02  # bit 1 = compressed
+            comp_algo = 1 if compressor else 0  # 1 = zstd
+            iv_bytes = encryption_iv if encryption_iv else b'\x00' * 16
+            header = b'NB01' + struct.pack('BBBB', flags, comp_algo, compression_level, 0) + iv_bytes
+            f.write(header)  # 24 bytes total
+            bytes_written += 24
             
-        # Optimization for local files (sparse support) only if not encrypting
+        # Optimization for local files (sparse support) only if not encrypting/compressing
         is_local = hasattr(storage, 'base_path')
-        zero_chunk = b'\x00' * CHUNK_SIZE if is_local else None
+        can_sparse = is_local and not encryptor and not compressor
+        zero_chunk = b'\x00' * CHUNK_SIZE if can_sparse else None
 
         for chunk in resp.iter_content(chunk_size=CHUNK_SIZE):
             if is_cancelled_func and is_cancelled_func():
                 raise Exception("Backup cancelled by user")
             if chunk:
-                # Update hash (hash the original unencrypted chunk for integrity checking!)
+                # Update hash (hash the original raw chunk for integrity!)
                 hasher.update(chunk)
                 
-                # Encrypt if needed
+                write_chunk = chunk
+
+                # Compress if needed (before encryption!)
+                if compressor:
+                    write_chunk = compressor.compress(write_chunk)
+                    # Frame: [4 bytes compressed_size][compressed_data]
+                    write_chunk = struct.pack('<I', len(write_chunk)) + write_chunk
+
+                # Encrypt if needed (after compression!)
                 if encryptor:
-                    write_chunk = encryptor.update(chunk)
-                else:
-                    write_chunk = chunk
+                    write_chunk = encryptor.update(write_chunk)
                 
-                # Thin provisioning stream optimization (only for local files with seek support AND no encryption)
-                if not encryptor and is_local and len(chunk) == CHUNK_SIZE and chunk == zero_chunk:
+                # Thin provisioning stream optimization (only for raw local files)
+                if can_sparse and len(chunk) == CHUNK_SIZE and chunk == zero_chunk:
                     if hasattr(f, 'seek'):
                         f.seek(CHUNK_SIZE, os.SEEK_CUR)
                         bytes_written += CHUNK_SIZE
                     else:
                         f.write(write_chunk)
                         bytes_written += len(write_chunk)
-                elif not encryptor and is_local and not chunk.strip(b'\x00'):
+                elif can_sparse and not chunk.strip(b'\x00'):
                     if hasattr(f, 'seek'):
                         f.seek(len(chunk), os.SEEK_CUR)
                         bytes_written += len(chunk)
@@ -643,6 +669,7 @@ def _upload_file_http(si, datastore_name, dest_rel_path, storage, source_rel_pat
     from security import SecretManager
     from models import SessionLocal
     from models import Config
+    import struct
     
     db = SessionLocal()
     encryption_key = None
@@ -656,79 +683,177 @@ def _upload_file_http(si, datastore_name, dest_rel_path, storage, source_rel_pat
     with storage.open_read(source_rel_path) as f:
         f_size = storage.get_size(source_rel_path)
         decryptor = None
+        is_compressed = False
         
-        # Check for ENC1 marker
+        # Check header: NB01 (new) or ENC1 (legacy) or raw
         header = f.read(4)
-        if header == b'ENC1':
+        if header == b'NB01':
+            # New unified header: 4 bytes magic + 4 bytes flags + 16 bytes IV = 24 bytes
+            meta = f.read(4)
+            flags, comp_algo, comp_level, _reserved = struct.unpack('BBBB', meta)
+            iv = f.read(16)
+            f_size -= 24
+            
+            if flags & 0x01:  # encrypted
+                if not encryption_key:
+                    raise Exception("File is encrypted but no encryption key is configured!")
+                _, decryptor = SecretManager.get_stream_cipher(encryption_key, iv)
+            if flags & 0x02:  # compressed
+                is_compressed = True
+                log_info(f"[UPLOAD] File is compressed (zstd level {comp_level})")
+                
+        elif header == b'ENC1':
+            # Legacy encryption-only header
             if not encryption_key:
                 raise Exception("File is encrypted but no encryption key is configured!")
             iv = f.read(16)
             _, decryptor = SecretManager.get_stream_cipher(encryption_key, iv)
             f_size -= 20
         else:
-            # Not encrypted, rewind if local or handle S3 gracefully
+            # Not encrypted/compressed, rewind if local or handle S3 gracefully
             if hasattr(f, 'seek'):
                 f.seek(0)
-            else:
-                # S3 object stream, we'll need to prepend the header back in the wrapper
-                pass
 
-        class CancelableStreamWrapper:
-            def __init__(self, stream, size, is_cancelled_func, decryptor, prefetched_header=None):
-                self._stream = stream
-                self._size = size
-                self._is_cancelled = is_cancelled_func
-                self._read_so_far = 0
-                self._last_pct = -1
-                self._decryptor = decryptor
-                self._prefetched = prefetched_header
+        if is_compressed:
+            # For compressed files, we need a special wrapper that reads framed chunks,
+            # decrypts, then decompresses, producing original-size output for ESXi upload.
+            import zstandard
+            dctx = zstandard.ZstdDecompressor()
+            
+            class DecompressStreamWrapper:
+                """Reads compressed+encrypted backup and produces raw VMDK data for ESXi upload."""
+                def __init__(self, stream, decryptor, dctx, is_cancelled_func):
+                    self._stream = stream
+                    self._decryptor = decryptor
+                    self._dctx = dctx
+                    self._is_cancelled = is_cancelled_func
+                    self._buffer = b''
+                    self._eof = False
+                    self._read_so_far = 0
+                    self._last_pct = -1
 
-            def read(self, size=-1):
-                if self._is_cancelled and self._is_cancelled():
-                    raise Exception("CancellationRequested")
-                
-                chunk = b''
-                if self._prefetched:
-                    if size > 0 and len(self._prefetched) > size:
-                        chunk = self._prefetched[:size]
-                        self._prefetched = self._prefetched[size:]
-                        return chunk
+                def _read_exact(self, n):
+                    """Read exactly n bytes from underlying stream."""
+                    data = b''
+                    while len(data) < n:
+                        chunk = self._stream.read(n - len(data))
+                        if not chunk:
+                            return data  # EOF
+                        if self._decryptor:
+                            chunk = self._decryptor.update(chunk)
+                        data += chunk
+                    return data
+
+                def _fill_buffer(self):
+                    """Read one compressed frame and decompress it."""
+                    # Read 4-byte frame length
+                    size_data = self._read_exact(4)
+                    if len(size_data) < 4:
+                        self._eof = True
+                        return
+                    compressed_size = struct.unpack('<I', size_data)[0]
+                    if compressed_size == 0:
+                        self._eof = True
+                        return
+                    # Read compressed data
+                    compressed = self._read_exact(compressed_size)
+                    if len(compressed) < compressed_size:
+                        self._eof = True
+                        return
+                    # Decompress
+                    self._buffer += self._dctx.decompress(compressed)
+
+                def read(self, size=-1):
+                    if self._is_cancelled and self._is_cancelled():
+                        raise Exception("CancellationRequested")
+                    
+                    while not self._eof and (size < 0 or len(self._buffer) < size):
+                        self._fill_buffer()
+                    
+                    if size < 0:
+                        result = self._buffer
+                        self._buffer = b''
                     else:
-                        chunk = self._prefetched
-                        self._prefetched = None
-                        if size > 0:
-                            size -= len(chunk)
-                
-                read_chunk = self._stream.read(size)
-                if not read_chunk and not chunk:
-                    return b''
+                        result = self._buffer[:size]
+                        self._buffer = self._buffer[size:]
                     
-                if self._decryptor and read_chunk:
-                    read_chunk = self._decryptor.update(read_chunk)
+                    if result and progress_callback:
+                        self._read_so_far += len(result)
+                        # We don't know the uncompressed total, use compressed file size as estimate
+                        file_pct = min(1.0, self._read_so_far / max(f_size * 2, 1))
+                        overall_pct = int(base_pct + (max_pct - base_pct) * file_pct)
+                        if overall_pct > self._last_pct:
+                            progress_callback(min(overall_pct, max_pct - 1))
+                            self._last_pct = overall_pct
                     
-                chunk += read_chunk
-                
-                if chunk and self._size > 0 and progress_callback:
-                    self._read_so_far += len(chunk)
-                    file_pct = self._read_so_far / self._size
-                    overall_pct = int(base_pct + (max_pct - base_pct) * file_pct)
-                    if overall_pct > self._last_pct:
-                        progress_callback(overall_pct)
-                        self._last_pct = overall_pct
-                
-                return chunk
+                    return result
 
-            def __len__(self):
-                return self._size
-                
-        # Only pass header to wrapper if it wasn't ENC1 and stream couldn't seek
-        prefetched = header if (header != b'ENC1' and not hasattr(f, 'seek')) else None
-        wrapped_stream = CancelableStreamWrapper(f, f_size, is_cancelled_func, decryptor, prefetched)
+                def __len__(self):
+                    # ESXi needs Content-Length but we don't know exact uncompressed size
+                    # Use a large estimate; requests will use chunked transfer
+                    return 0  # Will trigger chunked transfer
+
+            wrapped_stream = DecompressStreamWrapper(f, decryptor, dctx, is_cancelled_func)
+        else:
+            # Non-compressed path (raw or encrypted-only)
+            class CancelableStreamWrapper:
+                def __init__(self, stream, size, is_cancelled_func, decryptor, prefetched_header=None):
+                    self._stream = stream
+                    self._size = size
+                    self._is_cancelled = is_cancelled_func
+                    self._read_so_far = 0
+                    self._last_pct = -1
+                    self._decryptor = decryptor
+                    self._prefetched = prefetched_header
+
+                def read(self, size=-1):
+                    if self._is_cancelled and self._is_cancelled():
+                        raise Exception("CancellationRequested")
+                    
+                    chunk = b''
+                    if self._prefetched:
+                        if size > 0 and len(self._prefetched) > size:
+                            chunk = self._prefetched[:size]
+                            self._prefetched = self._prefetched[size:]
+                            return chunk
+                        else:
+                            chunk = self._prefetched
+                            self._prefetched = None
+                            if size > 0:
+                                size -= len(chunk)
+                    
+                    read_chunk = self._stream.read(size)
+                    if not read_chunk and not chunk:
+                        return b''
+                        
+                    if self._decryptor and read_chunk:
+                        read_chunk = self._decryptor.update(read_chunk)
+                        
+                    chunk += read_chunk
+                    
+                    if chunk and self._size > 0 and progress_callback:
+                        self._read_so_far += len(chunk)
+                        file_pct = self._read_so_far / self._size
+                        overall_pct = int(base_pct + (max_pct - base_pct) * file_pct)
+                        if overall_pct > self._last_pct:
+                            progress_callback(overall_pct)
+                            self._last_pct = overall_pct
+                    
+                    return chunk
+
+                def __len__(self):
+                    return self._size
+                    
+            # Only pass header to wrapper if it wasn't a known magic and stream couldn't seek
+            prefetched = header if (header not in [b'ENC1', b'NB01'] and not hasattr(f, 'seek')) else None
+            wrapped_stream = CancelableStreamWrapper(f, f_size, is_cancelled_func, decryptor, prefetched)
 
         try:
-            # We must use chunked transfer encoding because requests requires an exact Content-Length matching the body
-            # We provide Content-Length = f_size
-            headers = {'Content-Length': str(f_size)}
+            # For compressed files we don't know the uncompressed size, use chunked transfer
+            if is_compressed:
+                headers = {'Transfer-Encoding': 'chunked'}
+            else:
+                headers = {'Content-Length': str(f_size)}
             resp = requests.put(url, data=wrapped_stream, cookies=cookies, verify=False, timeout=7200, headers=headers)
             if resp.status_code not in [200, 201]:
                 body = resp.text[:500] if resp.text else '(empty)'
@@ -911,14 +1036,20 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
                     )
                     files_downloaded.append((disk_basename, desc_hash))
 
-                    log_info(f"[BACKUP] [DIRECT] Streaming flat disk ({idx+1}/{total_disks}): {flat_basename}")
-                    _, flat_hash = _download_file_http(
-                        si, disk['ds_name'], flat_rel_path, storage, f"{dest_rel_dir}/{flat_basename}",
-                        progress_callback=progress_callback, progress_base=flat_base,
-                        progress_total=flat_end - flat_base, speed_callback=speed_callback,
-                        is_cancelled_func=is_cancelled_func
-                    )
-                    files_downloaded.append((flat_basename, flat_hash))
+                    try:
+                        log_info(f"[BACKUP] [DIRECT] Streaming flat disk ({idx+1}/{total_disks}): {flat_basename}")
+                        _, flat_hash = _download_file_http(
+                            si, disk['ds_name'], flat_rel_path, storage, f"{dest_rel_dir}/{flat_basename}",
+                            progress_callback=progress_callback, progress_base=flat_base,
+                            progress_total=flat_end - flat_base, speed_callback=speed_callback,
+                            is_cancelled_func=is_cancelled_func
+                        )
+                        files_downloaded.append((flat_basename, flat_hash))
+                    except Exception as flat_err:
+                        if 'HTTP 404' in str(flat_err):
+                            log_info(f"[BACKUP] [DIRECT] No flat VMDK — monolithic disk detected. {disk_basename} is the full data file.")
+                        else:
+                            raise
 
             # ==============================================================
             #  PATH B: POWERED ON — Snapshot + CopyVirtualDisk (safe)
@@ -994,13 +1125,19 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
                     )
                     files_downloaded.append((disk_basename, desc_hash))
                     
-                    _, flat_hash = _download_file_http(
-                        si, ds_name, flat_rel_path, storage, f"{dest_rel_dir}/{flat_basename}",
-                        progress_callback=progress_callback, progress_base=dl_mid,
-                        progress_total=dl_end - dl_mid, speed_callback=speed_callback,
-                        is_cancelled_func=is_cancelled_func
-                    )
-                    files_downloaded.append((flat_basename, flat_hash))
+                    try:
+                        _, flat_hash = _download_file_http(
+                            si, ds_name, flat_rel_path, storage, f"{dest_rel_dir}/{flat_basename}",
+                            progress_callback=progress_callback, progress_base=dl_mid,
+                            progress_total=dl_end - dl_mid, speed_callback=speed_callback,
+                            is_cancelled_func=is_cancelled_func
+                        )
+                        files_downloaded.append((flat_basename, flat_hash))
+                    except Exception as flat_err:
+                        if 'HTTP 404' in str(flat_err):
+                            log_info(f"[BACKUP] No flat VMDK — monolithic disk. {disk_basename} is the full data file.")
+                        else:
+                            raise
 
                 # Step B4: Cleanup temp dir
                 if progress_callback: progress_callback(90)
