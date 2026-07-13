@@ -159,6 +159,12 @@ class VM(Base):
     speed_mbps = Column(Float, default=0.0)  # Last known transfer speed
     power_off_for_backup = Column(Boolean, default=False)  # Shutdown VM before backup for faster direct-stream path
 
+    # CBT / Incremental Backup
+    backup_type = Column(String, default="full")           # "full" | "incremental"
+    full_backup_day = Column(Integer, default=0)           # Day of week for forced full (0=Mon, 6=Sun)
+    last_change_id = Column(String, nullable=True)         # Last CBT changeId for incremental chain
+    last_full_backup_id = Column(Integer, nullable=True)   # ID of the last full BackupLog entry
+
 class BackupLog(Base):
     __tablename__ = "backup_logs"
     id = Column(Integer, primary_key=True, index=True)
@@ -174,6 +180,10 @@ class BackupLog(Base):
 
     # Verification
     checksum = Column(String, nullable=True)
+
+    # Size tracking (for incremental savings stats)
+    backup_size_bytes = Column(Integer, nullable=True)     # Actual bytes written to storage
+    disk_total_bytes = Column(Integer, nullable=True)      # Full VM disk size for savings calculation
 
 class RestoreJob(Base):
     __tablename__ = "restore_jobs"

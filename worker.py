@@ -491,7 +491,41 @@ def perform_backup(vm_id: int):
         def cancel_check():
             return is_backup_cancelled(vm_id)
 
-        success, result_msg, checksum_json = backup_engine.export_vm_native(
+        # Determine backup mode (full or incremental)
+        backup_mode = "full"
+        previous_change_id = None
+        parent_backup_dir = None
+        if getattr(vm, 'backup_type', 'full') == 'incremental' and vm.last_change_id:
+            today_weekday = datetime.datetime.now().weekday()
+            full_day = getattr(vm, 'full_backup_day', 0)
+            if today_weekday == full_day:
+                log_info(f"[BACKUP] Full backup day (weekday={full_day}) — forcing full backup")
+            else:
+                backup_mode = "incremental"
+                # Use the first changeId from the stored dict (serialized as JSON or single string)
+                try:
+                    import json as _json
+                    change_ids = _json.loads(vm.last_change_id)
+                    if isinstance(change_ids, dict):
+                        previous_change_id = list(change_ids.values())[0]
+                    else:
+                        previous_change_id = str(change_ids)
+                except Exception:
+                    previous_change_id = vm.last_change_id
+
+                # Find parent backup dir for metadata chain
+                if vm.last_full_backup_id:
+                    parent_log = db.query(BackupLog).filter(BackupLog.id == vm.last_full_backup_id).first()
+                    if parent_log and parent_log.message:
+                        # Extract dir from log message or construct from convention
+                        pass
+
+        if backup_mode == "incremental":
+            log_info(f"[BACKUP] Starting INCREMENTAL backup for {vm.vm_name}")
+        else:
+            log_info(f"[BACKUP] Starting FULL backup for {vm.vm_name}")
+
+        result = backup_engine.export_vm_native(
             si=si,
             vm_name=vm.vm_name,
             storage=storage,
@@ -499,8 +533,17 @@ def perform_backup(vm_id: int):
             progress_callback=progress_cb,
             speed_callback=speed_cb,
             is_cancelled_func=cancel_check,
-            max_retries=3
+            max_retries=3,
+            backup_mode=backup_mode,
+            previous_change_id=previous_change_id,
+            parent_backup_dir=parent_backup_dir or '',
         )
+
+        # Unpack 6-tuple return
+        success, result_msg, checksum_json = result[0], result[1], result[2]
+        new_change_ids = result[3] if len(result) > 3 else None
+        backup_size = result[4] if len(result) > 4 else None
+        disk_total = result[5] if len(result) > 5 else None
 
         if not success and "cancelled" in (result_msg or "").lower():
             raise BackupCancelled(result_msg)
@@ -520,7 +563,32 @@ def perform_backup(vm_id: int):
             dest_path_info = dest_rel_dir
 
         log_msg = result_msg
-        db.add(BackupLog(vm_name=vm.vm_name, status=vm.last_status, message=log_msg, checksum=checksum_json if success else None))
+        is_incr = (backup_mode == "incremental" and success)
+        backup_log = BackupLog(
+            vm_name=vm.vm_name,
+            status=vm.last_status,
+            message=log_msg,
+            checksum=checksum_json if success else None,
+            is_incremental=is_incr,
+            backup_size_bytes=backup_size,
+            disk_total_bytes=disk_total,
+        )
+
+        # Save CBT state for next incremental
+        if success and new_change_ids:
+            import json as _json
+            # Serialize change_ids dict as JSON string
+            serialized = _json.dumps({str(k): v for k, v in new_change_ids.items()}) if isinstance(new_change_ids, dict) else str(new_change_ids)
+            vm.last_change_id = serialized
+
+        db.add(backup_log)
+        db.flush()  # Get the backup_log.id
+
+        # Update last_full_backup_id reference
+        if success and backup_mode == "full":
+            vm.last_full_backup_id = backup_log.id
+        if success and is_incr:
+            backup_log.parent_backup_id = vm.last_full_backup_id
         
         if success:
             cleanup_old_backups(storage, vm.vm_name, vm.retention_count)

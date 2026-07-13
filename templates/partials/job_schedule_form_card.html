@@ -91,4 +91,29 @@
             </label>
         </div>
     </div>
+
+    <div class="pt-2 mt-2" style="border-top: 1px dashed var(--border-color)">
+        <div class="flex items-center gap-2">
+            <span class="input-label text-[10px] shrink-0">Type</span>
+            <select name="backup_type"
+                    class="flex-1 py-1 px-2 text-xs rounded border"
+                    style="border-color: var(--border-color); background: var(--bg-card); color: var(--text-main)"
+                    onchange="this.form.querySelector('.cbt-full-day-row').style.display = this.value === 'incremental' ? 'flex' : 'none'; autoSaveJob({{ vm.id }}, this.form)">
+                <option value="full" {% if (vm.backup_type or 'full') == 'full' %}selected{% endif %}>Full every time</option>
+                <option value="incremental" {% if vm.backup_type == 'incremental' %}selected{% endif %}>Incremental (CBT) ⚡</option>
+            </select>
+        </div>
+        <div class="cbt-full-day-row items-center gap-2 mt-1.5" style="display: {% if vm.backup_type == 'incremental' %}flex{% else %}none{% endif %}">
+            <span class="input-label text-[10px] shrink-0">Full on</span>
+            <select name="full_backup_day"
+                    class="flex-1 py-1 px-2 text-xs rounded border"
+                    style="border-color: var(--border-color); background: var(--bg-card); color: var(--text-main)"
+                    onchange="autoSaveJob({{ vm.id }}, this.form)">
+                {% for d_val, d_label in [(0,'Monday'),(1,'Tuesday'),(2,'Wednesday'),(3,'Thursday'),(4,'Friday'),(5,'Saturday'),(6,'Sunday')] %}
+                <option value="{{ d_val }}" {% if (vm.full_backup_day or 0) == d_val %}selected{% endif %}>{{ d_label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
 </form>

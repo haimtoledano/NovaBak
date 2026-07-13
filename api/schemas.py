@@ -168,6 +168,8 @@ class VMUpdateRequest(BaseModel):
     power_off_for_backup: Optional[bool] = None
     schedule_frequency: Optional[str] = None
     schedule_days: Optional[str] = None
+    backup_type: Optional[str] = None
+    full_backup_day: Optional[int] = None
 
 
 class VMResponse(BaseModel):
@@ -191,6 +193,8 @@ class VMResponse(BaseModel):
     current_action: str
     power_state: str
     power_off_for_backup: bool
+    backup_type: Optional[str] = "full"
+    full_backup_day: Optional[int] = 0
 
 
 class SyncResult(BaseModel):

@@ -269,6 +269,31 @@
                                     <button type="submit" class="btn-primary px-6 py-2 text-sm font-semibold">Save engine settings</button>
                                 </div>
                             </div>
+
+                            <!-- Incremental Backups (CBT) -->
+                            <h2 class="settings-panel-title mt-8">Incremental Backups (CBT)</h2>
+                            <p class="settings-panel-desc">Changed Block Tracking enables incremental backups that transfer only modified disk blocks — saving 80-95% of backup time and storage.</p>
+                            <div class="card p-5">
+                                <div class="flex items-start gap-3 mb-4">
+                                    <span style="font-size: 1.5em;">⚡</span>
+                                    <div>
+                                        <p class="text-sm font-medium" style="color: var(--text-main)">How it works</p>
+                                        <p class="text-xs mt-1" style="color: var(--text-muted)">
+                                            CBT is configured <strong>per VM</strong> in the <strong>Inventory</strong> tab. Set each VM's backup type to "Incremental" and choose which day of the week to perform a full backup.
+                                            On other days, only changed blocks are downloaded — typically 5-20% of the total disk size.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3 p-3 rounded" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2)">
+                                    <span>📊</span>
+                                    <div class="text-xs" style="color: var(--text-main)">
+                                        <strong>Example savings:</strong> A 500 GB VM with 20 GB daily changes = <strong>20 GB</strong> incremental vs 500 GB full — <strong>96% savings</strong> per backup.
+                                    </div>
+                                </div>
+                                <div class="mt-4 text-xs" style="color: var(--text-muted)">
+                                    <strong>Requirements:</strong> ESXi 6.0+ • VM hardware version 7+ • CBT enabled (NovaBak enables it automatically)
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Email SMTP -->

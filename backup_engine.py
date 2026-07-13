@@ -951,21 +951,22 @@ def import_vm_native(si, storage, source_rel_dir, target_ds, target_name, progre
 # ===========================================================================
 #  MAIN: Export VM - Power-State Aware Backup
 # ===========================================================================
-def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None, speed_callback=None, max_retries=3, is_cancelled_func=None, **kwargs):
+def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None, speed_callback=None, max_retries=3, is_cancelled_func=None, backup_mode="full", previous_change_id=None, **kwargs):
     """
-    Power-state-aware backup:
+    Power-state-aware backup with optional incremental (CBT) support:
 
-    POWERED OFF → Direct pipe (no snapshot, no CopyVirtualDisk):
-      Snapshot → stream descriptor → stream flat VMDK → stream VMX → done
-      ~2x faster, no temp storage used.
+    FULL BACKUP:
+      POWERED OFF → Direct pipe (no snapshot, no CopyVirtualDisk)
+      POWERED ON  → Snapshot + CopyVirtualDisk (safe)
 
-    POWERED ON / SUSPENDED → Safe path (snapshot + CopyVirtualDisk):
-      Snapshot → CopyVirtualDisk (unlocks) → stream copies → stream VMX → cleanup
-      Required because ESXi kernel-locks flat VMDKs on running VMs.
+    INCREMENTAL BACKUP (backup_mode="incremental"):
+      Requires CBT enabled + previous_change_id from last backup.
+      Snapshot → QueryChangedDiskAreas → download only changed blocks → .nb-incr
+      Falls back to full if CBT is unavailable or change_id is stale.
     """
     vm = _get_vm(si, vm_name)
     if not vm:
-        return False, f"VM {vm_name} not found"
+        return False, f"VM {vm_name} not found", None
 
     last_error = ""
     snap_name = None
@@ -984,7 +985,22 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
 
             power_state = getattr(vm.runtime, 'powerState', 'poweredOn')
             is_off = (power_state == 'poweredOff')
-            log_info(f"[BACKUP] VM power state: {power_state} -> using {'DIRECT' if is_off else 'SNAPSHOT+COPY'} method")
+
+            # Incremental backup decision
+            use_incremental = False
+            if backup_mode == "incremental" and previous_change_id:
+                if getattr(vm.config, 'changeTrackingEnabled', False):
+                    log_info(f"[BACKUP] Incremental backup requested (CBT changeId: {previous_change_id[:20]}...)")
+                    use_incremental = True
+                else:
+                    log_warn(f"[BACKUP] Incremental requested but CBT not enabled — falling back to full")
+            elif backup_mode == "incremental":
+                log_warn(f"[BACKUP] Incremental requested but no previous changeId — doing full backup")
+
+            if use_incremental:
+                log_info(f"[BACKUP] VM power state: {power_state} -> using INCREMENTAL (CBT) method")
+            else:
+                log_info(f"[BACKUP] VM power state: {power_state} -> using {'DIRECT' if is_off else 'SNAPSHOT+COPY'} method")
 
             disk_descriptors = []
             if hasattr(vm, 'layoutEx') and vm.layoutEx and vm.layoutEx.file:
@@ -1011,9 +1027,142 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
                 log_info(f"  - {d['ds_path']}")
 
             # ==============================================================
+            #  PATH C: INCREMENTAL — CBT changed blocks only
+            # ==============================================================
+            if use_incremental:
+                import backup_engine_cbt as cbt
+
+                if progress_callback: progress_callback(2)
+                snap_obj, snap_name = _create_backup_snapshot(si, vm_name)
+                if not snap_obj:
+                    raise Exception(f"Snapshot creation failed: {snap_name}")
+                if progress_callback: progress_callback(5)
+
+                # Get new change IDs from the snapshot
+                new_change_ids = cbt.get_snapshot_change_id(vm, snap_obj)
+                storage.makedirs(dest_rel_dir)
+                files_downloaded = []
+                total_bytes_saved = 0
+                total_disk_bytes = 0
+                total_disks = len(disk_descriptors)
+
+                try:
+                    for idx, disk in enumerate(disk_descriptors):
+                        disk_basename = os.path.basename(disk['rel_path'])
+                        incr_name = disk_basename.replace('.vmdk', '.nb-incr')
+                        flat_rel_path = disk['rel_path'].replace('.vmdk', '-flat.vmdk')
+
+                        # Find the matching disk key
+                        disk_key = None
+                        for device in vm.config.hardware.device:
+                            if isinstance(device, vim.vm.device.VirtualDisk):
+                                _, dev_path = _parse_datastore_path(device.backing.fileName)
+                                if dev_path and os.path.basename(dev_path) == disk_basename:
+                                    disk_key = device.key
+                                    break
+
+                        if disk_key is None:
+                            log_warn(f"[BACKUP] [INCR] Could not find disk key for {disk_basename} — skipping")
+                            continue
+
+                        # Query changed blocks
+                        try:
+                            changed_blocks, disk_size = cbt.query_changed_blocks(
+                                vm, snap_obj, disk_key, change_id=previous_change_id
+                            )
+                        except Exception as cbt_err:
+                            log_warn(f"[BACKUP] [INCR] CBT query failed: {cbt_err} — falling back to full")
+                            # Clean up and fall back to full
+                            _remove_backup_snapshot(si, vm_name, snap_name, timeout_mins=30)
+                            snap_name = None
+                            use_incremental = False
+                            break
+
+                        total_disk_bytes += disk_size
+                        changed_bytes = sum(length for _, length in changed_blocks)
+                        total_bytes_saved += (disk_size - changed_bytes)
+                        pct_changed = (changed_bytes / disk_size * 100) if disk_size > 0 else 0
+
+                        log_info(f"[BACKUP] [INCR] Disk {idx+1}/{total_disks}: {disk_basename} "
+                                 f"— {len(changed_blocks)} blocks changed "
+                                 f"({changed_bytes / (1024**2):.1f} MB / {disk_size / (1024**3):.1f} GB = {pct_changed:.1f}%)")
+
+                        # Download changed blocks
+                        dl_base = 10 + (80 * idx // total_disks)
+                        dl_total = 80 // total_disks
+
+                        bytes_written, block_hash = cbt.download_changed_blocks(
+                            si, disk['ds_name'], flat_rel_path, changed_blocks,
+                            storage, f"{dest_rel_dir}/{incr_name}", disk_size,
+                            progress_callback=progress_callback,
+                            progress_base=dl_base, progress_total=dl_total,
+                            speed_callback=speed_callback,
+                            is_cancelled_func=is_cancelled_func
+                        )
+                        files_downloaded.append((incr_name, block_hash))
+
+                    if not use_incremental:
+                        # CBT failed mid-way, restart as full
+                        raise Exception("CBT_FALLBACK_TO_FULL")
+
+                except Exception as incr_err:
+                    if "CBT_FALLBACK_TO_FULL" in str(incr_err):
+                        log_info("[BACKUP] Falling back to full backup after CBT failure")
+                        backup_mode = "full"
+                        use_incremental = False
+                        # Continue to PATH A/B below
+                    else:
+                        raise
+
+                if use_incremental:
+                    # Write backup metadata
+                    import json as json_mod
+                    savings_pct = (total_bytes_saved / total_disk_bytes * 100) if total_disk_bytes > 0 else 0
+                    metadata = {
+                        'type': 'incremental',
+                        'vm_name': vm_name,
+                        'timestamp': datetime.datetime.now().isoformat(),
+                        'change_id': previous_change_id,
+                        'new_change_ids': new_change_ids,
+                        'parent_backup_dir': kwargs.get('parent_backup_dir', ''),
+                        'total_disk_bytes': total_disk_bytes,
+                        'changed_bytes': total_disk_bytes - total_bytes_saved,
+                        'savings_pct': round(savings_pct, 1),
+                        'files': {f: h for f, h in files_downloaded},
+                    }
+                    cbt.write_backup_metadata(storage, dest_rel_dir, metadata)
+
+                    # Remove snapshot
+                    if progress_callback: progress_callback(93)
+                    _remove_backup_snapshot(si, vm_name, snap_name, timeout_mins=60)
+                    snap_name = None
+
+                    # VMX download
+                    if progress_callback: progress_callback(96)
+                    if vmx_ds_name and vmx_rel_path:
+                        vmx_filename = os.path.basename(vmx_rel_path)
+                        try:
+                            _, vmx_hash = _download_file_http(si, vmx_ds_name, vmx_rel_path, storage, f"{dest_rel_dir}/{vmx_filename}")
+                            files_downloaded.append((vmx_filename, vmx_hash))
+                        except Exception as e:
+                            log_warn(f"[BACKUP] VMX warning: {e}")
+
+                    if progress_callback: progress_callback(100)
+                    checksum_data = {f: h for f, h in files_downloaded}
+                    checksum_json = json_mod.dumps(checksum_data)
+                    changed_mb = (total_disk_bytes - total_bytes_saved) / (1024**2)
+                    total_mb = total_disk_bytes / (1024**2)
+
+                    # Return new change IDs for the worker to save
+                    result_msg = (f"Incremental backup completed: {len(files_downloaded)} file(s), "
+                                  f"{changed_mb:.0f} MB changed of {total_mb:.0f} MB total "
+                                  f"({savings_pct:.0f}% saved)")
+                    return True, result_msg, checksum_json, new_change_ids, total_disk_bytes - total_bytes_saved, total_disk_bytes
+
+            # ==============================================================
             #  PATH A: POWERED OFF — Direct stream, no snapshot, no copy
             # ==============================================================
-            if is_off:
+            if is_off and not use_incremental:
                 if progress_callback: progress_callback(5)
                 storage.makedirs(dest_rel_dir)
                 files_downloaded = []
@@ -1173,13 +1322,45 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
             import json
             checksum_data = {f: h for f, h in files_downloaded}
             checksum_json = json.dumps(checksum_data)
+
+            # Extract CBT change IDs if CBT is enabled (for future incremental backups)
+            new_change_ids = {}
+            if getattr(vm.config, 'changeTrackingEnabled', False):
+                try:
+                    import backup_engine_cbt as cbt
+                    # For full backups we need to get the changeId from the current VM state
+                    # The changeId is available on disk backing after any snapshot operation
+                    for device in vm.config.hardware.device:
+                        if isinstance(device, vim.vm.device.VirtualDisk):
+                            backing = device.backing
+                            if hasattr(backing, 'changeId') and backing.changeId:
+                                new_change_ids[device.key] = backing.changeId
+                    if new_change_ids:
+                        log_info(f"[BACKUP] CBT change IDs captured for {len(new_change_ids)} disk(s)")
+                except Exception as e:
+                    log_warn(f"[BACKUP] CBT changeId extraction warning: {e}")
+
+            # Write backup metadata JSON
+            try:
+                import backup_engine_cbt as cbt
+                metadata = {
+                    'type': 'full',
+                    'vm_name': vm_name,
+                    'timestamp': datetime.datetime.now().isoformat(),
+                    'method': method,
+                    'new_change_ids': new_change_ids,
+                    'files': checksum_data,
+                }
+                cbt.write_backup_metadata(storage, dest_rel_dir, metadata)
+            except Exception as e:
+                log_warn(f"[BACKUP] Metadata write warning: {e}")
             
-            return True, f"Backup completed [{method}]: {len(files_downloaded)} file(s) saved to storage", checksum_json
+            return True, f"Backup completed [{method}]: {len(files_downloaded)} file(s) saved to storage", checksum_json, new_change_ids, None, None
 
 
         except Exception as e:
             if (is_cancelled_func and is_cancelled_func()) or "cancelled" in str(e).lower():
-                return False, "Backup cancelled by user", None
+                return False, "Backup cancelled by user", None, None, None, None
             last_error = str(e)
             log_error(f"[BACKUP] Attempt {attempt} failed: {last_error}")
 
@@ -1197,4 +1378,4 @@ def export_vm_native(si, vm_name, storage, dest_rel_dir, progress_callback=None,
                 log_warn(f"[BACKUP] Retrying in 10s... (Attempt {attempt+1}/{max_retries})")
                 time.sleep(10)
 
-    return False, f"Backup failed after 3 attempts. Last error: {last_error}", None
+    return False, f"Backup failed after 3 attempts. Last error: {last_error}", None, None, None, None

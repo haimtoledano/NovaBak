@@ -544,6 +544,8 @@ def update_job(
     schedule_frequency: str = Form("daily"),
     schedule_days: str = Form("0,1,2,3,4,5,6"),
     storage_target_id: Optional[str] = Form(None),
+    backup_type: str = Form("full"),
+    full_backup_day: int = Form(0),
     db: Session = Depends(get_db)
 ):
     require_auth(request)
@@ -564,7 +566,9 @@ def update_job(
             "power_off_for_backup": power_off_for_backup,
             "schedule_frequency": schedule_frequency,
             "schedule_days": schedule_days,
-            "storage_target_id": target_id
+            "storage_target_id": target_id,
+            "backup_type": backup_type,
+            "full_backup_day": full_backup_day,
         })
     except ValueError:
         pass
