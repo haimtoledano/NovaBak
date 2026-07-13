@@ -60,9 +60,10 @@ temp_*.db
 # Upgrade/deploy artifacts (local only)
 upgrade_remote.ps1
 UPGRADE_INSTRUCTIONS.txt
-deploy/novabak_update.zip
-deploy/diagnose_*.py
+deploy/
 _backups/
+update_esxi_*.py
+add_storage_modal.py
 
 # Logs
 *.log
