@@ -154,15 +154,20 @@
                             </div>
 
                             <!-- Encryption Settings -->
-                            <h2 class="settings-panel-title mt-8">Global Encryption</h2>
-                            <p class="settings-panel-desc">Set a global AES-256 encryption key for all backups.</p>
+                            <div class="flex items-center gap-3 mt-8">
+                                <h2 class="settings-panel-title mb-0">Global Encryption</h2>
+                                <span id="encryption-status-badge" class="text-xs font-bold px-2.5 py-0.5 rounded-full {% if config.encryption_key %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}" style="{% if config.encryption_key %}background: rgba(16,185,129,0.15); color: #10b981{% else %}background: var(--bg-nav); color: var(--text-muted){% endif %}">
+                                    {% if config.encryption_key %}🔒 ACTIVE{% else %}🔓 OFF{% endif %}
+                                </span>
+                            </div>
+                            <p class="settings-panel-desc">Set a global AES-256 encryption key for all backups. Only new backups will be encrypted.</p>
                             <div class="card p-5">
                                 <div class="flex gap-4 items-end" id="settings-encryption-form">
                                     <div class="flex-1">
                                         <span class="input-label">Encryption Key (Leave empty to disable)</span>
-                                        <input type="password" id="encryption_key_input" placeholder="Base64 Encoded Key (or raw string)" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
+                                        <input type="password" id="encryption_key_input" placeholder="{% if config.encryption_key %}(Key is set — enter new to change, leave empty to remove){% else %}Base64 Encoded Key (or raw string){% endif %}" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                     </div>
-                                    <button type="button" onclick="saveEncryptionKey(event)" class="btn-primary px-6 py-2 text-sm font-semibold">Save Key</button>
+                                    <button type="button" id="encryption-save-btn" onclick="saveEncryptionKey(event)" class="btn-primary px-6 py-2 text-sm font-semibold">Save Key</button>
                                 </div>
                             </div>
                         </div>
@@ -513,15 +518,47 @@ async function deleteStorageTarget(id) {
 async function saveEncryptionKey(e) {
     e.preventDefault();
     const key = document.getElementById('encryption_key_input').value;
+    const btn = document.getElementById('encryption-save-btn');
+    const badge = document.getElementById('encryption-status-badge');
+    const origText = btn.textContent;
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+
     try {
-        await fetch('/api/v1/config', {
+        const res = await fetch('/api/v1/config', {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ encryption_key: key || null })
         });
-        showAlert('Encryption key saved successfully');
+
+        if (res.ok) {
+            const isActive = key && key.trim().length > 0;
+            if (badge) {
+                badge.textContent = isActive ? '🔒 ACTIVE' : '🔓 OFF';
+                badge.style.background = isActive ? 'rgba(16,185,129,0.15)' : 'var(--bg-nav)';
+                badge.style.color = isActive ? '#10b981' : 'var(--text-muted)';
+            }
+            document.getElementById('encryption_key_input').value = '';
+            document.getElementById('encryption_key_input').placeholder = isActive
+                ? '(Key is set — enter new to change, leave empty to remove)'
+                : 'Base64 Encoded Key (or raw string)';
+            btn.textContent = '✓ Saved!';
+            btn.style.background = '#10b981';
+            setTimeout(() => { btn.textContent = origText; btn.style.background = ''; }, 2000);
+        } else {
+            const data = await res.json().catch(() => ({}));
+            btn.textContent = '✗ Failed';
+            btn.style.background = '#ef4444';
+            setTimeout(() => { btn.textContent = origText; btn.style.background = ''; }, 3000);
+            console.error('Save failed:', data);
+        }
     } catch (err) {
+        btn.textContent = '✗ Error';
+        btn.style.background = '#ef4444';
+        setTimeout(() => { btn.textContent = origText; btn.style.background = ''; }, 3000);
         console.error(err);
+    } finally {
+        btn.disabled = false;
     }
 }
 
