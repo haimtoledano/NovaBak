@@ -872,9 +872,105 @@ def _upload_file_http(si, datastore_name, dest_rel_path, storage, source_rel_pat
 def import_vm_native(si, storage, source_rel_dir, target_ds, target_name, progress_callback=None, is_cancelled_func=None):
     """
     Restores a VM by uploading files from StorageProvider to ESXi and registering the VMX.
+    Automatically handles incremental backups by assembling the full chain first.
     """
+    assembly_temp_dir = None
     try:
         log_info(f"[RESTORE] Starting import_vm_native for {target_name} on {target_ds}")
+
+        # ─── Incremental Detection ─────────────────────────────────
+        # Check if this is an incremental backup that needs chain assembly
+        try:
+            import backup_engine_cbt as cbt
+            meta = cbt.read_backup_metadata(storage, source_rel_dir)
+        except Exception:
+            meta = None
+
+        if meta and meta.get('type') == 'incremental':
+            log_info(f"[RESTORE] Detected INCREMENTAL backup — assembling chain...")
+            if progress_callback: progress_callback(2)
+
+            # Extract VM name from source_rel_dir (format: "VM_Name/YYYY-MM-DD")
+            vm_name = source_rel_dir.split('/')[0] if '/' in source_rel_dir else source_rel_dir
+
+            # Find the complete chain
+            full_dir, incr_dirs = cbt.find_backup_chain(storage, vm_name, source_rel_dir)
+            log_info(f"[RESTORE] Chain: full={full_dir}, incrementals={len(incr_dirs)}")
+
+            if progress_callback: progress_callback(5)
+
+            # Create temp assembly directory
+            assembly_temp_dir = f"{vm_name}/_restore_assembly"
+            storage.makedirs(assembly_temp_dir)
+            log_info(f"[RESTORE] Assembly temp dir: {assembly_temp_dir}")
+
+            # Find flat VMDKs in the full backup
+            full_files = storage.list_files(full_dir)
+            flat_vmdks = [f for f in full_files if f.endswith('-flat.vmdk')]
+            vmx_file = next((f for f in full_files if f.endswith('.vmx')), None)
+
+            if not flat_vmdks:
+                return False, f"No flat VMDK found in full backup {full_dir}"
+            if not vmx_file:
+                return False, f"No VMX file found in full backup {full_dir}"
+
+            # Assemble each disk
+            for disk_idx, flat_vmdk in enumerate(flat_vmdks):
+                disk_base = flat_vmdk.replace('-flat.vmdk', '')
+                log_info(f"[RESTORE] Assembling disk {disk_idx + 1}/{len(flat_vmdks)}: {disk_base}")
+
+                # Collect incremental .nb-incr files for this disk across all incr dirs
+                incr_paths = []
+                for incr_dir in incr_dirs:
+                    incr_files = storage.list_files(incr_dir)
+                    matching = [f for f in incr_files if f.startswith(disk_base) and f.endswith('.nb-incr')]
+                    for mf in sorted(matching):
+                        incr_paths.append(f"{incr_dir}/{mf}")
+
+                full_flat_path = f"{full_dir}/{flat_vmdk}"
+                output_path = f"{assembly_temp_dir}/{flat_vmdk}"
+
+                assembly_progress = 5 + (30 * (disk_idx + 1) // len(flat_vmdks))
+                if progress_callback: progress_callback(assembly_progress)
+
+                cbt.assemble_full_from_chain(storage, full_flat_path, incr_paths, output_path)
+                log_info(f"[RESTORE] Disk assembled: {output_path}")
+
+                # Also copy the descriptor VMDK (non-flat)
+                descriptor_vmdk = f"{disk_base}.vmdk"
+                if descriptor_vmdk in full_files and descriptor_vmdk != flat_vmdk:
+                    src_desc = f"{full_dir}/{descriptor_vmdk}"
+                    dst_desc = f"{assembly_temp_dir}/{descriptor_vmdk}"
+                    with storage.open_read(src_desc) as sf, storage.open_write(dst_desc) as df:
+                        df.write(sf.read())
+
+            # Copy VMX to assembly dir (use the latest one from the target backup if available)
+            latest_files = storage.list_files(source_rel_dir)
+            latest_vmx = next((f for f in latest_files if f.endswith('.vmx')), None)
+            src_vmx_dir = source_rel_dir if latest_vmx else full_dir
+            src_vmx_name = latest_vmx or vmx_file
+            with storage.open_read(f"{src_vmx_dir}/{src_vmx_name}") as sf, \
+                 storage.open_write(f"{assembly_temp_dir}/{src_vmx_name}") as df:
+                df.write(sf.read())
+
+            # Copy any other non-VMDK files (nvram, vmsd, etc.) from full backup
+            for f in full_files:
+                if not f.endswith('.vmdk') and not f.endswith('.vmx') and \
+                   not f.endswith('.nb-incr') and f != 'backup.json':
+                    try:
+                        with storage.open_read(f"{full_dir}/{f}") as sf, \
+                             storage.open_write(f"{assembly_temp_dir}/{f}") as df:
+                            df.write(sf.read())
+                    except Exception:
+                        pass  # Non-critical files
+
+            if progress_callback: progress_callback(40)
+            log_info(f"[RESTORE] Chain assembly complete. Restoring from assembled files...")
+
+            # Switch source to the assembled directory
+            source_rel_dir = assembly_temp_dir
+
+        # ─── Standard Restore Flow ─────────────────────────────────
         content = si.RetrieveContent()
         
         # More robust datacenter find
@@ -904,14 +1000,17 @@ def import_vm_native(si, storage, source_rel_dir, target_ds, target_name, progre
             log_error(f"[RESTORE] MakeDirectory failed: {dm_err}")
             raise dm_err
 
-        if progress_callback: progress_callback(5)
+        progress_base = 40 if assembly_temp_dir else 5
+        if progress_callback: progress_callback(progress_base)
 
         # 2. List source files
         files = storage.list_files(source_rel_dir)
+        # Filter out non-VM files
+        files = [f for f in files if not f.endswith('.nb-incr') and f != 'backup.json']
         if not files:
             return False, f"No files found in source directory {source_rel_dir}"
 
-        # 3. Separate files (VMX must be uploaded last or we just upload all)
+        # 3. Find VMX
         vmx_file = next((f for f in files if f.endswith('.vmx')), None)
         if not vmx_file:
             return False, f"No VMX file found in {source_rel_dir}"
@@ -921,8 +1020,8 @@ def import_vm_native(si, storage, source_rel_dir, target_ds, target_name, progre
             source_p = f"{source_rel_dir}/{filename}"
             dest_p = f"{target_name}/{filename}"
             
-            step_pct_start = 5 + (90 * idx // total_files)
-            step_pct_end = 5 + (90 * (idx + 1) // total_files)
+            step_pct_start = progress_base + ((95 - progress_base) * idx // total_files)
+            step_pct_end = progress_base + ((95 - progress_base) * (idx + 1) // total_files)
             
             if progress_callback: progress_callback(step_pct_start)
             
@@ -947,6 +1046,15 @@ def import_vm_native(si, storage, source_rel_dir, target_ds, target_name, progre
     except Exception as e:
         log_error(f"[RESTORE] Native restore failed: {e}")
         return False, str(e)
+
+    finally:
+        # Clean up assembly temp dir
+        if assembly_temp_dir:
+            try:
+                log_info(f"[RESTORE] Cleaning up assembly temp dir: {assembly_temp_dir}")
+                storage.delete_dir(assembly_temp_dir)
+            except Exception as cleanup_err:
+                log_warn(f"[RESTORE] Failed to clean up temp dir: {cleanup_err}")
 
 # ===========================================================================
 #  MAIN: Export VM - Power-State Aware Backup

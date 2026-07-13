@@ -564,11 +564,15 @@ def perform_backup(vm_id: int):
                     previous_change_id = vm.last_change_id
 
                 # Find parent backup dir for metadata chain
-                if vm.last_full_backup_id:
-                    parent_log = db.query(BackupLog).filter(BackupLog.id == vm.last_full_backup_id).first()
-                    if parent_log and parent_log.message:
-                        # Extract dir from log message or construct from convention
-                        pass
+                # Scan VM dirs to find the most recent backup dir (which is the parent)
+                try:
+                    vm_dirs = storage.list_dirs(vm.vm_name) if storage.exists(vm.vm_name) else []
+                    vm_dirs.sort(reverse=True)  # newest first (YYYY-MM-DD)
+                    if vm_dirs:
+                        parent_backup_dir = f"{vm.vm_name}/{vm_dirs[0]}"
+                        log_info(f"[BACKUP] Incremental parent dir: {parent_backup_dir}")
+                except Exception as pbd_err:
+                    log_warn(f"[BACKUP] Could not find parent backup dir: {pbd_err}")
 
         # Auto-enable CBT if VM is configured for incremental
         if getattr(vm, 'backup_type', 'full') == 'incremental':

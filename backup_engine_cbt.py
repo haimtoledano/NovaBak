@@ -348,12 +348,14 @@ def read_backup_metadata(storage, backup_dir):
         return None
 
 
-# ---------------------------------------------------------------------------
-#  Find the backup chain for a given incremental backup
-# ---------------------------------------------------------------------------
 def find_backup_chain(storage, vm_name, target_backup_dir):
     """Find the complete chain (full + incrementals) needed to restore a backup.
-    Returns (full_dir, [incr_dirs]) in chronological order."""
+    
+    Scans all backup directories for the VM chronologically and builds the chain
+    from the most recent full backup up to (and including) the target directory.
+    
+    Returns (full_dir, [incr_dirs]) in chronological order.
+    """
     meta = read_backup_metadata(storage, target_backup_dir)
     if not meta:
         return target_backup_dir, []  # Assume it's a full backup
@@ -361,21 +363,49 @@ def find_backup_chain(storage, vm_name, target_backup_dir):
     if meta.get('type') == 'full':
         return target_backup_dir, []
 
-    # Walk the chain backwards
-    chain = [target_backup_dir]
-    current_meta = meta
+    # Strategy: scan all backup dirs chronologically, find the chain
+    try:
+        all_dirs = storage.list_dirs(vm_name) if storage.exists(vm_name) else []
+        all_dirs.sort()  # oldest first (YYYY-MM-DD)
+    except Exception:
+        all_dirs = []
 
-    while current_meta and current_meta.get('type') == 'incremental':
-        parent_dir = current_meta.get('parent_backup_dir')
-        if not parent_dir:
-            raise Exception(f"Broken chain: {chain[-1]} has no parent_backup_dir")
-        chain.append(parent_dir)
-        current_meta = read_backup_metadata(storage, parent_dir)
+    if not all_dirs:
+        raise Exception(f"Cannot find backup chain: no backup directories found for {vm_name}")
 
-    # chain is [target, ..., full] — reverse to get [full, ..., target]
-    chain.reverse()
-    full_dir = chain[0]
-    incr_dirs = chain[1:]
+    # Build timeline: read backup.json from each dir
+    timeline = []
+    target_dir_name = target_backup_dir.split('/')[-1] if '/' in target_backup_dir else target_backup_dir
+    
+    for d in all_dirs:
+        dir_path = f"{vm_name}/{d}"
+        dir_meta = read_backup_metadata(storage, dir_path)
+        btype = (dir_meta or {}).get('type', 'full')
+        timeline.append((dir_path, btype))
 
-    log_info(f"[CBT] Chain for {vm_name}: 1 full + {len(incr_dirs)} incremental(s)")
+    # Find the chain: walk backwards from target to find the full
+    full_dir = None
+    incr_dirs = []
+    found_target = False
+
+    for dir_path, btype in timeline:
+        if btype == 'full':
+            # Reset chain — new potential chain starts here
+            full_dir = dir_path
+            incr_dirs = []
+        else:
+            incr_dirs.append(dir_path)
+
+        if dir_path == target_backup_dir:
+            found_target = True
+            break
+
+    if not found_target:
+        raise Exception(f"Target backup dir {target_backup_dir} not found in VM {vm_name} timeline")
+
+    if not full_dir:
+        raise Exception(f"No full backup found in chain for {target_backup_dir}")
+
+    log_info(f"[CBT] Chain for {vm_name}: 1 full ({full_dir}) + {len(incr_dirs)} incremental(s)")
     return full_dir, incr_dirs
+
