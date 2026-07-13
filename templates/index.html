@@ -2419,6 +2419,35 @@
 
     function showDaysRow(vmId) {
         getJobForms(vmId).forEach(applyDaysRowVisibility);
+        updateCbtVisibility(vmId);
+    }
+
+    function updateCbtVisibility(vmId) {
+        getJobForms(vmId).forEach(form => {
+            const freq = getFrequency(form);
+            const isMonthly = (freq === 'monthly');
+
+            // Hide/show the cbt-type-section container
+            const cbtSection = form.querySelector('.cbt-type-section');
+            if (cbtSection) {
+                cbtSection.style.display = isMonthly ? 'none' : '';
+            }
+
+            // For inline forms without cbt-type-section, hide the Type select wrapper
+            const typeSelect = form.querySelector('select[name="backup_type"]');
+            if (typeSelect && !cbtSection) {
+                const wrapper = typeSelect.closest('.flex.items-center');
+                const sep = wrapper?.previousElementSibling;
+                if (wrapper) wrapper.style.display = isMonthly ? 'none' : '';
+                if (sep && sep.classList.contains('w-px')) sep.style.display = isMonthly ? 'none' : '';
+            }
+
+            // Auto-reset to full if switching to monthly
+            if (isMonthly && typeSelect && typeSelect.value === 'incremental') {
+                typeSelect.value = 'full';
+                autoSaveJob(vmId, form);
+            }
+        });
     }
 
     // On page load: init visibility for all job forms
