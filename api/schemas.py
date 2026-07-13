@@ -86,24 +86,24 @@ class StorageTargetResponse(BaseModel):
 
 class ConfigResponse(BaseModel):
     encryption_key: Optional[str] = None
-    perf_parallel_threads: int
-    perf_compression_level: int
-    backup_timeout_mins: int
-    max_global_backups: int
-    max_backups_per_host: int
-    datastore_min_free_pct: int
-    datastore_headroom_gb: int
-    datastore_est_multiplier: float
-    smtp_server: str
-    smtp_port: int
-    smtp_user: str
-    smtp_to_email: str
-    smtp_use_tls: bool
-    smtp_use_ssl: bool
-    imap_server: str
-    imap_port: int
-    imap_user: str
-    imap_use_ssl: bool
+    perf_parallel_threads: int = 2
+    perf_compression_level: int = 0
+    backup_timeout_mins: int = 240
+    max_global_backups: int = 4
+    max_backups_per_host: int = 2
+    datastore_min_free_pct: int = 10
+    datastore_headroom_gb: int = 20
+    datastore_est_multiplier: float = 1.1
+    smtp_server: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_to_email: str = ""
+    smtp_use_tls: bool = True
+    smtp_use_ssl: bool = False
+    imap_server: str = ""
+    imap_port: int = 993
+    imap_user: str = ""
+    imap_use_ssl: bool = True
 
 
 class ConfigUpdate(BaseModel):
