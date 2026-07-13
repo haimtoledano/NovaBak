@@ -54,6 +54,7 @@ def config_to_dict(config):
         "imap_use_ssl": config.imap_use_ssl,
         "webhook_url": config.webhook_url,
         "daily_report_time": config.daily_report_time,
+        "encryption_key": "***" if config.encryption_key else None,
     }
 
 

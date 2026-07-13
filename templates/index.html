@@ -2424,7 +2424,7 @@
 
     function updateCbtVisibility(vmId) {
         getJobForms(vmId).forEach(form => {
-            const freq = getFrequency(form);
+            const freq = getJobScheduleFrequency(form);
             const isMonthly = (freq === 'monthly');
 
             // Hide/show the cbt-type-section container
