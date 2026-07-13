@@ -56,20 +56,34 @@ class SecretManager:
             return ciphertext
 
     @staticmethod
-    def get_stream_cipher(key_b64: str, iv: bytes):
+    def get_stream_cipher(passphrase: str, iv: bytes):
         """
-        Returns a (encryptor, decryptor) tuple for AES-CTR mode.
-        key_b64 must be a base64 encoded 32-byte key.
-        iv must be a 16-byte initialization vector (nonce).
-        CTR mode requires the exact same IV for decryption.
+        Returns a (encryptor, decryptor) tuple for AES-256-CTR mode.
+        
+        passphrase: any string (password, base64 key, or raw key).
+                    A proper 32-byte AES key is derived using PBKDF2.
+        iv:         16-byte initialization vector (nonce).
+                    CTR mode requires the exact same IV for decryption.
         """
-        if not key_b64:
+        if not passphrase:
             return None, None
             
         try:
-            key = base64.b64decode(key_b64)
-            if len(key) != 32:
-                raise ValueError("Key must be 32 bytes for AES-256")
+            from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+            from cryptography.hazmat.primitives import hashes
+            
+            # Derive a proper 32-byte AES-256 key from the passphrase
+            # Using a fixed salt ensures the same passphrase always produces the same key
+            # (required for decryption to work across sessions)
+            fixed_salt = b'NovaBak_AES256_v1'
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=fixed_salt,
+                iterations=100_000,
+                backend=default_backend(),
+            )
+            key = kdf.derive(passphrase.encode('utf-8'))
                 
             cipher = Cipher(algorithms.AES(key), modes.CTR(iv), backend=default_backend())
             return cipher.encryptor(), cipher.decryptor()
