@@ -762,22 +762,37 @@ def get_available_backups(target):
             date_folders = storage.list_dirs(vm_name)
             for date_folder in date_folders:
                 rel_date_dir = f"{vm_name}/{date_folder}"
-                files = storage.list_files(rel_date_dir)
+                try:
+                    files = storage.list_files(rel_date_dir)
+                except Exception:
+                    continue
                 
                 has_descriptor = any(f.endswith(".ovf") or f.endswith(".vmx") for f in files)
                 if has_descriptor:
-                    # Find main disk size
-                    total_size = sum(storage.get_file_size(f"{rel_date_dir}/{f}") for f in files)
+                    # Find total size
+                    try:
+                        total_size = sum(storage.get_size(f"{rel_date_dir}/{f}") for f in files)
+                        # Format as human-readable
+                        if total_size > 1024**3:
+                            size_str = f"{total_size / 1024**3:.1f} GB"
+                        elif total_size > 1024**2:
+                            size_str = f"{total_size / 1024**2:.0f} MB"
+                        else:
+                            size_str = f"{total_size / 1024:.0f} KB"
+                    except Exception:
+                        size_str = "N/A"
                     backups.append({
                         "vm_name": vm_name,
                         "date": date_folder,
                         "path": rel_date_dir,
-                        "size": total_size,
+                        "size": size_str,
                         "target_id": target.id,
                         "target_name": target.name
                     })
     except Exception as e:
         log_error(f"Failed to scan storage target {target.name}: {e}")
+        import traceback
+        log_error(traceback.format_exc())
         
     return backups
 

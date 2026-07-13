@@ -59,24 +59,36 @@
             <div class="overview-panel-body">
                 <div id="ov-storage-path" class="text-xs font-mono mb-4 truncate" style="color: var(--text-muted)" title="">—</div>
 
-                <div class="mb-4">
-                    <div class="flex justify-between text-xs mb-1.5">
-                        <span style="color: var(--text-muted)">Backup repository</span>
-                        <span id="ov-storage-used-label" class="font-semibold">—</span>
+                <!-- Donut chart + stats -->
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="relative shrink-0" style="width: 80px; height: 80px;">
+                        <svg id="ov-storage-donut" viewBox="0 0 36 36" style="width: 80px; height: 80px; transform: rotate(-90deg);">
+                            <circle cx="18" cy="18" r="15.9" fill="none" stroke-width="3" style="stroke: var(--border-color); opacity: 0.3;"></circle>
+                            <circle id="ov-donut-fill" cx="18" cy="18" r="15.9" fill="none" stroke-width="3" stroke-dasharray="0 100" stroke-linecap="round" style="stroke: var(--brand); transition: stroke-dasharray 1s ease;"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span id="ov-donut-label" class="text-xs font-bold" style="color: var(--text-main)">—</span>
+                        </div>
                     </div>
-                    <div id="ov-storage-bar-wrap" class="overview-bar-track hidden">
-                        <div id="ov-storage-bar" class="overview-bar-fill" style="width: 0%"></div>
+                    <div class="flex-1 space-y-2">
+                        <div class="flex justify-between items-baseline">
+                            <span class="text-[11px]" style="color: var(--text-muted)">Used</span>
+                            <span id="ov-storage-used-label" class="text-sm font-bold">—</span>
+                        </div>
+                        <div class="overview-bar-track">
+                            <div id="ov-storage-bar" class="overview-bar-fill" style="width: 0%; transition: width 1s ease;"></div>
+                        </div>
+                        <div id="ov-storage-meta" class="text-[11px]" style="color: var(--text-muted)">—</div>
                     </div>
-                    <div id="ov-storage-meta" class="text-[11px] mt-1.5" style="color: var(--text-muted)">—</div>
                 </div>
 
                 <div id="ov-disk-section" class="hidden pt-3 border-t" style="border-color: var(--border-color)">
                     <div class="flex justify-between text-xs mb-1.5">
-                        <span style="color: var(--text-muted)">Target disk free</span>
+                        <span style="color: var(--text-muted)">Disk usage</span>
                         <span id="ov-disk-free-label" class="font-semibold">—</span>
                     </div>
                     <div class="overview-bar-track">
-                        <div id="ov-disk-bar" class="overview-bar-fill overview-bar-disk" style="width: 0%"></div>
+                        <div id="ov-disk-bar" class="overview-bar-fill" style="width: 0%; transition: width 0.8s ease;"></div>
                     </div>
                     <div id="ov-disk-meta" class="text-[11px] mt-1.5" style="color: var(--text-muted)">—</div>
                 </div>

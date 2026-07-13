@@ -157,13 +157,13 @@
                             <h2 class="settings-panel-title mt-8">Global Encryption</h2>
                             <p class="settings-panel-desc">Set a global AES-256 encryption key for all backups.</p>
                             <div class="card p-5">
-                                <form action="/api/v1/config" method="PUT" id="settings-encryption-form" class="flex gap-4 items-end" onsubmit="saveEncryptionKey(event)">
+                                <div class="flex gap-4 items-end" id="settings-encryption-form">
                                     <div class="flex-1">
                                         <span class="input-label">Encryption Key (Leave empty to disable)</span>
                                         <input type="password" id="encryption_key_input" placeholder="Base64 Encoded Key (or raw string)" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                     </div>
-                                    <button type="submit" class="btn-primary px-6 py-2 text-sm font-semibold">Save Key</button>
-                                </form>
+                                    <button type="button" onclick="saveEncryptionKey(event)" class="btn-primary px-6 py-2 text-sm font-semibold">Save Key</button>
+                                </div>
                             </div>
                         </div>
 
@@ -188,10 +188,16 @@
                                             <span class="input-label">Compression</span>
                                             <span class="field-tip" tabindex="0" aria-label="Help: Compression">
                                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                                <span class="field-tip-text">Reserved for a future release. Current engine does not compress VMDKs.</span>
+                                                <span class="field-tip-text">Compress backups using zstd. Level 3 (Balanced) is recommended. Only new backups are compressed.</span>
                                             </span>
                                         </div>
-                                        <input type="number" name="perf_compression_level" value="{{ config.perf_compression_level }}" min="0" max="9" class="w-full py-2 px-3 text-center text-sm disabled:opacity-50" disabled>
+                                        <select name="perf_compression_level" class="w-full py-2 px-3 text-sm">
+                                            <option value="0" {{ 'selected' if config.perf_compression_level == 0 }}>Off — No compression</option>
+                                            <option value="1" {{ 'selected' if config.perf_compression_level == 1 }}>Fast (zstd 1) — ~35% savings</option>
+                                            <option value="3" {{ 'selected' if config.perf_compression_level == 3 }}>Balanced (zstd 3) — ~50% savings ★</option>
+                                            <option value="6" {{ 'selected' if config.perf_compression_level == 6 }}>High (zstd 6) — ~55% savings</option>
+                                            <option value="9" {{ 'selected' if config.perf_compression_level == 9 }}>Maximum (zstd 9) — ~60% savings, slow</option>
+                                        </select>
                                     </div>
                                     <div>
                                         <div class="field-label-row">
@@ -271,7 +277,7 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div class="sm:col-span-2 md:col-span-1">
                                         <span class="input-label">SMTP server</span>
-                                        <input type="text" name="smtp_server" value="{{ config.smtp_server }}" placeholder="smtp.gmail.com" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
+                                        <input type="text" name="smtp_server" value="{{ config.smtp_server or '' }}" placeholder="smtp.gmail.com" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                     </div>
                                     <div>
                                         <span class="input-label">Port</span>
@@ -279,7 +285,7 @@
                                     </div>
                                     <div>
                                         <span class="input-label">Username</span>
-                                        <input type="text" name="smtp_user" value="{{ config.smtp_user }}" placeholder="user@domain.com" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)" autocomplete="off">
+                                        <input type="text" name="smtp_user" value="{{ config.smtp_user or '' }}" placeholder="user@domain.com" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)" autocomplete="off">
                                     </div>
                                     <div>
                                         <span class="input-label">Password</span>
@@ -287,7 +293,7 @@
                                     </div>
                                     <div class="sm:col-span-2">
                                         <span class="input-label">Default recipient email</span>
-                                        <input type="email" name="smtp_to_email" value="{{ config.smtp_to_email }}" placeholder="alerts@yourdomain.com" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
+                                        <input type="email" name="smtp_to_email" value="{{ config.smtp_to_email or '' }}" placeholder="alerts@yourdomain.com" class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                     </div>
                                     <div class="sm:col-span-2 flex flex-wrap items-center gap-6 pt-1">
                                         <label class="flex items-center gap-2 cursor-pointer">
@@ -316,7 +322,7 @@
                                 <div class="grid grid-cols-1 gap-4">
                                     <div>
                                         <span class="input-label">Webhook URL (Slack, Teams, Make.com)</span>
-                                        <input type="url" name="webhook_url" value="{{ config.webhook_url }}" placeholder="https://hooks.slack.com/services/..." class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
+                                        <input type="url" name="webhook_url" value="{{ config.webhook_url or '' }}" placeholder="https://hooks.slack.com/services/..." class="w-full py-2 px-3 font-mono text-sm mt-1 border rounded" style="border-color: var(--border-color); background: transparent; color: var(--text-main)">
                                     </div>
                                     <div>
                                         <span class="input-label">Daily Report Schedule</span>
