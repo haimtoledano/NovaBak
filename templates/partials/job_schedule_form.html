@@ -87,6 +87,20 @@
             </label>
         </div>
 
+        <div class="w-px h-6 shrink-0" style="background: var(--border-color)"></div>
+
+        <div class="flex items-center gap-1.5 shrink-0">
+            <span class="text-[11px] font-semibold uppercase opacity-50 whitespace-nowrap">Type</span>
+            <select name="backup_type"
+                    class="py-1 px-2 text-xs rounded border shrink-0"
+                    style="border-color: var(--border-color); background: var(--bg-card); color: var(--text-main)"
+                    onchange="autoSaveJob({{ vm.id }}, this.form)">
+                <option value="full" {% if (vm.backup_type or 'full') == 'full' %}selected{% endif %}>Full</option>
+                <option value="incremental" {% if vm.backup_type == 'incremental' %}selected{% endif %}>CBT ⚡</option>
+            </select>
+            <input type="hidden" name="full_backup_day" value="{{ vm.full_backup_day or 0 }}">
+        </div>
+
         <span class="job-save-flash ml-auto text-xs font-semibold text-green-400 opacity-0 transition-opacity duration-500 shrink-0" id="save-flash-{{ vm.id }}">✓ Saved</span>
 
         <button type="button" onclick="removeVmFromTasks({{ vm.id }}, {{ vm.vm_name|tojson }})" class="btn-secondary p-1.5 rounded shrink-0 hover:text-red-400 hover:border-red-400/50" title="Remove from tasks">
