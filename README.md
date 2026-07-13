@@ -113,7 +113,7 @@ python init_db.py
 docker-compose up -d
 ```
 
-Open: **https://localhost** or **https://localhost:8000**
+Open: **https://localhost:8001**
 
 > Your browser will warn about a self-signed certificate. Click **Advanced → Proceed** to continue.
 
@@ -127,7 +127,7 @@ Open: **https://localhost** or **https://localhost:8000**
 
 That's it. The installer will set up Python, install dependencies, and register both services to start automatically on boot.
 
-Open: **https://localhost:8000**
+Open: **https://localhost:8001**
 
 ---
 
@@ -135,7 +135,7 @@ Open: **https://localhost:8000**
 
 | | |
 |---|---|
-| **URL** | `https://localhost:8000` |
+| **URL** | `https://localhost:8001` |
 | **Username** | `admin` |
 | **Password** | `admin` |
 
@@ -166,7 +166,7 @@ All users are **required to set up MFA** on first login.
 │  ┌──────────────┐  ┌─────────────┐  │
 │  │  Web UI      │  │  Worker     │  │
 │  │  (FastAPI)   │  │  Daemon     │  │
-│  │  Port 8000   │  │  (APScheduler)│ │
+│  │  Port 8001   │  │  (APScheduler)│ │
 │  └──────┬───────┘  └──────┬──────┘  │
 │         │                 │         │
 │         └────────┬────────┘         │

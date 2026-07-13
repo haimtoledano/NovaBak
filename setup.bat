@@ -56,6 +56,6 @@ echo.
 echo ==========================================================
 echo INSTALLATION COMPLETE! 
 echo The system is now running in the background.
-echo You can access the UI at: http://localhost:8000
+echo You can access the UI at: https://localhost:8001
 echo ==========================================================
 pause
