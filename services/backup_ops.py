@@ -275,7 +275,8 @@ def update_vm_job(db, vm_id, data):
         raise ValueError("VM not found")
     for field in (
         "is_selected", "schedule_hour", "schedule_minute", "retention_count",
-        "is_job_active", "power_off_for_backup", "schedule_frequency", "storage_target_id"
+        "is_job_active", "power_off_for_backup", "schedule_frequency", "storage_target_id",
+        "backup_type", "full_backup_day",
     ):
         if field in data and data[field] is not None:
             setattr(vm, field, data[field])
