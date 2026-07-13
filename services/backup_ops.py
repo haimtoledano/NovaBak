@@ -27,13 +27,6 @@ def get_or_create_config(db):
 
 def config_to_dict(config):
     return {
-        "storage_type": config.storage_type,
-        "nfs_path": config.nfs_path,
-        "smb_unc_path": config.smb_unc_path,
-        "smb_user": config.smb_user,
-        "s3_endpoint": config.s3_endpoint,
-        "s3_bucket": config.s3_bucket,
-        "s3_region": config.s3_region,
         "perf_parallel_threads": config.perf_parallel_threads or 2,
         "perf_compression_level": config.perf_compression_level or 0,
         "backup_timeout_mins": config.backup_timeout_mins or 240,
@@ -52,8 +45,8 @@ def config_to_dict(config):
         "imap_port": config.imap_port or 993,
         "imap_user": config.imap_user or "",
         "imap_use_ssl": bool(config.imap_use_ssl) if config.imap_use_ssl is not None else True,
-        "webhook_url": config.webhook_url,
-        "daily_report_time": config.daily_report_time,
+        "webhook_url": getattr(config, 'webhook_url', '') or "",
+        "daily_report_time": getattr(config, 'daily_report_time', '08:00') or "08:00",
         "encryption_key": "***" if config.encryption_key else None,
     }
 
