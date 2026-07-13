@@ -146,14 +146,21 @@ def get_config(db: Session = Depends(get_db), user: User = Depends(get_api_user)
     return ConfigResponse(**backup_ops.config_to_dict(config))
 
 
-@router.put("/config", response_model=ConfigResponse)
+@router.put("/config")
 def update_config(
     body: ConfigUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(require_api_role("admin")),
 ):
-    config = backup_ops.update_full_config(db, body.model_dump(exclude_unset=True))
-    return ConfigResponse(**backup_ops.config_to_dict(config))
+    try:
+        config = backup_ops.update_full_config(db, body.model_dump(exclude_unset=True))
+        result = backup_ops.config_to_dict(config)
+        return result
+    except Exception as e:
+        import traceback
+        from logger_util import log_error
+        log_error(f"[API] PUT /config failed: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─── Storage Targets ──────────────────────────────────────────────────────────
