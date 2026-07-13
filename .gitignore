@@ -14,11 +14,13 @@ env/
 # Data directory — contains DB with credentials, logs, etc.
 data/
 
-# Database files (NEVER commit these — contain credentials)
+# Database files (NEVER commit — contain credentials)
 *.db
 *.db-journal
 *.db-wal
 *.db.old
+*.sqlite
+*.sqlite3
 
 # Compiled distribution / release zips
 *.zip
@@ -29,29 +31,42 @@ data/
 .idea/
 *.DS_Store
 Thumbs.db
+.agents/
 
 # Lock files
 daemon.lock
 app.lock
 
-# Test scripts
-/tmp/
-test.txt
-
-# Certificates & Secrets
+# Certificates & Secrets (NEVER commit)
 *.pem
 *.key
+*.crt
 .db_secret
 .jwt_secret
+*.env
+.env.*
 
-# Upgrade artifacts
-fix_db*.py
-temp_check.db
+# Debug, test, and diagnostic scripts (NEVER commit)
 check_*.py
 diagnose_*.py
+debug_*.py
+test_*.py
+scratch_*.py
+fix_*.py
+fix_db*.py
+temp_*.py
+temp_*.db
+
+# Upgrade/deploy artifacts (local only)
 upgrade_remote.ps1
 UPGRADE_INSTRUCTIONS.txt
-
-# Deploy artifacts (local only)
 deploy/novabak_update.zip
 deploy/diagnose_*.py
+_backups/
+
+# Logs
+*.log
+
+# Temp
+/tmp/
+test.txt

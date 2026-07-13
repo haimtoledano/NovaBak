@@ -1,0 +1,59 @@
+#!/bin/sh
+# NovaBak pre-commit hook: Block dangerous files from being committed.
+# Install: copy to .git/hooks/pre-commit (or run install_hooks.ps1)
+
+RED='\033[0;31m'
+NC='\033[0m'
+BLOCKED=0
+
+# Patterns that must NEVER be committed
+BLOCKED_PATTERNS="
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+*.pem
+*.key
+*.crt
+.db_secret
+.jwt_secret
+*.env
+check_*.py
+diagnose_*.py
+debug_*.py
+scratch_*.py
+fix_*.py
+temp_*.py
+upgrade_remote.ps1
+UPGRADE_INSTRUCTIONS.txt
+"
+
+for pattern in $BLOCKED_PATTERNS; do
+    # Check staged files against pattern
+    matches=$(git diff --cached --name-only --diff-filter=ACM | grep -i "$pattern" 2>/dev/null)
+    if [ -n "$matches" ]; then
+        echo "${RED}BLOCKED${NC}: Refusing to commit files matching '$pattern':"
+        echo "$matches" | while read f; do echo "  - $f"; done
+        BLOCKED=1
+    fi
+done
+
+# Check for hardcoded secrets (basic patterns)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(py|html|js|json|yml|yaml|cfg|ini|conf)$')
+if [ -n "$STAGED_FILES" ]; then
+    for f in $STAGED_FILES; do
+        # Check for potential passwords/keys in code
+        if git diff --cached -- "$f" | grep -iE '(password|secret|api_key|private_key)\s*=\s*["\x27][^"\x27]{8,}' >/dev/null 2>&1; then
+            echo "${RED}WARNING${NC}: Possible hardcoded secret in $f"
+            echo "  Review carefully before committing!"
+        fi
+    done
+fi
+
+if [ $BLOCKED -eq 1 ]; then
+    echo ""
+    echo "To bypass (NOT recommended): git commit --no-verify"
+    exit 1
+fi
+
+exit 0
