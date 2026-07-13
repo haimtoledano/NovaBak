@@ -143,8 +143,13 @@ def _download_file_http(si, datastore_name, file_path, storage, dest_rel_path, p
     try:
         config = db.query(Config).first()
         if config and config.encryption_key:
+            log_info(f"[DOWNLOAD] Encryption key found in config (len={len(config.encryption_key)})")
             encryption_iv = os.urandom(16)
             encryptor, _ = SecretManager.get_stream_cipher(config.encryption_key, encryption_iv)
+            if encryptor:
+                log_info(f"[DOWNLOAD] Encryption enabled: AES-256-CTR")
+            else:
+                log_error(f"[DOWNLOAD] Encryption FAILED — get_stream_cipher returned None!")
         if config and getattr(config, 'perf_compression_level', 0) > 0:
             compression_level = config.perf_compression_level
             try:
