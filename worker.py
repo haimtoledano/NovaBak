@@ -164,20 +164,28 @@ def send_email_report(config, logs_today):
 
 def authenticate_smb(config):
     """ Authenticates to the SMB share on Windows using net use. Returns (bool, str) """
-    if os.name == 'nt' and config.smb_unc_path:
+    if not config:
+        return True, "No config provided"
+        
+    smb_unc_path = getattr(config, 'smb_unc_path', '')
+    if not smb_unc_path:
+        return True, "No SMB path configured"
+
+    if os.name == 'nt':
         user_str = getattr(config, 'smb_user', '')
-        if getattr(config, 'smb_domain', ''):
-            user_str = f"{config.smb_domain}\\{config.smb_user}"
+        domain = getattr(config, 'smb_domain', '')
+        if domain and user_str and '\\' not in user_str:
+            user_str = f"{domain}\\{user_str}"
             
         if user_str:
-            log_info(f"Authenticating to SMB share: {config.smb_unc_path} with user {user_str}")
+            log_info(f"Authenticating to SMB share: {smb_unc_path} with user {user_str}")
             
         # Disconnect just in case there's a stale connection
         import subprocess
-        subprocess.run(["net", "use", config.smb_unc_path, "/delete", "/y"], capture_output=True)
+        subprocess.run(["net", "use", smb_unc_path, "/delete", "/y"], capture_output=True)
         
         # Connect
-        cmd = ["net", "use", config.smb_unc_path]
+        cmd = ["net", "use", smb_unc_path]
         smb_pass = SecretManager.decrypt(getattr(config, 'smb_password', ''))
         if smb_pass and user_str:
             cmd.extend([smb_pass, f"/user:{user_str}"])
@@ -963,27 +971,57 @@ def perform_restore(config, target_ip, target_user, target_password, source_ova_
     try:
         log_info(f"[RESTORE] Getting storage provider...")
         from storage_util import get_storage
-        from models import Config
+        from models import StorageTarget
         with SessionLocal() as fresh_db:
-            fresh_config = fresh_db.query(Config).first()
-            storage_type = getattr(fresh_config, 'storage_type', 'SMB')
+            targets = fresh_db.query(StorageTarget).all()
+            target = None
+            for t in targets:
+                if t.storage_type == "S3" and t.s3_bucket and t.s3_bucket in source_ova_path:
+                    target = t
+                    break
+                elif t.storage_type == "NFS" and t.nfs_path and source_ova_path.replace("\\", "/").startswith(t.nfs_path.replace("\\", "/")):
+                    target = t
+                    break
+                elif t.storage_type == "SMB" and t.smb_unc_path and source_ova_path.replace("\\", "/").startswith(t.smb_unc_path.replace("\\", "/")):
+                    target = t
+                    break
+            
+            if not target:
+                target = fresh_db.query(StorageTarget).filter(StorageTarget.is_default == True).first()
+            if not target:
+                target = fresh_db.query(StorageTarget).first()
+                
+            if not target:
+                raise ValueError("No storage target configured.")
+                
+            storage_type = target.storage_type
             log_info(f"[RESTORE] Storage type is {storage_type}. Initializing provider...")
-            storage = get_storage(fresh_config)
+            
+            if storage_type == "SMB":
+                authenticate_smb(target)
+                
+            storage = get_storage(target)
         
         log_info(f"[RESTORE] Updating job status (Resolving paths)...")
         update_job(2, action="Resolving source paths...")
         
         log_info(f"[RESTORE] Normalizing source path: {source_ova_path}")
-        s_path = source_ova_path.replace("\\", "/")
-        b_path = storage.get_base_path().replace("\\", "/")
-        
-        log_info(f"[RESTORE] Base path: {b_path}")
-        if s_path.startswith(b_path):
-            rel_file_path = s_path[len(b_path):].strip("/\\")
-            source_rel_dir = os.path.dirname(rel_file_path)
+        # Check if source_ova_path is a file or a directory
+        is_file_path = any(source_ova_path.lower().endswith(ext) for ext in ['.ova', '.ovf', '.vmx'])
+        if is_file_path:
+            ova_dir = os.path.dirname(source_ova_path).replace("\\", "/").strip("/")
         else:
-            source_rel_dir = os.path.dirname(source_ova_path).strip("/\\")
-
+            ova_dir = source_ova_path.replace("\\", "/").strip("/")
+            
+        # Get base storage path
+        base_path = storage.get_base_path().replace("\\", "/").strip("/")
+        log_info(f"[RESTORE] Base path: {base_path}")
+        
+        if ova_dir.startswith(base_path):
+            source_rel_dir = ova_dir[len(base_path):].strip("/")
+        else:
+            source_rel_dir = ova_dir
+            
         source_rel_dir = source_rel_dir.replace("\\", "/").strip("/")
 
         def is_cancelled():

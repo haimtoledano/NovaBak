@@ -4,8 +4,29 @@ import time
 import hashlib
 from models import SessionLocal, VM, Config, init_db
 import worker
-from logger_util import log_info, log_error, log_critical
+from logger_util import log_info, log_warn, log_error, log_critical
 from config_env import DATA_DIR
+
+# Mock winreg if it fails to import (e.g. Session 0 DLL load failure)
+try:
+    import winreg
+except Exception as e:
+    import types
+    log_warn(f"Failed to import winreg ({e}). Applying MockWinReg fallback.")
+    mock_winreg = types.ModuleType("winreg")
+    mock_winreg.HKEY_LOCAL_MACHINE = 0x80000002
+    mock_winreg.HKEY_CURRENT_USER = 0x80000001
+    
+    def OpenKey(*args, **kwargs):
+        raise OSError("winreg is mocked: registry not accessible in this context.")
+    def ConnectRegistry(*args, **kwargs):
+        raise OSError("winreg is mocked: registry not accessible in this context.")
+        
+    mock_winreg.OpenKey = OpenKey
+    mock_winreg.ConnectRegistry = ConnectRegistry
+    sys.modules["winreg"] = mock_winreg
+    sys.modules["_winreg"] = mock_winreg
+
 
 HEARTBEAT_FILE = os.path.join(DATA_DIR, "worker.heartbeat")
 

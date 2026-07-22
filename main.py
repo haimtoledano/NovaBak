@@ -19,6 +19,26 @@ import time
 from logger_util import log_info, log_warn, log_error, log_critical
 from services import backup_ops
 
+# Mock winreg if it fails to import (e.g. Session 0 DLL load failure)
+try:
+    import winreg
+except Exception as e:
+    import types
+    log_warn(f"Failed to import winreg ({e}). Applying MockWinReg fallback.")
+    mock_winreg = types.ModuleType("winreg")
+    mock_winreg.HKEY_LOCAL_MACHINE = 0x80000002
+    mock_winreg.HKEY_CURRENT_USER = 0x80000001
+    
+    def OpenKey(*args, **kwargs):
+        raise OSError("winreg is mocked: registry not accessible in this context.")
+    def ConnectRegistry(*args, **kwargs):
+        raise OSError("winreg is mocked: registry not accessible in this context.")
+        
+    mock_winreg.OpenKey = OpenKey
+    mock_winreg.ConnectRegistry = ConnectRegistry
+    sys.modules["winreg"] = mock_winreg
+    sys.modules["_winreg"] = mock_winreg
+
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from limiter import limiter
@@ -608,7 +628,7 @@ def test_storage(request: Request, db: Session = Depends(get_db)):
 def test_smb(request: Request, db: Session = Depends(get_db)):
     require_auth(request)
     config = db.query(Config).first()
-    if not config or not config.smb_unc_path:
+    if not config or not getattr(config, 'smb_unc_path', ''):
         return {"status": "error", "message": "No SMB path configured. Please save settings first."}
     
     success, msg = worker.authenticate_smb(config)
@@ -792,8 +812,20 @@ async def restore(
     if not config or not target_host:
         return RedirectResponse(url="/", status_code=303)
         
-    # Run the restore asynchronously
-    worker.authenticate_smb(config)
+    # Find matching StorageTarget for SMB authentication
+    targets = db.query(StorageTarget).all()
+    target = None
+    for t in targets:
+        if t.storage_type == "SMB" and t.smb_unc_path and source_ova.replace("\\", "/").startswith(t.smb_unc_path.replace("\\", "/")):
+            target = t
+            break
+    if not target:
+        target = db.query(StorageTarget).filter(StorageTarget.is_default == True).first()
+    if not target:
+        target = db.query(StorageTarget).first()
+        
+    if target and target.storage_type == "SMB":
+        worker.authenticate_smb(target)
     # Create Restore Job Entry
     restore_job = RestoreJob(
         target_name=target_name,
